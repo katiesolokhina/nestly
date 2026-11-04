@@ -1,0 +1,7 @@
+<% if (flash) { %><p class="notice" role="status"><%= flash %></p><% } %>
+<% if (undoEntry) { %>
+  <div class="undo-bar" role="status">
+    <span><%= undoEntry.text %></span>
+    <form method="post" action="/activity/<%= undoEntry._id %>/undo"><input type="hidden" name="back" value="<%= path %>"><button class="link-btn undo-btn" type="submit">Undo</button></form>
+  </div>
+<% } %>

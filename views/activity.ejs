@@ -1,0 +1,21 @@
+<%- include('partials/top', { title: 'Activity', scripts: ['auto-submit'] }) %>
+<main class="stack">
+  <div><h1>Activity</h1><p class="sub">Every change, who made it, and when.</p></div>
+  <form method="get" action="/activity" class="field" data-auto-submit>
+    <label for="section">Section</label>
+    <div class="btn-row">
+      <select id="section" name="section">
+        <option value="">All sections</option>
+        <% sections.forEach((s) => { %><option value="<%= s %>"<%= s === section ? ' selected' : '' %>><%= s %></option><% }) %>
+      </select>
+      <button class="btn btn-ghost" type="submit">Filter</button>
+    </div>
+  </form>
+  <div class="card">
+    <% if (!entries.length) { %><p class="muted small center">No activity here yet.</p><% } %>
+    <% entries.forEach((e) => { %>
+      <div class="row"><span class="avatar" aria-hidden="true"><%= e.actorName.charAt(0).toUpperCase() %></span><div class="row-body"><span class="row-title"><%= e.text %></span><span class="row-meta"><%= e.when %> · <%= e.section %></span></div><% if (e.restorable) { %><form method="post" action="/activity/<%= e._id %>/undo"><input type="hidden" name="back" value="/activity"><button class="link-btn" type="submit">Restore<span class="sr-only"> <%= e.undo.label %></span></button></form><% } %></div>
+    <% }) %>
+  </div>
+</main>
+<%- include('partials/bottom') %>

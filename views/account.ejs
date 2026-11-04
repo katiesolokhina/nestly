@@ -1,0 +1,23 @@
+<%- include('partials/top', { title: 'Account' }) %>
+<main class="stack">
+  <div class="head"><h1>Account</h1><a class="link-btn" href="/settings">Back</a></div>
+  <p class="row-meta">Signed in as <%= user.email %></p>
+  <form class="card" method="post" action="/settings/password" novalidate>
+    <h2>Change password</h2>
+    <% if (errors.form) { %><p class="alert" role="alert"><%= errors.form %></p><% } %>
+    <div class="field"><label for="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required>
+      <% if (errors.currentPassword) { %><span class="field-error"><%= errors.currentPassword %></span><% } %></div>
+    <div class="field"><label for="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+      <% if (errors.newPassword) { %><span class="field-error"><%= errors.newPassword %></span><% } else { %><span class="hint">At least 8 characters. Changing it signs out your other devices.</span><% } %></div>
+    <div class="field"><label for="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required>
+      <% if (errors.confirmPassword) { %><span class="field-error"><%= errors.confirmPassword %></span><% } %></div>
+    <button class="btn btn-primary btn-block" type="submit">Change password</button>
+    <p class="row-meta"><%= user.role === 'admin' ? 'Forgot it? Another admin can create a reset link for you.' : 'Forgot it? Ask your household admin for a reset link.' %></p>
+  </form>
+  <div class="card">
+    <h2>Signed-in devices</h2>
+    <form method="post" action="/logout"><button class="btn btn-ghost btn-block" type="submit">Sign out</button></form>
+    <form method="post" action="/settings/signout-all"><button class="btn btn-ghost btn-block" type="submit">Sign out of all devices</button></form>
+  </div>
+</main>
+<%- include('partials/bottom') %>

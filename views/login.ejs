@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <%- include('partials/head') %>
+  <title>Sign in · Nestly</title>
+</head>
+<body>
+  <main class="auth">
+    <%- include('partials/auth-brand') %>
+    <form class="card" method="post" action="/login" novalidate>
+      <h2 class="auth-heading">Sign in</h2>
+      <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required value="<%= email %>" <%= email ? '' : 'autofocus' %>>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required <%= email ? 'autofocus' : '' %>>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+    </form>
+    <p class="muted small center">Private, invite-only account. If you forgot your password, ask your household admin for a reset link.</p>
+  </main>
+</body>
+</html>

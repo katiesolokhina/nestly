@@ -1,0 +1,34 @@
+<%- include('partials/top', { title: 'Today' }) %>
+<main class="stack">
+  <div class="head">
+    <div><p class="muted small"><%= date %></p><h1><%= greeting %></h1><p class="sub"><%= summary %></p></div>
+    <a class="btn btn-ghost" href="/customize">Customize</a>
+  </div>
+  <div class="dash">
+    <% widgets.forEach((w) => { %>
+      <% if (w.kind === 'Tile') { const t = tiles[w.k]; %>
+        <a class="tile" href="<%= t.href %>"><span class="tile-num"><%= t.num %></span><span class="tile-label"><%= t.label %></span></a>
+      <% } else if (w.k === 'attention') { %>
+        <section class="card full">
+          <h2>Needs attention today</h2>
+          <% if (!attention.length) { %><p class="muted small center">You're all caught up for today.</p><% } %>
+          <% attention.forEach((a) => { %>
+            <div class="row">
+              <% if (a.checkAction) { %><form method="post" action="<%= a.checkAction %>"><input type="hidden" name="from" value="today"><button class="check" type="submit" aria-label="<%= a.checkLabel %>"><i></i></button></form><% } %>
+              <a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta<%= a.late ? ' late' : '' %>"><%= a.meta %></span></a>
+              <span class="tag"><%= a.type %></span>
+            </div>
+          <% }) %>
+        </section>
+      <% } else if (w.k === 'upcoming') { %>
+        <section class="card full">
+          <h2>Coming up</h2>
+          <% if (!upcoming.length) { %><p class="muted small center">Nothing in the next two weeks.</p><% } %>
+          <% upcoming.forEach((u) => { %><div class="row"><div class="row-body"><span class="row-title"><%= u.title %></span><span class="row-meta"><%= u.meta %></span></div><span class="tag<%= u.lilac ? ' lilac' : '' %>"><%= u.tag %></span></div><% }) %>
+        </section>
+      <% } %>
+    <% }) %>
+  </div>
+  <% if (!widgets.length) { %><p class="muted small center">Your dashboard is empty. Use Customize to add cards and tiles.</p><% } %>
+</main>
+<%- include('partials/bottom') %>

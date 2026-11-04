@@ -1,0 +1,19 @@
+<%- include('../partials/top', { title: 'Remember' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Things to remember</h1><p class="sub">Tap one to edit it or add details.</p></div><a class="btn btn-primary" href="/s/remember/new">Add</a></div>
+  <div class="chips" role="group" aria-label="Filter by category">
+    <a class="chip<%= !category ? ' on' : '' %>" href="/s/remember">All</a>
+    <% household.remCats.forEach((c) => { %><a class="chip<%= category === c ? ' on' : '' %>" href="/s/remember?category=<%= encodeURIComponent(c) %>"><%= c %></a><% }) %>
+  </div>
+  <div class="card">
+    <% if (!items.length) { %><p class="muted small center">Nothing to remember right now.</p><% } %>
+    <% items.forEach((r) => { %>
+      <div class="row">
+        <form method="post" action="/s/remember/<%= r._id %>/done"><button class="check" type="submit" aria-label="Check off <%= r.text %>"><i></i></button></form>
+        <a class="row-body row-link" href="/s/remember/<%= r._id %>/edit"><span class="row-title"><%= r.text %></span><span class="row-meta<%= r.late ? ' late' : '' %>"><%= r.meta %></span></a>
+        <% if (r.private) { %><span class="tag lilac">Only me</span><% } %>
+      </div>
+    <% }) %>
+  </div>
+</main>
+<%- include('../partials/bottom') %>

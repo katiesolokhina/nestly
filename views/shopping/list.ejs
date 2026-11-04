@@ -1,0 +1,56 @@
+<%- include('../partials/top', { title: 'Shopping', scripts: ['auto-submit'] }) %>
+<main class="stack">
+  <% if (shopping) { %>
+    <div class="notice shop-bar"><span><strong>Shopping<%= store ? ' at ' + store : '' %>.</strong> <%= count %> <%= count === 1 ? 'item' : 'items' %> left.</span><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Finish</a></div>
+  <% } else { %>
+    <div class="head"><div><h1>Shopping</h1><p class="sub"><%= count %> <%= count === 1 ? 'item' : 'items' %> · About <%= total %></p></div><a class="btn btn-ghost" href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Start shopping</a></div>
+    <form class="stack" method="get" action="/s/shopping" data-auto-submit>
+      <div class="fields">
+        <div class="field"><label for="method">Buying</label><select id="method" name="method"><% ['All', 'In person', 'Online'].forEach((m) => { %><option value="<%= m === 'All' ? '' : m %>"<%= method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>
+        <div class="field"><label for="store">Store</label><select id="store" name="store"><option value="">All stores</option><% household.stores.forEach((s) => { %><option<%= store === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
+        <div class="field"><label for="tag">Tag</label><select id="tag" name="tag"><option value="">All tags</option><% household.tags.forEach((s) => { %><option<%= tag === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
+      </div>
+      <button class="btn btn-ghost" type="submit">Filter</button>
+    </form>
+    <form class="add" method="post" action="/s/shopping/quick">
+      <input type="hidden" name="query" value="<%= query %>">
+      <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add an item" placeholder="Add an item" autocomplete="off">
+      <button class="btn btn-primary" type="submit">Add</button>
+      <a class="btn btn-ghost" href="/s/shopping/new">Details</a>
+    </form>
+    <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+    <% if (staples.length) { %>
+      <div><p class="aisle">Staples: tap to add</p><div class="staples"><% staples.forEach((s) => { %><form method="post" action="/s/shopping/quick"><input type="hidden" name="name" value="<%= s.name %>"><input type="hidden" name="query" value="<%= query %>"><button class="staple" type="submit">+ <%= s.name %></button></form><% }) %></div></div>
+    <% } %>
+  <% } %>
+  <div class="card">
+    <% if (!groups.length) { %><p class="muted small center">Nothing here right now.</p><% } %>
+    <% groups.forEach((g) => { %>
+      <div>
+        <p class="aisle"><%= g.name %></p>
+        <% g.items.forEach((i) => { %>
+          <div class="row<%= shopping ? ' big' : '' %>">
+            <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %><%= shopping ? (query ? '&' : '') + 'mode=shop' : '' %>"><button class="check" type="submit" aria-label="Mark <%= i.name %> bought"><i></i></button></form>
+            <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
+            <% if (i.private) { %><span class="tag lilac">Only me</span><% } %>
+            <% if (i.method === 'Online' && i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Buy<span class="sr-only"> <%= i.name %></span></a><% } %>
+            <span class="tag"><%= i.qty %></span>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+  <% if (bought.length) { %>
+    <div class="card">
+      <div class="row-h"><h2>Bought</h2><form method="post" action="/s/shopping/clear"><input type="hidden" name="query" value="<%= query %>"><button class="link-btn" type="submit">Clear</button></form></div>
+      <% bought.forEach((i) => { %>
+        <div class="row done">
+          <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit" aria-label="Move <%= i.name %> back to the list"><i>✓</i></button></form>
+          <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
+          <% if (i.receiptId) { %><a class="link-btn" href="/files/<%= i.receiptId %>" target="_blank" rel="noopener">View receipt<span class="sr-only"> for <%= i.name %></span></a><% } else { %><a class="link-btn" href="/s/shopping/<%= i._id %>/edit#receipt">Add receipt<span class="sr-only"> for <%= i.name %></span></a><% } %>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>

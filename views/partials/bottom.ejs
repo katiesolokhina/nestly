@@ -1,0 +1,7 @@
+</div>
+<nav class="bottom-nav" aria-label="Main"><div class="bottom-nav-in">
+  <% nav(active).forEach((n) => { %><a class="nav-link<%= n.on ? ' on' : '' %>" href="<%= n.href %>"<%- n.on ? ' aria-current="page"' : '' %>><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="<%= n.icon %>"></path></svg><%= n.label %></a>
+  <% }) %>
+</div></nav>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<%- include('../partials/top', { title: item._id ? 'Edit event' : 'Add event' }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit event' : 'Add event' %></h1><a class="link-btn" href="/s/calendar?day=<%= item.date %>">Cancel</a></div>
+  <form class="card" method="post" action="/s/calendar<%= item._id ? '/' + item._id : '' %>" novalidate>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="title">Event</label><input id="title" name="title" type="text" maxlength="120" required value="<%= item.title %>"></div>
+    <div class="fields">
+      <div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required value="<%= item.date %>"></div>
+      <div class="field"><label for="time">Time</label><input id="time" name="time" type="time" value="<%= item.time %>"></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="repeat">Repeats</label><select id="repeat" name="repeat"><option value="none"<%= item.repeat === 'none' ? ' selected' : '' %>>Does not repeat</option><option value="yearly"<%= item.repeat === 'yearly' ? ' selected' : '' %>>Every year</option></select></div>
+      <div class="field"><label for="category">Category</label><select id="category" name="category"><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option></select></div>
+    </div>
+    <div class="field"><label for="details">Details</label><textarea id="details" name="details" maxlength="1000" rows="3"><%= item.details %></textarea></div>
+    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <% if (item._id) { %><form method="post" action="/s/calendar/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.title %></span></button></form><% } %>
+</main>
+<%- include('../partials/bottom') %>

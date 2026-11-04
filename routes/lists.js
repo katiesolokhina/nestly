@@ -1,0 +1,61 @@
+// Stores, aisles, tags, and categories. Anyone in the household can change them, and every change is logged.
+const express = require('express');
+const { requireAuth } = require('../middleware/auth');
+const { LISTS } = require('../lib/lists');
+const { logActivity } = require('../lib/activity');
+
+const router = express.Router();
+router.use('/settings/lists', requireAuth);
+const SECTION = 'Settings';
+
+const available = (household) => Object.keys(LISTS).filter((k) => household.features[LISTS[k].feature] !== false);
+const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
+
+router.get('/settings/lists', (req, res) => {
+  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), error: null });
+});
+
+router.post('/settings/lists/:key', async (req, res, next) => {
+  try {
+    const { household, user } = req;
+    const { key } = req.params;
+    if (!available(household).includes(key)) return res.status(404).send('Not found');
+    const list = [...household[key]];
+    const cfg = LISTS[key];
+    const label = cfg.title.toLowerCase();
+    const { action, value } = req.body;
+    const name = String(req.body.name || '').trim().slice(0, 40);
+    const i = list.indexOf(value);
+    const fail = (msg) => { req.session.flash = msg; res.redirect(`/settings/lists#${key}`); };
+
+    if (action === 'add') {
+      if (!name) return fail('Enter a name.');
+      if (list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
+      list.push(name);
+      await logActivity(user, { section: SECTION, text: `${user.name} added ${name} to ${label}` });
+    } else if (i < 0) {
+      return fail('That is no longer in the list.');
+    } else if (action === 'rename') {
+      if (!name) return fail('Enter a name.');
+      if (name !== value && list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
+      list[i] = name;
+      await swap(household, key, value, name);
+      await logActivity(user, { section: SECTION, text: `${user.name} renamed ${value} to ${name}` });
+    } else if (action === 'remove') {
+      if (list.length === 1) return fail('Keep at least one.');
+      list.splice(i, 1);
+      await swap(household, key, value, cfg.fallback);
+      await logActivity(user, { section: SECTION, text: `${user.name} removed ${value} from ${label}` });
+    } else if (action === 'up' || action === 'down') {
+      const j = action === 'up' ? i - 1 : i + 1;
+      if (j >= 0 && j < list.length) [list[i], list[j]] = [list[j], list[i]];
+    }
+    household[key] = list;
+    await household.save();
+    res.redirect(`/settings/lists#${key}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;

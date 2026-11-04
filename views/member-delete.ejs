@@ -1,0 +1,12 @@
+<%- include('partials/top', { title: 'Delete account' }) %>
+<main class="stack">
+  <div class="head"><h1>Delete <%= target.name %>'s account?</h1><a class="link-btn" href="/settings/household/members/<%= target._id %>">Cancel</a></div>
+  <form class="card" method="post" action="/settings/household/members/<%= target._id %>/delete" novalidate>
+    <p>This permanently deletes <strong><%= target.email %></strong> and their private items. Shared items stay with the household. It can't be undone.</p>
+    <p class="hint">To keep the account, use <strong>Turn off sign-in</strong> instead.</p>
+    <div class="field"><label for="confirmEmail">Type <strong><%= target.email %></strong> to confirm</label><input id="confirmEmail" name="confirmEmail" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+      <% if (error) { %><span class="field-error" role="alert"><%= error %></span><% } %></div>
+    <button class="btn btn-danger btn-block" type="submit">Delete account permanently</button>
+  </form>
+</main>
+<%- include('partials/bottom') %>

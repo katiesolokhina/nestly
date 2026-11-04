@@ -1,0 +1,16 @@
+<%- include('partials/top', { title: 'Customize Today' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Customize Today</h1><p class="sub">Choose what appears and its order. This only changes your view.</p></div><a class="link-btn" href="/">Done</a></div>
+  <div class="card">
+    <% rows.forEach((r, i) => { %>
+      <div class="row">
+        <div class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= r.kind %> · <%= r.on ? 'Showing' : 'Hidden' %></span></div>
+        <form method="post" action="/customize"><input type="hidden" name="k" value="<%= r.k %>"><button class="mini" type="submit" name="action" value="up" aria-label="Move <%= r.name %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button></form>
+        <form method="post" action="/customize"><input type="hidden" name="k" value="<%= r.k %>"><button class="mini" type="submit" name="action" value="down" aria-label="Move <%= r.name %> down"<%= i === rows.length - 1 ? ' disabled' : '' %>>↓</button></form>
+        <form method="post" action="/customize"><input type="hidden" name="k" value="<%= r.k %>"><button class="btn btn-ghost" type="submit" name="action" value="toggle" aria-label="<%= r.on ? 'Hide' : 'Show' %> <%= r.name %>"><%= r.on ? 'Hide' : 'Show' %></button></form>
+      </div>
+    <% }) %>
+  </div>
+  <form method="post" action="/customize"><button class="btn btn-ghost btn-block" type="submit" name="action" value="reset">Reset to the default layout</button></form>
+</main>
+<%- include('partials/bottom') %>
