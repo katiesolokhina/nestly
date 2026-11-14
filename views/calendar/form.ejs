@@ -36,9 +36,18 @@
 
     <div class="fields">
       <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
-      <div class="field"><label for="alert">Notify</label><select id="alert" name="alert"><% Object.entries(alertText).forEach(([v, l]) => { %><option value="<%= v %>"<%= String(item.alert || 'default') === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
     </div>
-    <p class="hint">Notifies everyone who can see it. All-day events notify in the morning: on the day, or the day before. “Your default” is each person’s choice in Settings.</p>
+    <div class="field">
+      <label for="alert">Notify</label>
+      <select id="alert" name="alert" data-alert>
+        <% alertChoices.forEach((c) => { %><option value="<%= c.value %>" data-kind="<%= c.kind %>"<%= alertPick.value === c.value && (c.kind === 'both' || (c.kind === 'allday') === (item._id ? !item.time : false)) ? ' selected' : '' %>><%= c.label %></option><% }) %>
+      </select>
+      <span class="hint">Notifies everyone who can see this event. All-day events notify at each person’s morning time.</span>
+    </div>
+    <div class="fields" data-alert-custom>
+      <div class="field"><label for="alertAmount">How long before</label><input id="alertAmount" name="alertAmount" type="number" min="0" max="999" inputmode="numeric" value="<%= alertPick.amount %>"></div>
+      <div class="field"><label for="alertUnit">Unit</label><select id="alertUnit" name="alertUnit"><% ['minutes', 'hours', 'days', 'weeks'].forEach((u) => { %><option<%= alertPick.unit === u ? ' selected' : '' %>><%= u %></option><% }) %></select></div>
+    </div>
     <div class="field"><label for="link">Link <span class="muted">(tickets, RSVP, details)</span></label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
     <div class="field">
       <label for="file">File <span class="muted">(tickets, invitation)</span></label>

@@ -9,7 +9,8 @@ const Reminder = require('../models/Reminder');
 const Event = require('../models/Event');
 const PushSubscription = require('../models/PushSubscription');
 const NotifyLog = require('../models/NotifyLog');
-const { tick, localNow, isDue, reminderAt, leadFor, eventAlerts } = require('../lib/notify');
+const { tick, localNow, isDue, reminderAt, eventAlerts } = require('../lib/notify');
+const alerts = require('../lib/alerts');
 
 const PW = 'correct horse';
 const CHICAGO = 'America/Chicago';
@@ -18,7 +19,7 @@ const at = (hhmm, day = '2026-11-14') => new Date(`${day}T${hhmm}:00-06:00`);
 
 test('notify timing', () => {
   assert.deepEqual(localNow(CHICAGO, at('09:05')), { today: '2026-11-14', min: 545 });
-  const user = { notify: { morning: '08:00', eventTimed: '60', eventAllDay: '0' } };
+  const user = { notify: { morning: '08:00' } };
 
   // A reminder with no time uses the morning time; with a time, its own.
   assert.deepEqual(reminderAt({ date: '2026-11-14', time: '' }, user), { date: '2026-11-14', min: 480 });
@@ -33,12 +34,24 @@ test('notify timing', () => {
   // Just after midnight still catches an 11:45 PM alert from yesterday.
   assert.ok(isDue({ date: '2026-11-13', min: 23 * 60 + 45 }, { today: '2026-11-14', min: 10 }));
 
-  // Lead times: the event's own choice wins; "default" uses the person's setting.
-  assert.equal(leadFor({ time: '10:00', alert: 'default' }, user), 60);
-  assert.equal(leadFor({ time: '10:00', alert: '15' }, user), 15);
-  assert.equal(leadFor({ time: '10:00', alert: 'none' }, user), null);
-  assert.equal(leadFor({ time: '', alert: '60' }, user), 0); // all day: morning of
-  assert.equal(leadFor({ time: '', alert: '1440' }, user), 1440);
+  // Lead times come from the event alone. Old events saved as 'default' get 1 hour / morning of.
+  assert.equal(alerts.lead({ time: '10:00', alert: 'default' }), 60);
+  assert.equal(alerts.lead({ time: '', alert: 'default' }), 0);
+  assert.equal(alerts.lead({ time: '10:00', alert: '120' }), 120);
+  assert.equal(alerts.lead({ time: '10:00', alert: 'none' }), null);
+  assert.equal(alerts.lead({ time: '', alert: '60' }), 0); // all day: whole days only
+  assert.equal(alerts.lead({ time: '', alert: '2880' }), 2880);
+  assert.equal(alerts.alertText({ time: '10:00', alert: '120' }), '2 hours before');
+  assert.equal(alerts.alertText({ time: '10:00', alert: '90' }), '1 hour 30 minutes before');
+  assert.equal(alerts.alertText({ time: '10:00', alert: '0' }), 'At start time');
+  assert.equal(alerts.alertText({ time: '', alert: '2880' }), 'Morning, 2 days before');
+  assert.equal(alerts.alertText({ time: '', alert: '10080' }), 'Morning, 1 week before');
+  assert.deepEqual(alerts.picked({ time: '10:00', alert: '90' }), { value: 'custom', amount: '90', unit: 'minutes' });
+  assert.deepEqual(alerts.picked({ time: '10:00', alert: '240' }), { value: 'custom', amount: '4', unit: 'hours' });
+  assert.deepEqual(alerts.readAlert({ alert: 'custom', alertAmount: '4', alertUnit: 'hours' }, false), { alert: '240' });
+  assert.deepEqual(alerts.readAlert({ alert: 'custom', alertAmount: '3', alertUnit: 'days' }, true), { alert: '4320' });
+  assert.ok(alerts.readAlert({ alert: 'custom', alertAmount: 'x', alertUnit: 'hours' }, false).error);
+  assert.ok(alerts.readAlert({ alert: 'custom', alertAmount: '9', alertUnit: 'weeks' }, false).error);
 
   // A 9:30 AM event with a 1-day lead alerts at 9:30 the day before.
   const e = { date: '2026-11-15', time: '09:30', alert: '1440', repeat: 'none' };
@@ -49,6 +62,10 @@ test('notify timing', () => {
   // All day, day before: the morning before.
   const allDay = { date: '2026-11-15', time: '', alert: '1440', repeat: 'none' };
   assert.deepEqual(eventAlerts(allDay, user, '2026-11-14')[0].at, { date: '2026-11-14', min: 480 });
+  // Two hours ahead, and a week ahead for an all-day event.
+  assert.deepEqual(eventAlerts({ date: '2026-11-14', time: '13:00', alert: '120', repeat: 'none' }, user, '2026-11-14')[0].at, { date: '2026-11-14', min: 660 });
+  const trip = { date: '2026-11-21', time: '', alert: '10080', repeat: 'none' };
+  assert.deepEqual(eventAlerts(trip, user, '2026-11-14').map((a) => a.at), [{ date: '2026-11-14', min: 480 }]);
   // A weekly event alerts for this week's occurrence.
   const weekly = { date: '2026-11-07', time: '10:00', alert: '60', repeat: 'weekly', days: [6], interval: 1 };
   assert.deepEqual(eventAlerts(weekly, user, '2026-11-14').map((a) => a.start), ['2026-11-14']);
@@ -58,7 +75,7 @@ test('notify tick', async (t) => {
   const db = await startDatabase('nestly_test_notify_tick');
   await mongoose.connect(db.uri);
   await mongoose.connection.db.dropDatabase();
-  await NotifyLog.init();
+  await NotifyLog.createIndexes(); // rebuilt after the drop, so "send once" is enforced
   await PushSubscription.init();
   t.after(async () => { await mongoose.disconnect(); await db.stop(); });
 
@@ -156,14 +173,12 @@ test('notify routes', async (t) => {
   assert.equal(bad.status, 400);
 
   // Notification settings save.
-  const saved = await katie('/settings/notifications', { method: 'POST', form: { morning: '07:15', reminders: 'on', events: 'on', eventTimed: '15', eventAllDay: '1440' } });
+  const saved = await katie('/settings/notifications', { method: 'POST', form: { morning: '07:15', reminders: 'on', events: 'on' } });
   assert.equal(saved.status, 302);
   await withDb(app.uri, async () => {
     const u = await User.findById(app.seeded.katieId).lean();
     assert.equal(u.notify.morning, '07:15');
     assert.equal(u.notify.shopping, false);
-    assert.equal(u.notify.eventTimed, '15');
-    assert.equal(u.notify.eventAllDay, '1440');
   });
 
   // A reminder with a time and chosen people.
@@ -190,12 +205,12 @@ test('notify routes', async (t) => {
   // Events keep their Notify choice and show it.
   const ev = await fetch(`${app.base}/s/calendar`, {
     method: 'POST', redirect: 'manual', headers: { cookie: kc, origin: app.base },
-    body: (() => { const f = new FormData(); Object.entries({ title: 'Dentist', date: '2026-11-20', time: '10:00', alert: '15', repeat: 'none', category: 'Uncategorized' }).forEach(([k, v]) => f.append(k, v)); return f; })(),
+    body: (() => { const f = new FormData(); Object.entries({ title: 'Dentist', date: '2026-11-20', time: '10:00', alert: 'custom', alertAmount: '2', alertUnit: 'hours', repeat: 'none', category: 'Uncategorized' }).forEach(([k, v]) => f.append(k, v)); return f; })(),
   });
   assert.equal(ev.status, 302);
-  await withDb(app.uri, async () => assert.equal((await Event.findOne({ title: 'Dentist' }).lean()).alert, '15'));
+  await withDb(app.uri, async () => assert.equal((await Event.findOne({ title: 'Dentist' }).lean()).alert, '120'));
   const id = await withDb(app.uri, async () => String((await Event.findOne({ title: 'Dentist' }).lean())._id));
-  assert.match((await katie(`/s/calendar/${id}`)).text, /Notify: 15 minutes before/);
+  assert.match((await katie(`/s/calendar/${id}`)).text, /Notify: 2 hours before/);
 
   // Start shopping opens shopping mode and logs the trip once per half hour.
   const start = await katie('/s/shopping/start', { method: 'POST', form: { query: 'store=Costco', store: 'Costco' } });
@@ -224,6 +239,8 @@ test('reminder page and snooze', async (t) => {
   t.after(() => app.stop());
   const katie = client(app.base);
   await katie('/login', { method: 'POST', form: { email: 'katie@test.dev', password: PW } });
+  const raw = await fetch(`${app.base}/login`, { method: 'POST', redirect: 'manual', headers: { origin: app.base, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: 'katie@test.dev', password: PW }) });
+  const kc = raw.headers.get('set-cookie').split(';')[0];
   const id = app.seeded.reminderId;
 
   const page = await katie(`/s/remember/${id}`);
@@ -259,6 +276,17 @@ test('reminder page and snooze', async (t) => {
     assert.ok(r.snoozes[0].until - Date.now() > 60 * 60000);
   });
 
+  // The notification buttons: snooze 30 minutes, then done, as JSON.
+  const api = (action) => fetch(`${app.base}/api/remember/${id}/${action}`, { method: 'POST', redirect: 'manual', headers: { cookie: kc, origin: app.base, 'content-type': 'application/json' }, body: '{}' });
+  assert.equal((await api('nope')).status, 404);
+  assert.equal((await api('snooze')).status, 200);
+  await withDb(app.uri, async () => {
+    const mins = ((await Reminder.findById(id).lean()).snoozes[0].until - Date.now()) / 60000;
+    assert.ok(mins > 29 && mins <= 30);
+  });
+  // Signed out, the button gets sent to sign in, so the app opens the page instead.
+  assert.equal((await fetch(`${app.base}/api/remember/${id}/done`, { method: 'POST', redirect: 'manual', headers: { origin: app.base } })).status, 302);
+
   // Done from the reminder page.
   const done = await katie(`/s/remember/${id}/done`, { method: 'POST', form: { from: 'view' } });
   assert.equal(done.location, '/s/remember');
@@ -268,7 +296,7 @@ test('snoozed reminders notify the snoozer again', async (t) => {
   const db = await startDatabase('nestly_test_snooze_tick');
   await mongoose.connect(db.uri);
   await mongoose.connection.db.dropDatabase();
-  await NotifyLog.init();
+  await NotifyLog.createIndexes(); // rebuilt after the drop, so "send once" is enforced
   t.after(async () => { await mongoose.disconnect(); await db.stop(); });
   const home = await Household.create({ name: 'Home' });
   const hash = await User.hashPassword(PW);

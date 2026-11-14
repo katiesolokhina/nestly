@@ -19,6 +19,32 @@ document.querySelectorAll('form[data-event-form]').forEach((form) => {
     end.min = start.value;
     lastStart = start.value;
   });
-  form.addEventListener('change', update);
+  // Notify: list only the choices that fit a timed or all-day event. Options are rebuilt rather
+  // than hidden, because iPhone ignores hidden options. Custom shows its own fields.
+  const alert = form.querySelector('[data-alert]');
+  const custom = form.querySelector('[data-alert-custom]');
+  const all = alert ? [...alert.options].map((o) => o.cloneNode(true)) : [];
+  let kind = null;
+  const updateAlert = () => {
+    if (!alert) return;
+    const next = allDay.checked ? 'allday' : 'timed';
+    if (next !== kind) {
+      const keep = alert.value;
+      const fits = all.filter((o) => o.dataset.kind === 'both' || o.dataset.kind === next);
+      alert.replaceChildren(...fits.map((o) => o.cloneNode(true)));
+      const fallback = next === 'allday' ? '0' : '60';
+      // Switching between timed and all day: keep None or Custom, otherwise start from the usual choice.
+      alert.value = keep === 'none' || keep === 'custom' ? keep : fallback;
+      // On first load, keep the option the server picked for this kind.
+      if (kind === null) {
+        const chosen = fits.find((o) => o.defaultSelected);
+        if (chosen) alert.value = chosen.value;
+      }
+      kind = next;
+    }
+    if (custom) custom.hidden = alert.value !== 'custom';
+  };
+  form.addEventListener('change', () => { update(); updateAlert(); });
   update();
+  updateAlert();
 });

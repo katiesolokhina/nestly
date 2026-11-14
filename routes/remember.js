@@ -131,24 +131,52 @@ router.get('/s/remember/:id', async (req, res, next) => {
 });
 
 // Snooze is personal: it notifies only the person who tapped it, and isn't a change to the reminder.
+async function snooze(req, item, minutesValue) {
+  const tz = req.user.timezone;
+  let until;
+  if (minutesValue === 'morning') {
+    const [h, m] = ((req.user.notify && req.user.notify.morning) || '08:00').split(':').map(Number);
+    until = zonedDate(addDays(todayIn(tz), 1), h * 60 + m, tz);
+  } else {
+    const minutes = parseInt(minutesValue, 10);
+    if (!(minutes >= 1 && minutes <= 1440)) return false;
+    until = new Date(Date.now() + minutes * 60000);
+  }
+  const keep = (item.snoozes || []).filter((s) => String(s.userId) !== req.user.id && s.until > new Date(Date.now() - 86400000));
+  // No timestamp change, so snoozing never blocks someone's undo.
+  await Reminder.updateOne({ _id: item._id }, { $set: { snoozes: [...keep, { userId: req.user._id, until }] } }, { timestamps: false });
+  return true;
+}
+
+async function markDone(req, item) {
+  if (item.done) return;
+  const before = item.toObject();
+  item.done = true;
+  await item.save();
+  await recordChange(req, { kind: 'update', model: 'Reminder', doc: item, before, section: SECTION, text: `checked off ${item.text}`, label: item.text });
+}
+
 router.post('/s/remember/:id/snooze', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    const tz = req.user.timezone;
-    let until;
-    if (req.body.minutes === 'morning') {
-      const [h, m] = ((req.user.notify && req.user.notify.morning) || '08:00').split(':').map(Number);
-      until = zonedDate(addDays(todayIn(tz), 1), h * 60 + m, tz);
-    } else {
-      const minutes = parseInt(req.body.minutes, 10);
-      if (!(minutes >= 1 && minutes <= 1440)) return res.redirect(`/s/remember/${item._id}`);
-      until = new Date(Date.now() + minutes * 60000);
-    }
-    const keep = (item.snoozes || []).filter((s) => String(s.userId) !== req.user.id && s.until > new Date(Date.now() - 86400000));
-    // No timestamp change, so snoozing never blocks someone's undo.
-    await Reminder.updateOne({ _id: item._id }, { $set: { snoozes: [...keep, { userId: req.user._id, until }] } }, { timestamps: false });
+    await snooze(req, item, req.body.minutes);
     res.redirect(`/s/remember/${item._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The Done and Snooze buttons on a notification (Android) call these without opening the app.
+router.use('/api/remember', requireAuth, requireSection('remember'));
+router.post('/api/remember/:id/:action', async (req, res, next) => {
+  try {
+    const item = await find(req);
+    if (!item) return res.status(404).json({ error: 'Not found' });
+    if (req.params.action === 'done') await markDone(req, item);
+    else if (req.params.action === 'snooze') await snooze(req, item, '30');
+    else return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -176,10 +204,7 @@ router.post('/s/remember/:id/done', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    const before = item.toObject();
-    item.done = true;
-    await item.save();
-    await recordChange(req, { kind: 'update', model: 'Reminder', doc: item, before, section: SECTION, text: `checked off ${item.text}`, label: item.text });
+    await markDone(req, item);
     res.redirect(req.body.from === 'today' ? '/' : '/s/remember');
   } catch (err) {
     next(err);

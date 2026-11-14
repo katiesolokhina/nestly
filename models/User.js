@@ -25,8 +25,6 @@ const userSchema = new mongoose.Schema(
       reminders: { type: Boolean, default: true },
       events: { type: Boolean, default: true },
       shopping: { type: Boolean, default: true }, // "Katie is shopping at Costco"
-      eventTimed: { type: String, enum: ['none', '0', '15', '60', '1440'], default: '60' },
-      eventAllDay: { type: String, enum: ['none', '0', '1440'], default: '0' },
     },
     lastTripAlertAt: { type: Date, default: null },
   },

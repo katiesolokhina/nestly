@@ -47,7 +47,7 @@ Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `
 
 Reminders, events, and "someone's shopping" alerts use web push, the same as Questly. Generate a new key pair for Nestly with `npx web-push generate-vapid-keys` and put it in `.env` as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (a `mailto:` address). Without them, notifications stay off and everything else works.
 
-Each person turns notifications on per device in Settings. On iPhone, that only works in the app added to the Home Screen. A check runs every minute; anything missed by more than an hour (say, during a restart) is skipped rather than sent late.
+Each person turns notifications on per device in Settings. Each event sets its own lead time; there is no default in Settings. On iPhone, that only works in the app added to the Home Screen. A check runs every minute; anything missed by more than an hour (say, during a restart) is skipped rather than sent late.
 
 ## Locked out?
 

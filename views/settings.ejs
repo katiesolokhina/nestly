@@ -39,10 +39,7 @@
       <label class="check-row">Events<input type="checkbox" name="events"<%= user.notify.events !== false ? ' checked' : '' %>></label>
       <label class="check-row">When someone starts shopping<input type="checkbox" name="shopping"<%= user.notify.shopping !== false ? ' checked' : '' %>></label>
       <label class="time-row" for="morning">Morning time<input id="morning" name="morning" type="time" required value="<%= user.notify.morning || '08:00' %>"></label>
-      <p class="hint">For reminders without a time and for all-day events.</p>
-      <label class="time-row" for="eventTimed">Events with a time<select id="eventTimed" name="eventTimed"><% [['none', 'Don’t notify'], ['0', 'At start time'], ['15', '15 minutes before'], ['60', '1 hour before'], ['1440', '1 day before']].forEach(([v, l]) => { %><option value="<%= v %>"<%= user.notify.eventTimed === v ? ' selected' : '' %>><%= l %></option><% }) %></select></label>
-      <label class="time-row" for="eventAllDay">All-day events<select id="eventAllDay" name="eventAllDay"><% [['none', 'Don’t notify'], ['0', 'Morning of'], ['1440', 'Morning before']].forEach(([v, l]) => { %><option value="<%= v %>"<%= user.notify.eventAllDay === v ? ' selected' : '' %>><%= l %></option><% }) %></select></label>
-      <p class="hint">Used when an event’s Notify is set to “Your default”.</p>
+      <p class="hint">For reminders without a time and for all-day events. How early each event notifies is set on the event.</p>
       <button class="btn btn-ghost" type="submit">Save notification settings</button>
     </form>
   </section>

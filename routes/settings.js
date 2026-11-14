@@ -70,8 +70,6 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
     n.reminders = b.reminders === 'on';
     n.events = b.events === 'on';
     n.shopping = b.shopping === 'on';
-    if (['none', '0', '15', '60', '1440'].includes(b.eventTimed)) n.eventTimed = b.eventTimed;
-    if (['none', '0', '1440'].includes(b.eventAllDay)) n.eventAllDay = b.eventAllDay;
     await req.user.save();
     res.redirect('/settings?saved=notify#notifications');
   } catch (err) {

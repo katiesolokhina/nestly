@@ -14,9 +14,7 @@ const router = express.Router();
 router.use('/s/calendar', requireAuth, requireSection('calendar'));
 const SECTION = 'Calendar';
 const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
-const ALERTS = ['default', 'none', '0', '15', '60', '1440'];
-const ALERT_TEXT = { default: 'Your default', none: 'No notification', 0: 'At start time', 15: '15 minutes before', 60: '1 hour before', 1440: '1 day before' };
-const ALL_DAY_ALERT_TEXT = { default: 'Your default', none: 'No notification', 0: 'Morning of', 15: 'Morning of', 60: 'Morning of', 1440: 'Morning before' };
+const alerts = require('../lib/alerts');
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isHttp = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 const withFile = parseFiles(['file']);
@@ -49,11 +47,13 @@ function readForm(req) {
     days: repeat === 'weekly' ? (picked.length ? picked : isDate(date) ? [weekday(date)] : []) : [],
     until,
     category: pick(req.household, 'eventCats', b.category),
-    alert: ALERTS.includes(b.alert) ? b.alert : 'default',
     details: String(b.details || '').trim().slice(0, 1000),
     private: b.private === 'on',
   };
+  const chosen = alerts.readAlert(b, !time);
+  values.alert = chosen.alert || '60';
   let error = req.uploadError || null;
+  if (chosen.error) error = chosen.error;
   if (!title) error = 'Enter a name for the event.';
   else if (!isDate(date)) error = 'Choose a date.';
   else if (isDate(b.endDate) && b.endDate < date) error = 'The end date can’t be before the start date.';
@@ -66,7 +66,9 @@ function readForm(req) {
 
 async function formView(req, item, error) {
   const file = item.fileId ? await Upload.findById(item.fileId).lean() : null;
-  return { active: 'calendar', item, error: error || null, file, dayNames: DAY_NAMES, alertText: ALERT_TEXT };
+  // After a failed save, keep what was typed into Custom.
+  const typed = (req.body || {}).alert === 'custom' ? { value: 'custom', amount: String(req.body.alertAmount || ''), unit: String(req.body.alertUnit || 'hours') } : null;
+  return { active: 'calendar', item, error: error || null, file, dayNames: DAY_NAMES, alertChoices: alerts.choices(), alertPick: typed || alerts.picked({ ...item, time: item._id && !item.time ? '' : item.time || '09:00' }) };
 }
 
 // Attaches, replaces, or removes the event's file, and keeps its privacy in step with the event.
@@ -132,7 +134,7 @@ router.get('/s/calendar/new', async (req, res, next) => {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
     // Adding from a filtered calendar starts in that category.
     const category = req.household.eventCats.includes(req.query.category) ? req.query.category : 'Uncategorized';
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: 'default', details: '', private: false };
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: '60', details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);
@@ -168,7 +170,7 @@ router.get('/s/calendar/:id', async (req, res, next) => {
     res.render('calendar/event', {
       active: 'calendar', item, day, file,
       when: longDay(day), time: timeText(item, day), repeat: repeatText(item), color: categoryColor(req.household, item.category),
-      alert: (item.time ? ALERT_TEXT : ALL_DAY_ALERT_TEXT)[item.alert || 'default'],
+      alert: alerts.alertText(item),
       maps: item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : '',
     });
   } catch (err) {
