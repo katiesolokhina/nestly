@@ -304,7 +304,7 @@ router.post('/s/shopping/:id/delete', async (req, res, next) => {
     const before = item.toObject();
     await item.deleteOne();
     await recordChange(req, { kind: 'delete', model: 'ShoppingItem', doc: item, before, section: SECTION, text: `deleted ${item.name}`, label: item.name });
-    res.redirect('/s/shopping');
+    res.redirect(listBack(req));
   } catch (err) {
     next(err);
   }

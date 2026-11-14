@@ -222,3 +222,13 @@ input[type="search"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .btn[disabled] { opacity: .5; cursor: default; }
 .select-link { align-self: flex-start; }
 .select-all { border-bottom: 1px solid var(--off); }
+
+/* Swipe to delete (shopping list) */
+.list-tools { margin-bottom: -6px; padding: 0 4px; }
+.list-tools .aisle { margin: 0; }
+.swipe { position: relative; overflow: hidden; border-top: 1px solid var(--off); }
+.swipe:first-of-type { border-top: 0; }
+.swipe > .row { border-top: 0; background: var(--surface); position: relative; touch-action: pan-y; }
+.swipe-delete { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; display: flex; visibility: hidden; }
+.swipe.swiping .swipe-delete { visibility: visible; }
+.swipe-delete button { flex: 1; border: 0; background: var(--danger); color: var(--surface); font: inherit; font-weight: 700; font-size: 14px; }

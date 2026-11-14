@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: 'Shopping', scripts: ['auto-submit', 'select-all'] }) %>
+<%- include('../partials/top', { title: 'Shopping', scripts: ['auto-submit', 'select-all', 'swipe'] }) %>
 <main class="stack">
   <% if (selecting) { %>
     <div class="head"><div><h1>Select items</h1><p class="sub">Delete them from the list without marking them bought.</p></div><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Cancel</a></div>
@@ -21,7 +21,6 @@
     <div class="notice shop-bar"><span><strong>Shopping<%= store ? ' at ' + store : '' %>.</strong> <%= count %> <%= count === 1 ? 'item' : 'items' %> left.</span><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Finish</a></div>
   <% } else { %>
     <div class="head"><div><h1>Shopping</h1><p class="sub"><%= count %> <%= count === 1 ? 'item' : 'items' %> · About <%= total %></p></div><form method="post" action="/s/shopping/start"><input type="hidden" name="query" value="<%= query %>"><input type="hidden" name="store" value="<%= store %>"><button class="btn btn-ghost" type="submit">Start shopping</button></form></div>
-    <% if (count) { %><a class="link-btn select-link" href="/s/shopping?<%= query ? query + '&' : '' %>select=1">Select items to delete</a><% } %>
     <p class="hint">Start shopping lets everyone else know<%= store ? ' you’re at ' + store : '' %>, so they can add what they need. <a href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Shop without telling anyone</a></p>
     <form class="stack" method="get" action="/s/shopping" data-auto-submit>
       <div class="fields">
@@ -43,12 +42,18 @@
     <% } %>
   <% } %>
   <% if (!selecting) { %>
+  <% if (count && !shopping) { %>
+    <div class="row-h list-tools"><span class="aisle">On the list</span><a class="link-btn" href="/s/shopping?<%= query ? query + '&' : '' %>select=1">Select to delete</a></div>
+  <% } %>
   <div class="card">
     <% if (!groups.length) { %><p class="muted small center">Nothing here right now.</p><% } %>
     <% groups.forEach((g) => { %>
       <div>
         <p class="aisle"><%= g.name %></p>
         <% g.items.forEach((i) => { %>
+          <% const back = query + (shopping ? (query ? '&' : '') + 'mode=shop' : ''); %>
+          <div class="swipe" data-swipe>
+          <form class="swipe-delete" method="post" action="/s/shopping/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= back %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form>
           <div class="row<%= shopping ? ' big' : '' %>">
             <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %><%= shopping ? (query ? '&' : '') + 'mode=shop' : '' %>"><button class="check" type="submit" aria-label="Mark <%= i.name %> bought"><i></i></button></form>
             <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
@@ -56,10 +61,12 @@
             <% if (i.method === 'Online' && i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Buy<span class="sr-only"> <%= i.name %></span></a><% } %>
             <span class="tag"><%= i.qty %></span>
           </div>
+          </div>
         <% }) %>
       </div>
     <% }) %>
   </div>
+  <% if (groups.length && !shopping) { %><p class="hint">Swipe an item left to delete it.</p><% } %>
   <% if (bought.length) { %>
     <div class="card">
       <div class="row-h"><h2>Bought</h2><form method="post" action="/s/shopping/clear"><input type="hidden" name="query" value="<%= query %>"><button class="link-btn" type="submit">Clear</button></form></div>
