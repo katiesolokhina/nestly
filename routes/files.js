@@ -22,7 +22,8 @@ router.get('/files/:id/view', requireAuth, async (req, res, next) => {
   try {
     const upload = await findUpload(req);
     if (!upload) return res.status(404).send('Not found');
-    res.render('file', { active: 'shopping', upload, back: safeBack(req.query.back) });
+    const back = safeBack(req.query.back);
+    res.render('file', { active: back.startsWith('/s/calendar') ? 'calendar' : 'shopping', upload, back });
   } catch (err) {
     next(err);
   }

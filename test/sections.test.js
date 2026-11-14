@@ -264,6 +264,47 @@ test('sections', async (t) => {
     assert.equal((await katie('/s/calendar?month=bad&day=bad')).status, 200);
   });
 
+  await t.test('calendar: times, locations, links, files, and repeats', async () => {
+    const today = localToday();
+    const bad = (form) => katie('/s/calendar', { method: 'POST', form: { title: 'x', date: today, ...form } });
+    assert.match((await bad({ time: '18:00', endTime: '17:00' })).text, /end time must be after/);
+    assert.match((await bad({ endTime: '17:00' })).text, /Add a start time/);
+    assert.match((await bad({ endDate: '2000-01-01' })).text, /end date can/);
+    assert.match((await bad({ repeat: 'daily', until: '2000-01-01' })).text, /Repeat until/);
+    assert.match((await bad({ link: 'javascript:alert(1)' })).text, /starts with https/);
+
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Concert', date: today, time: '19:00', endTime: '22:30', location: 'AT&T Center, Dallas', link: 'https://tickets.example.com/abc', category: 'Family' } });
+    await katie('/s/calendar', { method: 'POST', form: [['title', 'Gym class'], ['date', today], ['time', '07:00'], ['repeat', 'weekly'], ['interval', '1'], ['days', '1'], ['days', '3'], ['days', '5']] });
+    await katie('/s/calendar', { method: 'POST', form: { title: 'All day fair', date: today, time: '10:00', allDay: 'on' } });
+    const month = await sam(`/s/calendar?day=${today}`);
+    assert.match(month.text, /7:00 PM – 10:30 PM · AT&amp;T Center, Dallas · Family/);
+    assert.match(month.text, /All day fair<\/span><span class="row-meta">All day/);
+
+    const Event = require('../models/Event');
+    const gym = await withDb(app.uri, () => Event.findOne({ title: 'Gym class' }).lean());
+    assert.deepEqual(gym.days, [1, 3, 5]);
+    assert.match((await sam(`/s/calendar/${gym._id}`)).text, /Every week on Mon, Wed, Fri/);
+    const concert = await withDb(app.uri, () => Event.findOne({ title: 'Concert' }).lean());
+    const detail = await sam(`/s/calendar/${concert._id}?day=${today}`);
+    assert.match(detail.text, /href="https:\/\/tickets\.example\.com\/abc"/);
+    assert.match(detail.text, /google\.com\/maps\/search\/\?api=1&amp;query=AT%26T%20Center%2C%20Dallas/);
+    assert.match((await katie('/')).text, new RegExp(`/s/calendar/${concert._id}\\?day=`), 'Today links to the details page');
+
+    const k = await cookieOf('katie@test.dev');
+    const r = await upload(app, k, `/s/calendar/${concert._id}`, { title: 'Concert', date: today, time: '19:00', endTime: '22:30', location: 'AT&T Center, Dallas', link: 'https://tickets.example.com/abc', category: 'Family' }, { field: 'file', bytes: Buffer.from('%PDF-1.4 tickets'), type: 'application/pdf', name: 'tickets.pdf' });
+    assert.equal(r.location, `/s/calendar/${concert._id}`);
+    const withFile = await sam(`/s/calendar/${concert._id}`);
+    assert.match(withFile.text, /View tickets\.pdf/);
+    assert.match(withFile.text, new RegExp(`back=/s/calendar/${concert._id}`));
+    const ticketId = (await withDb(app.uri, () => Event.findById(concert._id).lean())).fileId;
+    assert.equal((await sam(`/files/${ticketId}`)).status, 200);
+    assert.equal((await other(`/files/${ticketId}`)).status, 404);
+    // Making the event private makes its file private too.
+    await upload(app, k, `/s/calendar/${concert._id}`, { title: 'Concert', date: today, private: 'on' });
+    assert.equal((await sam(`/files/${ticketId}`)).status, 404);
+    assert.equal((await katie(`/files/${ticketId}`)).status, 200);
+  });
+
   await t.test('Today can be reordered and trimmed per person, and resets', async () => {
     const order = (html) => [...html.matchAll(/<h2>(Needs attention today|Coming up)<\/h2>|tile-label">([^<]+)</g)].map((x) => x[1] || x[2]);
     assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up']);

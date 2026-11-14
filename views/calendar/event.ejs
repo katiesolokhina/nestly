@@ -1,0 +1,18 @@
+<%- include('../partials/top', { title: item.title }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= when %></p></div><a class="link-btn" href="/s/calendar?day=<%= day %>">Back</a></div>
+  <div class="card">
+    <div class="row"><div class="row-body"><span class="row-meta">When</span><span class="row-title"><%= time %></span><% if (repeat) { %><span class="row-meta"><%= repeat %></span><% } %></div><% if (item.private) { %><span class="tag lilac">Only me</span><% } %></div>
+    <% if (item.location) { %><div class="row"><div class="row-body"><span class="row-meta">Where</span><span class="row-title"><%= item.location %></span></div><a class="link-btn" href="<%= maps %>" target="_blank" rel="noopener noreferrer">Open in Maps</a></div><% } %>
+    <% if (item.category !== 'Uncategorized') { %><div class="row"><div class="row-body"><span class="row-meta">Category</span><span class="row-title"><%= item.category %></span></div></div><% } %>
+    <% if (item.details) { %><div class="row"><div class="row-body"><span class="row-meta">Details</span><span class="details-text"><%= item.details %></span></div></div><% } %>
+  </div>
+  <% if (item.link || file) { %>
+    <div class="card">
+      <% if (item.link) { %><a class="btn btn-primary btn-block" href="<%= item.link %>" target="_blank" rel="noopener noreferrer">Open link</a><p class="row-meta link-text"><%= item.link %></p><% } %>
+      <% if (file) { %><a class="btn btn-ghost btn-block" href="/files/<%= file._id %>/view?back=/s/calendar/<%= item._id %>">View <%= file.name %></a><% } %>
+    </div>
+  <% } %>
+  <a class="btn btn-ghost btn-block" href="/s/calendar/<%= item._id %>/edit">Edit event</a>
+</main>
+<%- include('../partials/bottom') %>
