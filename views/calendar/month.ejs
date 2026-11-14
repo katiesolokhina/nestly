@@ -1,6 +1,6 @@
-<%- include('../partials/top', { title: 'Calendar' }) %>
+<%- include('../partials/top', { title: 'Calendar', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="chips" role="group" aria-label="Filter by category">
+  <div class="chips chips-scroll" role="group" aria-label="Filter by category" data-chip-scroll>
     <% catChips.forEach((c) => { %><a class="chip<%= cat === c.value ? ' on' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= day %><%= c.value ? '&cat=' + encodeURIComponent(c.value) : '' %>"<%- cat === c.value ? ' aria-current="true"' : '' %>><% if (c.color) { %><span class="cat-dot" style="background:<%= c.color %>" aria-hidden="true"></span><% } %><%= c.name %></a><% }) %>
   </div>
   <div class="card">
