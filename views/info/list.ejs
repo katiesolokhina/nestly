@@ -1,0 +1,26 @@
+<%- include('../partials/top', { title: 'Home info', scripts: ['chip-scroll'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Home info</h1><p class="sub">Wi-Fi, codes, contacts, appliances, and how-tos</p></div><a class="btn btn-primary" href="/s/info/new<%= type ? '?type=' + encodeURIComponent(type) : '' %>">Add</a></div>
+  <form class="add" method="get" action="/s/info" role="search">
+    <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" maxlength="60" aria-label="Search home info" placeholder="Search">
+    <button class="btn btn-ghost" type="submit">Search</button>
+  </form>
+  <div class="chips chips-scroll" role="group" aria-label="Filter by type" data-chip-scroll>
+    <a class="chip<%= !type ? ' on' : '' %>" href="/s/info<%= q ? '?q=' + encodeURIComponent(q) : '' %>"<%- !type ? ' aria-current="true"' : '' %>>All</a>
+    <% household.infoTypes.forEach((t) => { %><a class="chip<%= type === t ? ' on' : '' %>" href="/s/info?type=<%= encodeURIComponent(t) %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- type === t ? ' aria-current="true"' : '' %>><%= t %></a><% }) %>
+  </div>
+  <% if (!groups.length) { %><div class="card"><p class="muted small center"><%= q || type ? 'Nothing matches.' : 'Nothing here yet. Start with the Wi-Fi and a few numbers you always look up.' %></p></div><% } %>
+  <% groups.forEach((g) => { %>
+    <section class="card" aria-labelledby="t-<%= g.name.replace(/\W+/g, '-') %>">
+      <h2 id="t-<%= g.name.replace(/\W+/g, '-') %>"><%= g.name %></h2>
+      <% g.items.forEach((i) => { %>
+        <a class="row bill-row" href="/s/info/<%= i._id %>">
+          <span class="row-body"><span class="row-title"><%= i.title %></span><% if (i.summary || i.warranty) { %><span class="row-meta<%= i.warranty && i.warranty.tone === 'late' ? ' late' : '' %>"><%= [i.summary, i.warranty && i.warranty.text].filter(Boolean).join(' · ') %></span><% } %></span>
+          <% if (i.private) { %><span class="tag lilac">Only me</span><% } %>
+        </a>
+      <% }) %>
+    </section>
+  <% }) %>
+</main>
+<%- include('../partials/bottom') %>

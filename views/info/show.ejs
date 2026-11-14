@@ -1,0 +1,41 @@
+<%- include('../partials/top', { title: item.title, scripts: ['copy'] }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= item.type %></p></div><a class="link-btn" href="/s/info">Back</a></div>
+  <% if (warranty) { %><p class="notice<%= warranty.tone === 'late' ? ' warn' : '' %>"><%= warranty.text %></p><% } %>
+  <% if (fields.some((f) => f.value)) { %>
+    <div class="card">
+      <% fields.filter((f) => f.value).forEach((f) => { %>
+        <div class="row info-row">
+          <div class="row-body">
+            <span class="row-meta"><%= f.label %></span>
+            <% if (f.kind === 'secret') { %>
+              <details class="secret"><summary><span class="dots" aria-hidden="true">••••••••</span><span class="link-btn when-closed">Show<span class="sr-only"> <%= f.label %></span></span><span class="link-btn when-open">Hide<span class="sr-only"> <%= f.label %></span></span></summary><span class="secret-value"><%= f.value %></span></details>
+            <% } else if (f.href) { %>
+              <a class="row-title info-link" href="<%= f.href %>"<%- f.kind === 'link' || f.kind === 'address' ? ' target="_blank" rel="noopener noreferrer"' : '' %>><%= f.display %></a>
+            <% } else { %>
+              <span class="row-title details-text"><%= f.display %></span>
+            <% } %>
+          </div>
+          <% if (f.kind === 'phone' && f.sms) { %><a class="link-btn" href="<%= f.sms %>">Text</a><% } %>
+          <% if (['secret', 'text', 'email', 'phone', 'address'].includes(f.kind)) { %><button class="link-btn" type="button" data-copy="<%= f.value %>" hidden>Copy<span class="sr-only"> <%= f.label %></span></button><% } %>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+  <% if (qr) { %>
+    <details class="card qr-card">
+      <summary class="row-title">QR code for guests</summary>
+      <div class="qr"><%- qr %></div>
+      <p class="hint">Guests point their phone camera at this to join the Wi-Fi without typing the password.</p>
+    </details>
+  <% } %>
+  <% if (item.notes) { %><section class="card"><h2>Notes</h2><p class="details-text"><%= item.notes %></p></section><% } %>
+  <% if (files.length) { %>
+    <section class="card"><h2>Files</h2>
+      <% files.forEach((f) => { %><a class="row bill-row" href="/files/<%= f._id %>/view?back=/s/info/<%= item._id %>"><% if (f.type.startsWith('image/')) { %><img class="file-thumb" src="/files/<%= f._id %>" alt=""><% } %><span class="row-body row-title"><%= f.name %></span></a><% }) %>
+    </section>
+  <% } %>
+  <a class="btn btn-ghost btn-block" href="/s/info/<%= item._id %>/edit">Edit</a>
+  <p class="hint">Added by <%= item.byName %><%= item.private ? ', only visible to you' : '' %>.</p>
+</main>
+<%- include('../partials/bottom') %>

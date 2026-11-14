@@ -40,6 +40,16 @@
       <label class="check-row">When someone starts shopping<input type="checkbox" name="shopping"<%= user.notify.shopping !== false ? ' checked' : '' %>></label>
       <label class="time-row" for="morning">Morning time<input id="morning" name="morning" type="time" required value="<%= user.notify.morning || '08:00' %>"></label>
       <p class="hint">For reminders without a time and for all-day events. How early each event notifies is set on the event.</p>
+      <% if (household.features.info !== false) { const wn = user.notify; %>
+        <input type="hidden" name="infoForm" value="1">
+        <h3 class="sub-h">Home info</h3>
+        <div class="check-row">
+          <label for="warranty" class="grow">Before an appliance warranty ends</label>
+          <select name="warrantyDays" aria-label="How early"><% [7, 14, 30, 60, 90].forEach((d) => { %><option value="<%= d %>"<%= (wn.warrantyDays ?? 30) === d ? ' selected' : '' %>><%= d %> days</option><% }) %></select>
+          <input id="warranty" type="checkbox" name="warranty"<%= wn.warranty !== false ? ' checked' : '' %>>
+        </div>
+        <p class="hint">Uses the “Warranty ends” date on items in Home info.</p>
+      <% } %>
       <% if (household.features.pantry !== false) { const pn = user.notify; %>
         <input type="hidden" name="pantryForm" value="1">
         <h3 class="sub-h">Pantry</h3>

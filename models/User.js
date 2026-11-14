@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema(
       billsPaidBack: { type: Boolean, default: true },
       billsWeekly: { type: Boolean, default: false }, // Sunday: what I still owe
       pantryExpiry: { type: Boolean, default: true },
+      warranty: { type: Boolean, default: true },
+      warrantyDays: { type: Number, min: 1, max: 120, default: 30 },
       pantryExpiryDays: { type: Number, min: 0, max: 14, default: 2 },
     },
     lastTripAlertAt: { type: Date, default: null },

@@ -70,6 +70,11 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
     n.reminders = b.reminders === 'on';
     n.events = b.events === 'on';
     n.shopping = b.shopping === 'on';
+    if (b.infoForm === '1') {
+      n.warranty = b.warranty === 'on';
+      const wd = parseInt(b.warrantyDays, 10);
+      if ([7, 14, 30, 60, 90].includes(wd)) n.warrantyDays = wd;
+    }
     if (b.pantryForm === '1') {
       n.pantryExpiry = b.pantryExpiry === 'on';
       const pd = parseInt(b.pantryExpiryDays, 10);

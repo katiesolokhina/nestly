@@ -1,0 +1,9 @@
+<%- include('../partials/top', { title: 'Add home info' }) %>
+<main class="stack">
+  <div class="head"><h1>What are you adding?</h1><a class="link-btn" href="/s/info">Cancel</a></div>
+  <div class="card">
+    <% types.forEach((t) => { %><a class="row bill-row" href="/s/info/new?type=<%= encodeURIComponent(t) %>"><span class="row-body row-title"><%= t %></span><span aria-hidden="true">›</span></a><% }) %>
+  </div>
+  <p class="hint">Add or rename types in Settings, under Lists and categories.</p>
+</main>
+<%- include('../partials/bottom') %>

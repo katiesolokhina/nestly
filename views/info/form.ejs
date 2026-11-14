@@ -1,0 +1,39 @@
+<%- include('../partials/top', { title: item._id ? 'Edit ' + item.title : 'Add ' + item.type, scripts: ['info-form', 'confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit ' + item.title : 'Add to ' + item.type %></h1><a class="link-btn" href="<%= item._id ? '/s/info/' + item._id : '/s/info' %>">Cancel</a></div>
+  <form class="card" method="post" action="/s/info<%= item._id ? '/' + item._id : '' %>" enctype="multipart/form-data" novalidate data-info-form>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="title">Name</label><input id="title" name="title" type="text" maxlength="80" required placeholder="<%= { 'Wi-Fi & codes': 'Home Wi-Fi', Contacts: 'Plumber: Joe’s Plumbing', Appliances: 'Fridge', 'Documents & how-tos': 'Water shutoff' }[item.type] || 'Name' %>" value="<%= item.title %>"></div>
+    <div class="field"><label for="type">Type</label><select id="type" name="type"><% household.infoTypes.forEach((t) => { %><option<%= item.type === t ? ' selected' : '' %>><%= t %></option><% }) %><option<%= item.type === 'Other' ? ' selected' : '' %>>Other</option></select></div>
+
+    <fieldset class="group">
+      <legend>Details</legend>
+      <p class="hint">Rename or add fields as you like. “Hidden” fields show as dots until someone taps Show.</p>
+      <div class="info-fields" data-fields>
+        <% item.fields.forEach((f) => { %>
+          <div class="info-field" data-field>
+            <div class="info-field-top">
+              <input class="info-label" name="fLabel" type="text" maxlength="40" placeholder="Label" aria-label="Field name" value="<%= f.label %>">
+              <select class="info-kind" name="fKind" aria-label="Kind of field" data-kind><% Object.entries(KINDS).forEach(([k, l]) => { %><option value="<%= k %>"<%= f.kind === k ? ' selected' : '' %>><%= l %></option><% }) %></select>
+              <button class="mini" type="button" data-field-remove aria-label="Remove this field">×</button>
+            </div>
+            <input class="info-value" name="fValue" type="<%= f.kind === 'date' ? 'date' : f.kind === 'email' ? 'email' : f.kind === 'phone' ? 'tel' : 'text' %>" maxlength="500" aria-label="Value" autocomplete="off" autocapitalize="<%= ['secret', 'email', 'link'].includes(f.kind) ? 'off' : 'sentences' %>" spellcheck="<%= f.kind === 'secret' ? 'false' : 'true' %>" value="<%= f.value %>">
+          </div>
+        <% }) %>
+      </div>
+      <button class="btn btn-ghost" type="button" data-field-add>Add a field</button>
+    </fieldset>
+
+    <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="5" maxlength="5000" placeholder="Steps, where things are, anything else"><%= item.notes %></textarea></div>
+    <div class="field">
+      <label for="file">Photo or PDF <span class="muted">(manual, receipt, policy…)</span></label>
+      <% files.forEach((f) => { %><p class="file-row"><% if (f.type.startsWith('image/')) { %><img class="file-thumb" src="/files/<%= f._id %>" alt=""><% } %><span><%= f.name %></span><label class="inline-check"><input type="checkbox" name="removeFile" value="<%= f._id %>">Remove</label></p><% }) %>
+      <input id="file" name="file" type="file" accept="image/*,.pdf">
+      <span class="hint">One file each time you save, up to 6.</span>
+    </div>
+    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <% if (item._id) { %><form method="post" action="/s/info/<%= item._id %>/delete" data-confirm="Delete <%= item.title %>?"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.title %></span></button></form><% } %>
+</main>
+<%- include('../partials/bottom') %>
