@@ -327,6 +327,25 @@ test('sections', async (t) => {
     assert.match(page.text, /background:#8e889c[^>]*><\/span><a[^>]*><span class="row-title">Color check/i, 'removed category falls back to gray Uncategorized');
   });
 
+  await t.test('the calendar filters by category and keeps the filter while browsing', async () => {
+    const today = localToday();
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter fam', date: today, category: 'Family' } });
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter none', date: today } });
+    await katie('/s/remember', { method: 'POST', form: { text: 'Filter reminder', date: today } });
+    const all = await sam(`/s/calendar?day=${today}`);
+    for (const t of ['Filter fam', 'Filter none', 'Filter reminder']) assert.match(all.text, new RegExp(t));
+    const fam = await sam(`/s/calendar?day=${today}&cat=Family`);
+    assert.match(fam.text, /Filter fam/);
+    assert.doesNotMatch(fam.text, /Filter none|Filter reminder/);
+    assert.match(fam.text, /&amp;cat=Family" aria-label="Next month"|&cat=Family" aria-label="Next month"/);
+    assert.match(fam.text, /new\?date=[\d-]+&amp;category=Family|new\?date=[\d-]+&category=Family/);
+    assert.match((await sam('/s/calendar/new?category=Family')).text, /<option selected>Family<\/option>/);
+    const none = await sam(`/s/calendar?day=${today}&cat=Uncategorized`);
+    assert.match(none.text, /Filter none/);
+    assert.doesNotMatch(none.text, /Filter fam/);
+    assert.match((await sam(`/s/calendar?day=${today}&cat=Nope`)).text, /Filter reminder/, 'unknown categories show everything');
+  });
+
   await t.test('Today can be reordered and trimmed per person, and resets', async () => {
     const order = (html) => [...html.matchAll(/<h2>(Needs attention today|Coming up)<\/h2>|tile-label">([^<]+)</g)].map((x) => x[1] || x[2]);
     assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up']);

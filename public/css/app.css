@@ -173,3 +173,5 @@ input[type="number"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .cat-dot.inline { display: inline-block; margin-right: 6px; vertical-align: 1px; }
 .color-pick { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; }
 .color-pick input { width: 44px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: none; cursor: pointer; }
+.chip .cat-dot { width: 8px; height: 8px; margin-right: 6px; }
+.chip.on .cat-dot { box-shadow: 0 0 0 1.5px var(--on-primary); }

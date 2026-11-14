@@ -79,9 +79,12 @@ router.get('/s/calendar', async (req, res, next) => {
     const day = isDate(req.query.day) ? req.query.day : today;
     const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month || '') ? req.query.month : day.slice(0, 7);
     const scope = visible(req.user);
+    // Filtering by a category shows only those events; reminders have no event category, so they hide.
+    const cats = ['Uncategorized', ...req.household.eventCats];
+    const cat = cats.includes(req.query.cat) ? req.query.cat : '';
     const [events, reminders] = await Promise.all([
-      Event.find(scope).lean(),
-      req.household.features.remember !== false ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
+      Event.find(cat ? { ...scope, category: cat } : scope).lean(),
+      req.household.features.remember !== false && !cat ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
     ]);
     const { blanks, days } = monthCells(month);
     const color = (e) => categoryColor(req.household, e.category);
@@ -100,7 +103,9 @@ router.get('/s/calendar', async (req, res, next) => {
       ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit` })),
     ];
     res.render('calendar/month', {
-      active: 'calendar', month, day, today, blanks, agenda,
+      active: 'calendar', month, day, today, blanks, agenda, cat,
+      catQuery: cat ? `&cat=${encodeURIComponent(cat)}` : '',
+      catChips: [{ name: 'All', value: '', color: '' }, ...[...req.household.eventCats, 'Uncategorized'].map((c) => ({ name: c, value: c, color: categoryColor(req.household, c) }))],
       cells: days.map((d) => { const ds = dots(d); return { date: d, num: Number(d.slice(8)), has: ds.length > 0, dots: ds }; }),
       label: monthLabel(month), dayTitle: longDay(day), prev: shiftMonth(month, -1), next: shiftMonth(month, 1),
     });
@@ -112,7 +117,9 @@ router.get('/s/calendar', async (req, res, next) => {
 router.get('/s/calendar/new', async (req, res, next) => {
   try {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category: 'Uncategorized', details: '', private: false };
+    // Adding from a filtered calendar starts in that category.
+    const category = req.household.eventCats.includes(req.query.category) ? req.query.category : 'Uncategorized';
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);

@@ -1,20 +1,24 @@
 <%- include('../partials/top', { title: 'Calendar' }) %>
 <main class="stack">
+  <div class="chips" role="group" aria-label="Filter by category">
+    <% catChips.forEach((c) => { %><a class="chip<%= cat === c.value ? ' on' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= day %><%= c.value ? '&cat=' + encodeURIComponent(c.value) : '' %>"<%- cat === c.value ? ' aria-current="true"' : '' %>><% if (c.color) { %><span class="cat-dot" style="background:<%= c.color %>" aria-hidden="true"></span><% } %><%= c.name %></a><% }) %>
+  </div>
   <div class="card">
     <div class="row-h">
-      <a class="icon-link" href="/s/calendar?month=<%= prev %>&day=<%= day %>" aria-label="Previous month">‹</a>
+      <a class="icon-link" href="/s/calendar?month=<%= prev %>&day=<%= day %><%= catQuery %>" aria-label="Previous month">‹</a>
       <h1 class="month-title"><%= label %></h1>
-      <a class="icon-link" href="/s/calendar?month=<%= next %>&day=<%= day %>" aria-label="Next month">›</a>
+      <a class="icon-link" href="/s/calendar?month=<%= next %>&day=<%= day %><%= catQuery %>" aria-label="Next month">›</a>
     </div>
     <div class="cal">
       <% ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((d) => { %><div class="dow" aria-hidden="true"><%= d %></div><% }) %>
       <% for (let i = 0; i < blanks; i += 1) { %><div></div><% } %>
-      <% cells.forEach((c) => { %><a class="day<%= c.has ? ' has' : '' %><%= c.date === today ? ' now' : '' %><%= c.date === day ? ' sel' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= c.date %>" aria-label="<%= c.date %><%= c.has ? ', has plans' : '' %>"<%- c.date === day ? ' aria-current="date"' : '' %>><%= c.num %><span class="dots" aria-hidden="true"><% c.dots.forEach((col) => { %><i<%- col ? ` style="background:${col}"` : '' %>></i><% }) %></span></a><% }) %>
+      <% cells.forEach((c) => { %><a class="day<%= c.has ? ' has' : '' %><%= c.date === today ? ' now' : '' %><%= c.date === day ? ' sel' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= c.date %><%= catQuery %>" aria-label="<%= c.date %><%= c.has ? ', has plans' : '' %>"<%- c.date === day ? ' aria-current="date"' : '' %>><%= c.num %><span class="dots" aria-hidden="true"><% c.dots.forEach((col) => { %><i<%- col ? ` style="background:${col}"` : '' %>></i><% }) %></span></a><% }) %>
     </div>
   </div>
   <div class="card">
-    <div class="row-h"><h2><%= dayTitle %></h2><a class="btn btn-primary" href="/s/calendar/new?date=<%= day %>">Add event</a></div>
-    <% if (!agenda.length) { %><p class="muted small center">Nothing planned.</p><% } %>
+    <div class="row-h"><h2><%= dayTitle %></h2><a class="btn btn-primary" href="/s/calendar/new?date=<%= day %><%= cat && cat !== 'Uncategorized' ? '&category=' + encodeURIComponent(cat) : '' %>">Add event</a></div>
+    <% if (!agenda.length) { %><p class="muted small center"><%= cat ? `No ${cat} events this day.` : 'Nothing planned.' %></p><% } %>
+    <% if (cat) { %><p class="hint">Showing only <%= cat %> events. Reminders are hidden. <a href="/s/calendar?month=<%= month %>&day=<%= day %>">Show everything</a></p><% } %>
     <% agenda.forEach((a) => { %><div class="row"><% if (a.color) { %><span class="cat-dot" style="background:<%= a.color %>" aria-hidden="true"></span><% } %><a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta"><%= a.meta %></span></a><span class="tag<%= a.lilac ? ' lilac' : '' %>"><%= a.tag %></span></div><% }) %>
   </div>
 </main>
