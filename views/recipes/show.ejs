@@ -1,0 +1,28 @@
+<%- include('../partials/top', { title: item.title, scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= [item.category === 'Uncategorized' ? '' : item.category, item.time, item.servings].filter(Boolean).join(' · ') || 'Recipe' %></p></div><a class="link-btn" href="/s/recipes">Back</a></div>
+  <% if (photo) { %><a class="recipe-photo" href="/files/<%= photo._id %>/view?back=/s/recipes/<%= item._id %>"><img src="/files/<%= photo._id %>" alt="<%= item.title %>"></a><% } %>
+  <div class="btn-row">
+    <% if (mealsOn) { %><a class="btn btn-primary" href="/s/meals/new?recipe=<%= item._id %>">Add to meal plan</a><% } %>
+    <% if (shoppingOn && item.ingredients.length) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?recipe=<%= item._id %>">Add to shopping list</a><% } %>
+  </div>
+  <section class="card" aria-labelledby="ing">
+    <h2 id="ing">Ingredients</h2>
+    <% if (!item.ingredients.length) { %><p class="muted small">None listed.</p><% } %>
+    <ul class="ing-list"><% item.ingredients.forEach((i) => { %><li><% if (i.qty) { %><strong><%= i.qty %></strong> <% } %><%= i.name %></li><% }) %></ul>
+  </section>
+  <% if (item.steps.length) { %>
+    <section class="card" aria-labelledby="steps">
+      <h2 id="steps">Steps</h2>
+      <ol class="step-list"><% item.steps.forEach((s) => { %><% if (/:$/.test(s) && s.length < 60) { %><li class="step-head"><%= s %></li><% } else { %><li><%= s %></li><% } %><% }) %></ol>
+    </section>
+  <% } %>
+  <% if (item.notes) { %><section class="card"><h2>Notes</h2><p class="details-text"><%= item.notes %></p></section><% } %>
+  <% if (item.link) { %><a class="btn btn-ghost btn-block" href="<%= item.link %>" target="_blank" rel="noopener noreferrer">Open original<%= source ? ' on ' + source : '' %></a><% } %>
+  <div class="btn-row">
+    <a class="btn btn-ghost" href="/s/recipes/<%= item._id %>/edit">Edit</a>
+    <form method="post" action="/s/recipes/<%= item._id %>/copy"><button class="btn btn-ghost" type="submit">Make a copy</button></form>
+  </div>
+  <p class="hint">Added by <%= item.byName %>. A copy is a separate recipe you can change without touching this one.</p>
+</main>
+<%- include('../partials/bottom') %>

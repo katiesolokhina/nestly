@@ -6,6 +6,7 @@ const CatalogItem = require('../models/CatalogItem');
 const Upload = require('../models/Upload');
 const { recordChange, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
+const { keyOf, fromCatalog } = require('../lib/catalog');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { dayLabel, todayIn } = require('../lib/dates');
 const User = require('../models/User');
@@ -16,7 +17,6 @@ const router = express.Router();
 router.use('/s/shopping', requireAuth, requireSection('shopping'));
 
 const SECTION = 'Shopping';
-const keyOf = (name) => name.trim().toLowerCase();
 const money = (n) => `$${Number(n).toFixed(2)}`;
 const isHttp = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 
@@ -76,29 +76,6 @@ router.get('/s/shopping', async (req, res, next) => {
 });
 
 // ---------- Add ----------
-// A first guess for new items, so common groceries land in a sensible aisle. Anyone can change it.
-function guessAisle(household, name) {
-  const n = name.toLowerCase();
-  const rules = [
-    ['Produce', /apple|banana|lettuce|spinach|tomato|onion|potato|cilantro|lime|lemon|broccoli|berr|fruit|pepper|carrot/],
-    ['Dairy & eggs', /milk|egg|cheese|yogurt|butter|cream/],
-    ['Meat & seafood', /chicken|beef|pork|salmon|fish|turkey|shrimp|sausage/],
-    ['Frozen', /frozen|ice cream/],
-    ['Household', /soap|towel|tissue|detergent|trash|sponge|cleaner/],
-  ];
-  const hit = rules.find(([aisle, re]) => household.aisles.includes(aisle) && re.test(n));
-  return hit ? hit[0] : 'Unassigned';
-}
-
-function fromCatalog(user, name, c, household) {
-  return {
-    householdId: user.householdId, createdBy: user._id, byName: user.name,
-    name: c ? c.name : name, key: keyOf(name), qty: c ? c.qty : '1',
-    store: c ? c.store : 'Any store', aisle: c ? c.aisle : guessAisle(household, name), tag: c ? c.tag : 'Unassigned',
-    method: c ? c.method : 'In person', brand: c ? c.brand : '',
-  };
-}
-
 async function addByName(req, res, name, back) {
   const key = keyOf(name);
   const dup = await ShoppingItem.exists({ ...visible(req.user), key, bought: false, clearedAt: null });

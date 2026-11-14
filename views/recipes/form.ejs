@@ -1,0 +1,45 @@
+<%- include('../partials/top', { title: item._id ? 'Edit recipe' : 'Add recipe', scripts: ['recipe-form', 'confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit recipe' : imported ? 'Check the recipe' : 'Add recipe' %></h1><a class="link-btn" href="<%= item._id ? '/s/recipes/' + item._id : '/s/recipes' %>">Cancel</a></div>
+  <% if (imported) { %><p class="notice" role="status">Here's what was found. Fix anything that looks off, then save.</p><% } %>
+  <form class="card" method="post" action="/s/recipes<%= item._id ? '/' + item._id : '' %>" enctype="multipart/form-data" novalidate data-recipe-form>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="title">Recipe name</label><input id="title" name="title" type="text" maxlength="120" required value="<%= item.title %>"></div>
+    <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.recipeCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
+    <div class="fields">
+      <div class="field"><label for="servings">Serves</label><input id="servings" name="servings" type="text" maxlength="40" placeholder="4" value="<%= item.servings %>"></div>
+      <div class="field"><label for="time">Time</label><input id="time" name="time" type="text" maxlength="40" placeholder="45 min" value="<%= item.time %>"></div>
+    </div>
+
+    <fieldset class="group">
+      <legend>Ingredients</legend>
+      <p class="hint">Start typing to pick from your household's items, or type a new one. Notes after a comma (“onion, diced”) stay off the shopping list.</p>
+      <div class="ing-rows" data-ing-rows>
+        <% const rows = item.ingredients.length ? item.ingredients : [{ qty: '', name: '' }, { qty: '', name: '' }, { qty: '', name: '' }]; %>
+        <% rows.forEach((ing, i) => { %>
+          <div class="ing-row" data-ing-row>
+            <input class="ing-qty" name="ingQty" type="text" maxlength="40" placeholder="Amount" aria-label="Amount" value="<%= ing.qty %>">
+            <input class="ing-name" name="ingName" type="text" maxlength="120" placeholder="Ingredient" aria-label="Ingredient" list="catalog-names" autocomplete="off" value="<%= ing.name %>">
+            <button class="mini" type="button" data-ing-remove aria-label="Remove this ingredient">×</button>
+          </div>
+        <% }) %>
+      </div>
+      <button class="btn btn-ghost" type="button" data-ing-add>Add ingredient</button>
+      <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+    </fieldset>
+
+    <div class="field"><label for="steps">Steps</label><textarea id="steps" name="steps" rows="8" maxlength="60000" placeholder="One step per line"><%= item.steps.join('\n') %></textarea><span class="hint">One step per line. They're numbered for you.</span></div>
+    <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="3" maxlength="2000" placeholder="Swaps, tips, who likes it"><%= item.notes %></textarea></div>
+    <div class="field"><label for="link">Link <span class="muted">(where it's from)</span></label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
+    <div class="field">
+      <label for="photo">Photo</label>
+      <% if (photo) { %><p class="file-row"><img class="file-thumb" src="/files/<%= photo._id %>" alt=""><span><%= photo.name %></span><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>
+      <% if (item.photoUrl) { %><p class="file-row"><span class="hint">The photo from that page will be saved with the recipe.</span></p><input type="hidden" name="photoUrl" value="<%= item.photoUrl %>"><% } %>
+      <input id="photo" name="photo" type="file" accept="image/*">
+    </div>
+    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %>
+    <button class="btn btn-primary btn-block" type="submit">Save recipe</button>
+  </form>
+  <% if (item._id) { %><form method="post" action="/s/recipes/<%= item._id %>/delete" data-confirm="Delete this recipe? Meals already planned with it keep its name."><button class="link-btn link-danger" type="submit">Delete recipe<span class="sr-only"> <%= item.title %></span></button></form><% } %>
+</main>
+<%- include('../partials/bottom') %>

@@ -1,0 +1,27 @@
+<%- include('../partials/top', { title: item._id ? 'Change meal' : 'Plan a meal', scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Change meal' : 'Plan a meal' %></h1><a class="link-btn" href="/s/meals?week=<%= item.date %>">Cancel</a></div>
+  <form class="card" method="post" action="/s/meals<%= item._id ? '/' + item._id : '' %>" novalidate>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="fields">
+      <div class="field"><label for="date">Day</label><input id="date" name="date" type="date" required value="<%= item.date %>"></div>
+      <div class="field"><label for="slot">Meal</label><select id="slot" name="slot"><% household.mealSlots.forEach((s) => { %><option<%= item.slot === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
+    </div>
+    <% if (recipesOn) { %>
+      <div class="field">
+        <label for="recipeId">Recipe</label>
+        <select id="recipeId" name="recipeId">
+          <option value="">No recipe: type it below</option>
+          <% const cats = [...new Set(recipes.map((r) => r.category))].sort((a, b) => (a === 'Uncategorized') - (b === 'Uncategorized') || a.localeCompare(b)); %>
+          <% cats.forEach((c) => { %><optgroup label="<%= c %>"><% recipes.filter((r) => r.category === c).forEach((r) => { %><option value="<%= r._id %>"<%= String(item.recipeId || '') === String(r._id) ? ' selected' : '' %>><%= r.title %></option><% }) %></optgroup><% }) %>
+        </select>
+        <% if (!recipes.length) { %><span class="hint">No recipes yet. <a href="/s/recipes/new">Add one</a>, or just type the meal.</span><% } %>
+      </div>
+    <% } %>
+    <div class="field"><label for="title"><%= recipesOn ? 'Or what you’re having' : 'What you’re having' %></label><input id="title" name="title" type="text" maxlength="120" placeholder="Leftovers, pizza night…" value="<%= item.recipeId ? '' : item.title %>"></div>
+    <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Double it, Sam cooks" value="<%= item.note %>"></div>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <% if (item._id) { %><form method="post" action="/s/meals/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the plan<span class="sr-only"> <%= item.title %></span></button></form><% } %>
+</main>
+<%- include('../partials/bottom') %>

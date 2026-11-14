@@ -194,3 +194,28 @@ input[type="number"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .time-row input, .time-row select { width: auto; }
 .notify-prefs { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
 .snooze-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Recipes */
+.recipe-row { text-decoration: none; color: inherit; }
+.recipe-ph { width: 56px; height: 56px; border-radius: 10px; background: var(--lilac-tint); color: var(--lilac-ink); display: grid; place-items: center; font-weight: 700; font-size: 20px; flex: none; }
+.recipe-photo img { display: block; width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius); }
+.ing-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+.step-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 12px; font-size: 15px; line-height: 1.45; }
+.step-list .step-head { list-style: none; margin-left: -22px; font-weight: 700; counter-increment: list-item 0; }
+.ing-rows { display: flex; flex-direction: column; gap: 8px; }
+.ing-row { display: flex; gap: 6px; align-items: center; }
+.ing-row .ing-qty { flex: 0 0 30%; min-width: 0; }
+.ing-row .ing-name { flex: 1; min-width: 0; }
+input[type="search"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
+
+/* Meals */
+.meal-day.is-today { box-shadow: var(--shadow), inset 0 0 0 2px var(--lilac-ring); }
+.meal-day.is-past { opacity: .8; }
+.meal-row { align-items: flex-start; }
+.meal-slot { flex: 0 0 84px; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); padding-top: 10px; }
+.meal-row .link-btn { padding-top: 6px; }
+.ing-pick { cursor: pointer; }
+.ing-pick input { width: 22px; height: 22px; accent-color: var(--primary); flex: none; margin: 0 4px 0 0; }
+.ing-pick.done .row-title { text-decoration: none; color: var(--muted); }
+.earlier summary { font-weight: 600; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.earlier .meal-day { box-shadow: none; padding: 8px 0 0; border-top: 1px solid var(--off); border-radius: 0; }

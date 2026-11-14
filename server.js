@@ -50,9 +50,12 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use(require('./routes/auth'));
 app.use(require('./routes/push'));
 app.use(require('./routes/access'));
+app.use(require('./routes/ingredients')); // before Shopping, whose /s/shopping/:id would catch it
 app.use(require('./routes/shopping'));
 app.use(require('./routes/remember'));
 app.use(require('./routes/calendar'));
+app.use(require('./routes/recipes'));
+app.use(require('./routes/meals'));
 app.use(require('./routes/lists'));
 app.use(require('./routes/files'));
 app.use(require('./routes/home'));

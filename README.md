@@ -4,7 +4,7 @@ A private, installable household app: shared shopping lists, reminders, calendar
 
 ## Status
 
-Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, editable lists, and notifications. Meals, Recipes, Pantry, Bills, Chores, and Home info are placeholders until they're built.
+Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, Meals, Recipes (with import from a link or pasted text), editable lists, and notifications. Pantry, Bills, Chores, and Home info are placeholders until they're built.
 
 Nestly is online-only: nothing is queued while offline.
 
@@ -42,6 +42,10 @@ pm2 start server.js --name nestly && pm2 save
 Point Nginx at the port, add a certificate for `nestly.trisolocreations.com` with Certbot, and set `client_max_body_size 11m;` so receipt uploads get through. Nginx must send `X-Forwarded-Proto`, or the session cookie won't be marked secure. `APP_ORIGIN` must exactly match the public URL.
 
 Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `UPLOAD_DIR`), outside `public/`, and need their own backup: `tar czf` or `rsync` that folder nightly.
+
+## Recipe import
+
+Importing from a link makes the server fetch that page, so it only fetches http(s) on ports 80 and 443, refuses private and local addresses (checked on every connection), and limits size, time, and redirects. It reads the recipe data most sites publish (schema.org Recipe). Sites that block apps get a message suggesting pasting the text instead.
 
 ## Notifications
 

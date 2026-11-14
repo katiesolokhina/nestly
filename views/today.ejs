@@ -21,6 +21,14 @@
             </div>
           <% }) %>
         </section>
+      <% } else if (w.k === 'meals') { %>
+        <section class="card full">
+          <div class="row-h"><h2>Today’s meals</h2><a class="link-btn" href="/s/meals">Plan</a></div>
+          <% if (!meals.length) { %><p class="muted small center">Nothing planned today. <a href="/s/meals/new">Plan a meal</a></p><% } %>
+          <% meals.forEach((m) => { %>
+            <div class="row meal-row"><span class="meal-slot"><%= m.slot %></span><a class="row-body row-link" href="<%= m.href %>"><span class="row-title"><%= m.title %></span><% if (m.note) { %><span class="row-meta"><%= m.note %></span><% } %></a></div>
+          <% }) %>
+        </section>
       <% } else if (w.k === 'upcoming') { %>
         <section class="card full">
           <h2>Coming up</h2>

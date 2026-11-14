@@ -14,6 +14,8 @@ const catalogSchema = new mongoose.Schema(
     method: { type: String, enum: ['In person', 'Online'], default: 'In person' },
     brand: { type: String, trim: true, maxlength: 80, default: '' },
     staple: { type: Boolean, default: false },
+    // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).
+    usuallyHave: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

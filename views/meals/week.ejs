@@ -1,0 +1,43 @@
+<%- include('../partials/top', { title: 'Meals' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Meals</h1><p class="sub"><%= count %> planned · <%= range %></p></div><a class="btn btn-primary" href="/s/meals/new?date=<%= isThisWeek ? '' : start %>">Add</a></div>
+  <div class="card">
+    <div class="row-h">
+      <a class="icon-link" href="/s/meals?week=<%= prev %>" aria-label="Previous week">‹</a>
+      <h2 class="month-title"><%= title %></h2>
+      <a class="icon-link" href="/s/meals?week=<%= next %>" aria-label="Next week">›</a>
+    </div>
+    <div class="btn-row">
+      <% if (!isThisWeek) { %><a class="btn btn-ghost" href="/s/meals">This week</a><% } %>
+      <% if (lastWeekCount) { %><form method="post" action="/s/meals/copy-week"><input type="hidden" name="week" value="<%= start %>"><button class="btn btn-ghost" type="submit">Copy the week before</button></form><% } %>
+      <% if (shoppingOn && withRecipes) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?week=<%= start %>">Add ingredients to shopping</a><% } %>
+    </div>
+  </div>
+  <% const earlier = days.filter((d) => d.past && isThisWeek); const shown = days.filter((d) => !(d.past && isThisWeek)); %>
+  <% const dayCard = (d) => { %>
+    <section class="card meal-day<%= d.today ? ' is-today' : '' %><%= d.past ? ' is-past' : '' %>" id="d-<%= d.date %>" aria-labelledby="h-<%= d.date %>">
+      <h2 id="h-<%= d.date %>"><%= d.label %><% if (d.today) { %> <span class="tag lilac">Today</span><% } %></h2>
+      <% d.slots.forEach((s) => { %>
+        <% if (!s.meals.length) { %>
+          <div class="row meal-row"><span class="meal-slot"><%= s.slot %></span><a class="row-body row-link muted small" href="/s/meals/new?date=<%= d.date %>&slot=<%= encodeURIComponent(s.slot) %>">+ Add<span class="sr-only"> <%= s.slot %> on <%= d.label %></span></a></div>
+        <% } %>
+        <% s.meals.forEach((m, i) => { %>
+          <div class="row meal-row">
+            <span class="meal-slot"><%= i === 0 ? s.slot : '' %></span>
+            <a class="row-body row-link" href="<%= m.hasRecipe ? '/s/recipes/' + m.recipeId : '/s/meals/' + m._id + '/edit' %>"><span class="row-title"><%= m.name %></span><% if (m.note) { %><span class="row-meta"><%= m.note %></span><% } %></a>
+            <a class="link-btn" href="/s/meals/<%= m._id %>/edit">Change<span class="sr-only"> <%= m.name %>, <%= s.slot %> on <%= d.label %></span></a>
+          </div>
+        <% }) %>
+      <% }) %>
+    </section>
+  <% }; %>
+  <% if (earlier.length) { %>
+    <details class="card earlier">
+      <summary>Earlier this week (<%= earlier.length %> <%= earlier.length === 1 ? 'day' : 'days' %>)</summary>
+      <% earlier.forEach(dayCard) %>
+    </details>
+  <% } %>
+  <% shown.forEach(dayCard) %>
+  <p class="hint">Use the arrows to look back at past weeks. Meal slots can be changed in Settings, Lists and categories.</p>
+</main>
+<%- include('../partials/bottom') %>

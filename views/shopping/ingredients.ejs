@@ -1,0 +1,25 @@
+<%- include('../partials/top', { title: 'Add ingredients' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Add to shopping</h1><p class="sub"><%= src.title %></p></div><a class="link-btn" href="<%= src.back %>">Cancel</a></div>
+  <% if (src.note) { %><p class="hint"><%= src.note %></p><% } %>
+  <% if (!rows.length) { %>
+    <div class="card"><p class="muted small center">No ingredients to add. <%= src.kind === 'week' ? 'Plan meals with recipes that have ingredients first.' : 'Add ingredients to this recipe first.' %></p></div>
+  <% } else { %>
+    <form class="stack" method="post" action="/s/shopping/ingredients">
+      <% Object.entries(src.hidden).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
+      <div class="card">
+        <p class="row-meta">Untick what you already have. Things already on the list are left off.</p>
+        <% rows.forEach((r) => { %>
+          <label class="row ing-pick<%= r.onList ? ' done' : '' %>">
+            <input type="checkbox" name="add" value="<%= r.key %>"<%= r.checked ? ' checked' : '' %><%= r.onList ? ' disabled' : '' %>>
+            <span class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= [r.qty, r.from.length > 1 || src.kind === 'week' ? r.from.join(', ') : ''].filter(Boolean).join(' · ') %></span></span>
+            <% if (r.onList) { %><span class="tag">On the list</span><% } else if (r.usuallyHave) { %><span class="tag lilac">Usually have</span><% } %>
+          </label>
+        <% }) %>
+      </div>
+      <div class="card"><label class="check-row">Remember what I untick as “usually have”, so it starts unticked next time<input type="checkbox" name="remember"></label></div>
+      <button class="btn btn-primary btn-block" type="submit">Add ticked items</button>
+    </form>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>
