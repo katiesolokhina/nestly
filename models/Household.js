@@ -15,6 +15,8 @@ const householdSchema = new mongoose.Schema(
     tags: { type: [String], default: ['Groceries', 'Home', 'Gift', 'School'] },
     remCats: { type: [String], default: ['Errands', 'Car', 'Home', 'Family'] },
     eventCats: { type: [String], default: ['Appointments', 'Birthdays', 'Family', 'Home'] },
+    // Colors for event categories. Categories without one get a color from the palette.
+    eventColors: { type: [{ _id: false, name: String, color: String }], default: [] },
   },
   { timestamps: true }
 );

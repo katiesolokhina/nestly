@@ -1,7 +1,7 @@
 // Stores, aisles, tags, and categories. Anyone in the household can change them, and every change is logged.
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
-const { LISTS } = require('../lib/lists');
+const { LISTS, categoryColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 
 const router = express.Router();
@@ -12,7 +12,7 @@ const available = (household) => Object.keys(LISTS).filter((k) => household.feat
 const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
 
 router.get('/settings/lists', (req, res) => {
-  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), error: null });
+  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), colorOf: (name) => categoryColor(req.household, name), error: null });
 });
 
 router.post('/settings/lists/:key', async (req, res, next) => {
@@ -28,10 +28,26 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     const i = list.indexOf(value);
     const fail = (msg) => { req.session.flash = msg; res.redirect(`/settings/lists#${key}`); };
 
+    // Colors are stored by name, so they follow renames and go away with removals.
+    const colors = (household.eventColors || []).map((c) => ({ name: c.name, color: c.color }));
+    const setColor = (n, color) => { const c = colors.find((x) => x.name === n); if (c) c.color = color; else colors.push({ name: n, color }); };
+
+    if (action === 'color') {
+      if (key !== 'eventCats' || i < 0) return res.status(404).send('Not found');
+      const color = String(req.body.color || '');
+      if (!HEX.test(color)) return fail('Choose a color.');
+      setColor(value, color.toLowerCase());
+      household.eventColors = colors;
+      await household.save();
+      await logActivity(user, { section: SECTION, text: `${user.name} changed the color for ${value}` });
+      return res.redirect(`/settings/lists#${key}`);
+    }
+
     if (action === 'add') {
       if (!name) return fail('Enter a name.');
       if (list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
       list.push(name);
+      if (key === 'eventCats') setColor(name, PALETTE[(list.length - 1) % PALETTE.length]);
       await logActivity(user, { section: SECTION, text: `${user.name} added ${name} to ${label}` });
     } else if (i < 0) {
       return fail('That is no longer in the list.');
@@ -39,16 +55,28 @@ router.post('/settings/lists/:key', async (req, res, next) => {
       if (!name) return fail('Enter a name.');
       if (name !== value && list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
       list[i] = name;
+      if (key === 'eventCats') {
+        const kept = categoryColor(household, value);
+        const at = colors.findIndex((c) => c.name === value);
+        if (at >= 0) colors.splice(at, 1);
+        setColor(name, kept);
+      }
       await swap(household, key, value, name);
       await logActivity(user, { section: SECTION, text: `${user.name} renamed ${value} to ${name}` });
     } else if (action === 'remove') {
       if (list.length === 1) return fail('Keep at least one.');
       list.splice(i, 1);
+      if (key === 'eventCats') { const at = colors.findIndex((c) => c.name === value); if (at >= 0) colors.splice(at, 1); }
       await swap(household, key, value, cfg.fallback);
       await logActivity(user, { section: SECTION, text: `${user.name} removed ${value} from ${label}` });
     } else if (action === 'up' || action === 'down') {
       const j = action === 'up' ? i - 1 : i + 1;
       if (j >= 0 && j < list.length) [list[i], list[j]] = [list[j], list[i]];
+    }
+    // Pin today's colors before the list changes, so reordering never shifts anyone's colors.
+    if (key === 'eventCats') {
+      household[key].forEach((n) => { if (!colors.some((c) => c.name === n)) colors.push({ name: n, color: categoryColor(household, n) }); });
+      household.eventColors = colors.filter((c) => list.includes(c.name));
     }
     household[key] = list;
     await household.save();

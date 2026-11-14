@@ -35,7 +35,7 @@
     </fieldset>
 
     <div class="fields">
-      <div class="field"><label for="category">Category</label><select id="category" name="category"><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option></select></div>
+      <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
     </div>
     <div class="field"><label for="link">Link <span class="muted">(tickets, RSVP, details)</span></label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
     <div class="field">

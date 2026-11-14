@@ -9,13 +9,13 @@
     <div class="cal">
       <% ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((d) => { %><div class="dow" aria-hidden="true"><%= d %></div><% }) %>
       <% for (let i = 0; i < blanks; i += 1) { %><div></div><% } %>
-      <% cells.forEach((c) => { %><a class="day<%= c.has ? ' has' : '' %><%= c.date === today ? ' now' : '' %><%= c.date === day ? ' sel' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= c.date %>" aria-label="<%= c.date %><%= c.has ? ', has plans' : '' %>"<%- c.date === day ? ' aria-current="date"' : '' %>><%= c.num %><i></i></a><% }) %>
+      <% cells.forEach((c) => { %><a class="day<%= c.has ? ' has' : '' %><%= c.date === today ? ' now' : '' %><%= c.date === day ? ' sel' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= c.date %>" aria-label="<%= c.date %><%= c.has ? ', has plans' : '' %>"<%- c.date === day ? ' aria-current="date"' : '' %>><%= c.num %><span class="dots" aria-hidden="true"><% c.dots.forEach((col) => { %><i<%- col ? ` style="background:${col}"` : '' %>></i><% }) %></span></a><% }) %>
     </div>
   </div>
   <div class="card">
     <div class="row-h"><h2><%= dayTitle %></h2><a class="btn btn-primary" href="/s/calendar/new?date=<%= day %>">Add event</a></div>
     <% if (!agenda.length) { %><p class="muted small center">Nothing planned.</p><% } %>
-    <% agenda.forEach((a) => { %><div class="row"><a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta"><%= a.meta %></span></a><span class="tag<%= a.lilac ? ' lilac' : '' %>"><%= a.tag %></span></div><% }) %>
+    <% agenda.forEach((a) => { %><div class="row"><% if (a.color) { %><span class="cat-dot" style="background:<%= a.color %>" aria-hidden="true"></span><% } %><a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta"><%= a.meta %></span></a><span class="tag<%= a.lilac ? ' lilac' : '' %>"><%= a.tag %></span></div><% }) %>
   </div>
 </main>
 <%- include('../partials/bottom') %>

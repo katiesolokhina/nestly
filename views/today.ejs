@@ -14,6 +14,7 @@
           <% if (!attention.length) { %><p class="muted small center">You're all caught up for today.</p><% } %>
           <% attention.forEach((a) => { %>
             <div class="row">
+              <% if (a.color) { %><span class="cat-dot" style="background:<%= a.color %>" aria-hidden="true"></span><% } %>
               <% if (a.checkAction) { %><form method="post" action="<%= a.checkAction %>"><input type="hidden" name="from" value="today"><button class="check" type="submit" aria-label="<%= a.checkLabel %>"><i></i></button></form><% } %>
               <a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta<%= a.late ? ' late' : '' %>"><%= a.meta %></span></a>
               <span class="tag"><%= a.type %></span>
@@ -24,7 +25,7 @@
         <section class="card full">
           <h2>Coming up</h2>
           <% if (!upcoming.length) { %><p class="muted small center">Nothing in the next two weeks.</p><% } %>
-          <% upcoming.forEach((u) => { %><div class="row"><div class="row-body"><span class="row-title"><%= u.title %></span><span class="row-meta"><%= u.meta %></span></div><span class="tag<%= u.lilac ? ' lilac' : '' %>"><%= u.tag %></span></div><% }) %>
+          <% upcoming.forEach((u) => { %><div class="row"><% if (u.color) { %><span class="cat-dot" style="background:<%= u.color %>" aria-hidden="true"></span><% } %><div class="row-body"><span class="row-title"><%= u.title %></span><span class="row-meta"><%= u.meta %></span></div><span class="tag<%= u.lilac ? ' lilac' : '' %>"><%= u.tag %></span></div><% }) %>
         </section>
       <% } %>
     <% }) %>

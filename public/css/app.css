@@ -145,11 +145,8 @@ input[type="file"] { width: 100%; min-height: 44px; font: inherit; font-size: 14
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .dow { text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 0; }
 .day { min-height: 44px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: none; }
-.day i { display: block; width: 5px; height: 5px; border-radius: 50%; }
-.day.has i { background: var(--lilac-ring); }
 .day.now { font-weight: 700; color: var(--primary-deep); }
 .day.sel { background: var(--primary); color: var(--on-primary); font-weight: 700; }
-.day.sel i { background: var(--on-primary); }
 .list-row { border-top: 1px solid var(--off); padding: 6px 0; display: flex; flex-direction: column; }
 .rename { display: flex; gap: 8px; align-items: center; }
 .rename input { flex: 1; min-width: 0; }
@@ -169,3 +166,10 @@ input[type="number"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .weekday input:focus-visible + span { outline: 2px solid var(--primary-deep); outline-offset: 2px; }
 .details-text { display: block; white-space: pre-line; font-size: 15px; }
 .link-text { overflow-wrap: anywhere; text-align: center; }
+.dots { display: flex; gap: 2px; min-height: 5px; }
+.day .dots i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--lilac-ring); }
+.day.sel .dots i { box-shadow: 0 0 0 1px var(--on-primary); }
+.cat-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.cat-dot.inline { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.color-pick { display: inline-flex; align-items: center; min-height: 44px; margin-right: auto; }
+.color-pick input { width: 44px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: none; cursor: pointer; }

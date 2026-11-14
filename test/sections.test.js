@@ -305,6 +305,28 @@ test('sections', async (t) => {
     assert.equal((await katie(`/files/${ticketId}`)).status, 200);
   });
 
+  await t.test('event categories have colors that follow renames, and new events start uncategorized', async () => {
+    const today = localToday();
+    assert.match((await katie('/s/calendar/new')).text, /<option selected>Uncategorized<\/option>/);
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Color check', date: today, time: '08:00', category: 'Birthdays' } });
+    let page = await sam(`/s/calendar?day=${today}`);
+    assert.match(page.text, /style="background:#b4236b"[^>]*><\/span><a[^>]*><span class="row-title">Color check/i, 'second palette color for Birthdays');
+    await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'color', value: 'Birthdays', color: '#123456' } });
+    assert.match((await sam(`/s/calendar?day=${today}`)).text, /background:#123456/);
+    assert.match((await sam('/')).text, /background:#123456/, 'Today shows the color too');
+    assert.equal((await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'color', value: 'Birthdays', color: 'red;}' } })).location, '/settings/lists#eventCats');
+    assert.match((await katie('/settings/lists')).text, /Choose a color/);
+    assert.equal((await katie('/settings/lists/stores', { method: 'POST', form: { action: 'color', value: 'Kroger', color: '#123456' } })).status, 404);
+    await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'rename', value: 'Birthdays', name: 'Bdays' } });
+    await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'up', value: 'Family' } });
+    page = await sam(`/s/calendar?day=${today}`);
+    assert.match(page.text, /background:#123456/, 'color kept through rename and reorder');
+    assert.match(page.text, /Bdays/);
+    await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'remove', value: 'Bdays' } });
+    page = await sam(`/s/calendar?day=${today}`);
+    assert.match(page.text, /background:#8e889c[^>]*><\/span><a[^>]*><span class="row-title">Color check/i, 'removed category falls back to gray Uncategorized');
+  });
+
   await t.test('Today can be reordered and trimmed per person, and resets', async () => {
     const order = (html) => [...html.matchAll(/<h2>(Needs attention today|Coming up)<\/h2>|tile-label">([^<]+)</g)].map((x) => x[1] || x[2]);
     assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up']);

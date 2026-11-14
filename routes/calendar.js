@@ -5,7 +5,7 @@ const Event = require('../models/Event');
 const Reminder = require('../models/Reminder');
 const Upload = require('../models/Upload');
 const { recordChange, visible } = require('../lib/changes');
-const { pick } = require('../lib/lists');
+const { pick, categoryColor } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { occursOn, timeText, sortKey, repeatText, DAY_NAMES } = require('../lib/recurrence');
 const { todayIn, isDate, weekday, longDay, monthLabel, shiftMonth, monthCells } = require('../lib/dates');
@@ -84,18 +84,24 @@ router.get('/s/calendar', async (req, res, next) => {
       req.household.features.remember !== false ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
     ]);
     const { blanks, days } = monthCells(month);
-    const has = (d) => events.some((e) => occursOn(e, d)) || reminders.some((r) => r.date === d);
+    const color = (e) => categoryColor(req.household, e.category);
+    // Up to three dots per day: one per event color, then one for reminders.
+    const dots = (d) => {
+      const colors = [...new Set(events.filter((e) => occursOn(e, d)).map(color))];
+      if (reminders.some((r) => r.date === d)) colors.push('');
+      return colors.slice(0, 3);
+    };
     const agenda = [
       ...events.filter((e) => occursOn(e, day)).sort((a, b) => sortKey(a, day).localeCompare(sortKey(b, day))).map((e) => ({
         title: e.title,
         meta: [timeText(e, day), e.location, e.category === 'Uncategorized' ? '' : e.category, repeatText(e)].filter(Boolean).join(' · '),
-        tag: e.private ? 'Only me' : 'Event', lilac: e.private, href: `/s/calendar/${e._id}?day=${day}`,
+        tag: e.private ? 'Only me' : 'Event', lilac: e.private, href: `/s/calendar/${e._id}?day=${day}`, color: color(e),
       })),
       ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit` })),
     ];
     res.render('calendar/month', {
       active: 'calendar', month, day, today, blanks, agenda,
-      cells: days.map((d) => ({ date: d, num: Number(d.slice(8)), has: has(d) })),
+      cells: days.map((d) => { const ds = dots(d); return { date: d, num: Number(d.slice(8)), has: ds.length > 0, dots: ds }; }),
       label: monthLabel(month), dayTitle: longDay(day), prev: shiftMonth(month, -1), next: shiftMonth(month, 1),
     });
   } catch (err) {
@@ -106,7 +112,7 @@ router.get('/s/calendar', async (req, res, next) => {
 router.get('/s/calendar/new', async (req, res, next) => {
   try {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category: req.household.eventCats[0], details: '', private: false };
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category: 'Uncategorized', details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);
@@ -141,7 +147,7 @@ router.get('/s/calendar/:id', async (req, res, next) => {
     const file = item.fileId ? await Upload.findById(item.fileId).lean() : null;
     res.render('calendar/event', {
       active: 'calendar', item, day, file,
-      when: longDay(day), time: timeText(item, day), repeat: repeatText(item),
+      when: longDay(day), time: timeText(item, day), repeat: repeatText(item), color: categoryColor(req.household, item.category),
       maps: item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : '',
     });
   } catch (err) {
