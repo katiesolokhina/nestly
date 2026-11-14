@@ -28,5 +28,15 @@
       <form class="add" method="post" action="/settings/lists/<%= l.key %>"><input type="text" name="name" maxlength="40" aria-label="Add a <%= l.one %>" placeholder="Add a <%= l.one %>"><button class="btn btn-primary" type="submit" name="action" value="add">Add</button></form>
     </section>
   <% }) %>
+  <% if (usual) { %>
+    <section class="card" id="usual">
+      <h2>Usually have</h2>
+      <p class="hint">When meal ingredients go to the shopping list, these start unticked. Remove one to stop skipping it.</p>
+      <% if (!usual.length) { %><p class="muted small">Nothing yet.</p><% } %>
+      <% usual.forEach((u) => { %>
+        <div class="row"><span class="row-body row-title"><%= u.name %></span><form method="post" action="/settings/lists/usually-have"><input type="hidden" name="key" value="<%= u.key %>"><button class="link-btn link-danger" type="submit">Remove<span class="sr-only"> <%= u.name %></span></button></form></div>
+      <% }) %>
+    </section>
+  <% } %>
 </main>
 <%- include('partials/bottom') %>

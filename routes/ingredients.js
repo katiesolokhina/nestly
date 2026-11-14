@@ -69,6 +69,23 @@ router.get('/s/shopping/ingredients', async (req, res, next) => {
   }
 });
 
+// Stops skipping one item that was marked "usually have", then shows the review again.
+router.post('/s/shopping/ingredients/usual', async (req, res, next) => {
+  try {
+    const src = await source(req);
+    if (!src) return res.status(404).send('Not found');
+    const key = String(req.body.unmark || '');
+    const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key, usuallyHave: true }, { $set: { usuallyHave: false } });
+    if (item) {
+      await logActivity(req.user, { section: 'Shopping', text: `${req.user.name} stopped marking ${item.name} as usually have` });
+      req.session.flash = `${item.name} will start ticked from now on.`;
+    }
+    res.redirect(`/s/shopping/ingredients?${new URLSearchParams(src.hidden)}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/s/shopping/ingredients', async (req, res, next) => {
   try {
     const src = await source(req);

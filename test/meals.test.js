@@ -232,3 +232,70 @@ test('recipes and meals', async (t) => {
   assert.equal((await katie('/s/recipes')).status, 404);
   assert.doesNotMatch((await katie('/')).text, /Today’s meals/);
 });
+
+test('select and delete from shopping, and undo "usually have"', async (t) => {
+  const today = localToday();
+  const app = await startApp({
+    name: 'nestly_test_select',
+    port: 3989,
+    async seed() {
+      const home = await Household.create({ name: 'Home' });
+      const other = await Household.create({ name: 'Other' });
+      const hash = await User.hashPassword(PW);
+      const katie = await User.create({ householdId: home._id, email: 'katie@test.dev', name: 'Katie', role: 'admin', passwordHash: hash });
+      await User.create({ householdId: other._id, email: 'out@test.dev', name: 'Out', role: 'admin', passwordHash: hash });
+      await CatalogItem.create({ householdId: home._id, name: 'Salt', key: 'salt', usuallyHave: true });
+      const r = await Recipe.create({ householdId: home._id, createdBy: katie._id, byName: 'Katie', title: 'Soup', ingredients: [{ qty: '1 tsp', name: 'salt' }, { qty: '2', name: 'carrots' }] });
+      return { recipeId: r.id };
+    },
+  });
+  t.after(() => app.stop());
+  const signIn = async (email) => { const c = client(app.base); await c('/login', { method: 'POST', form: { email, password: PW } }); return c; };
+  const katie = await signIn('katie@test.dev');
+  const out = await signIn('out@test.dev');
+  for (const name of ['Milk', 'Bread', 'Eggs', 'Apples']) await katie('/s/shopping/quick', { method: 'POST', form: { name } });
+  await out('/s/shopping/quick', { method: 'POST', form: { name: 'Theirs' } });
+  const ids = await withDb(app.uri, async () => Object.fromEntries((await ShoppingItem.find().lean()).map((i) => [i.name, String(i._id)])));
+
+  // Select mode lists the items with checkboxes.
+  const sel = await katie('/s/shopping?select=1');
+  assert.match(sel.text, /Select items/);
+  assert.match(sel.text, new RegExp(`name="ids" value="${ids.Milk}"`));
+
+  // Delete three at once; another household's item is untouchable.
+  let r = await katie('/s/shopping/delete-many', { method: 'POST', form: [['ids', ids.Milk], ['ids', ids.Bread], ['ids', ids.Eggs], ['ids', ids.Theirs], ['ids', 'junk'], ['query', '']] });
+  assert.equal(r.location, '/s/shopping');
+  await withDb(app.uri, async () => {
+    assert.deepEqual((await ShoppingItem.find().lean()).map((i) => i.name).sort(), ['Apples', 'Theirs']);
+  });
+  const list = await katie('/s/shopping');
+  assert.match(list.text, /deleted Milk, Bread, Eggs from Shopping/);
+  const undoId = list.text.match(/\/activity\/([a-f0-9]{24})\/undo/)[1];
+
+  // One Undo brings all three back; Activity offers Restore until then.
+  assert.match((await katie('/activity')).text, /Restore/);
+  r = await katie(`/activity/${undoId}/undo`, { method: 'POST', form: { back: '/s/shopping' } });
+  await withDb(app.uri, async () => assert.equal(await ShoppingItem.countDocuments({ householdId: { $exists: true } }), 5));
+  r = await katie(`/activity/${undoId}/undo`, { method: 'POST', form: { back: '/s/shopping' } });
+  assert.match((await katie('/s/shopping')).text, /already undone|already back/);
+  assert.equal((await katie('/s/shopping/delete-many', { method: 'POST', form: { query: '' } })).location, '/s/shopping');
+
+  // "Usually have": undo from the review page...
+  let rev = await katie(`/s/shopping/ingredients?recipe=${app.seeded.recipeId}`);
+  assert.match(rev.text, /Usually have/);
+  assert.doesNotMatch(rev.text, /value="salt" checked/);
+  r = await katie('/s/shopping/ingredients/usual', { method: 'POST', form: { recipe: app.seeded.recipeId, unmark: 'salt' } });
+  assert.equal(r.location, `/s/shopping/ingredients?recipe=${app.seeded.recipeId}`);
+  rev = await katie(r.location);
+  assert.match(rev.text, /value="salt" checked/);
+  assert.match(rev.text, /Salt will start ticked/);
+
+  // ...or from Settings.
+  await withDb(app.uri, async () => CatalogItem.updateOne({ key: 'salt' }, { $set: { usuallyHave: true } }));
+  const lists = await katie('/settings/lists');
+  assert.match(lists.text, /Usually have/);
+  assert.match(lists.text, /name="key" value="salt"/);
+  await katie('/settings/lists/usually-have', { method: 'POST', form: { key: 'salt' } });
+  await withDb(app.uri, async () => assert.equal((await CatalogItem.findOne({ key: 'salt' }).lean()).usuallyHave, false));
+  void today;
+});

@@ -4,7 +4,7 @@ const { requireAuth, requireSection } = require('../middleware/auth');
 const ShoppingItem = require('../models/ShoppingItem');
 const CatalogItem = require('../models/CatalogItem');
 const Upload = require('../models/Upload');
-const { recordChange, visible } = require('../lib/changes');
+const { recordChange, recordDeleteMany, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
 const { keyOf, fromCatalog } = require('../lib/catalog');
 const { parseFiles, saveUpload } = require('../lib/uploads');
@@ -46,6 +46,7 @@ router.get('/s/shopping', async (req, res, next) => {
     const store = household.stores.includes(req.query.store) ? req.query.store : '';
     const tag = household.tags.includes(req.query.tag) ? req.query.tag : '';
     const shopping = req.query.mode === 'shop';
+    const selecting = !shopping && req.query.select === '1';
 
     const filter = { ...visible(user), clearedAt: null };
     if (method !== 'All') filter.method = method;
@@ -64,7 +65,7 @@ router.get('/s/shopping', async (req, res, next) => {
       .filter((g) => g.items.length);
 
     res.render('shopping/list', {
-      active: 'shopping', method, store, tag, shopping, groups, staples, catalog,
+      active: 'shopping', method, store, tag, shopping, selecting, groups, staples, catalog,
       count: active.length,
       total: money(active.reduce((n, i) => n + (i.price || 0), 0)),
       bought: items.filter((i) => i.bought).map((i) => ({ ...i, meta: `${i.boughtByName} · ${dayLabel(new Intl.DateTimeFormat('en-CA', { timeZone: user.timezone }).format(i.boughtAt), today)}` })),
@@ -131,6 +132,29 @@ router.post('/s/shopping/start', async (req, res, next) => {
   } catch (err) {
     if (res.headersSent) console.error('Shopping alert failed:', err.message);
     else next(err);
+  }
+});
+
+// Select mode: delete several items at once, without marking them bought. One Undo brings them back.
+router.post('/s/shopping/delete-many', async (req, res, next) => {
+  try {
+    const ids = [].concat(req.body.ids || []).map(String).filter((id) => mongoose.isValidObjectId(id)).slice(0, 500);
+    const items = ids.length ? await ShoppingItem.find({ _id: { $in: ids }, ...visible(req.user), clearedAt: null }) : [];
+    if (!items.length) {
+      req.session.flash = 'Nothing was selected.';
+      return res.redirect(listBack(req));
+    }
+    const docs = items.map((i) => i.toObject());
+    await ShoppingItem.deleteMany({ _id: { $in: items.map((i) => i._id) } });
+    const names = items.map((i) => i.name);
+    const label = names.length === 1 ? names[0] : `${names.length} items`;
+    await recordDeleteMany(req, {
+      model: 'ShoppingItem', docs, section: SECTION, label,
+      text: names.length <= 3 ? `deleted ${names.join(', ')} from Shopping` : `deleted ${names.length} items from Shopping (${names.slice(0, 3).join(', ')}, …)`,
+    });
+    res.redirect(listBack(req));
+  } catch (err) {
+    next(err);
   }
 });
 

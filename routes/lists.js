@@ -3,6 +3,7 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
+const CatalogItem = require('../models/CatalogItem');
 
 const router = express.Router();
 router.use('/settings/lists', requireAuth);
@@ -11,8 +12,34 @@ const SECTION = 'Settings';
 const available = (household) => Object.keys(LISTS).filter((k) => household.features[LISTS[k].feature] !== false);
 const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
 
-router.get('/settings/lists', (req, res) => {
-  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), colorOf: (name) => categoryColor(req.household, name), reminderColor: reminderColor(req.household), showReminders: req.household.features.remember !== false, error: null });
+router.get('/settings/lists', async (req, res, next) => {
+  try {
+    const usual = req.household.features.shopping !== false
+      ? await CatalogItem.find({ householdId: req.user.householdId, usuallyHave: true }, { name: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean()
+      : null;
+    res.render('lists', {
+      usual,
+      active: 'settings',
+      lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })),
+      colorOf: (name) => categoryColor(req.household, name),
+      reminderColor: reminderColor(req.household),
+      showReminders: req.household.features.remember !== false,
+      error: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// "Usually have": things skipped when meal ingredients go to the shopping list.
+router.post('/settings/lists/usually-have', async (req, res, next) => {
+  try {
+    const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(req.body.key || ''), usuallyHave: true }, { $set: { usuallyHave: false } });
+    if (item) await logActivity(req.user, { section: SECTION, text: `${req.user.name} stopped marking ${item.name} as usually have` });
+    res.redirect('/settings/lists#usual');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Reminders aren't an event category, so their calendar color is set on its own.

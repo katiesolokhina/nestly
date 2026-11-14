@@ -219,3 +219,6 @@ input[type="search"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .ing-pick.done .row-title { text-decoration: none; color: var(--muted); }
 .earlier summary { font-weight: 600; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
 .earlier .meal-day { box-shadow: none; padding: 8px 0 0; border-top: 1px solid var(--off); border-radius: 0; }
+.btn[disabled] { opacity: .5; cursor: default; }
+.select-link { align-self: flex-start; }
+.select-all { border-bottom: 1px solid var(--off); }
