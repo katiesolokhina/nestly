@@ -34,10 +34,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     }
 
     // New session ID on login prevents session fixation.
+    const back = typeof req.session.returnTo === 'string' && req.session.returnTo.startsWith('/share?') ? req.session.returnTo : '/';
     req.session.regenerate((err) => {
       if (err) return next(err);
       req.session.userId = user._id.toString();
-      req.session.save((err2) => (err2 ? next(err2) : res.redirect('/')));
+      req.session.save((err2) => (err2 ? next(err2) : res.redirect(back)));
     });
   } catch (err) {
     next(err);

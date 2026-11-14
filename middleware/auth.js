@@ -7,6 +7,8 @@ const { bottomBar } = require('../lib/sections');
 async function requireAuth(req, res, next) {
   if (!req.session.userId) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not signed in' });
+    // Something shared to Nestly while signed out picks up where it left off after sign-in.
+    if (req.method === 'GET' && req.path === '/share') req.session.returnTo = req.originalUrl.slice(0, 3000);
     return res.redirect('/login');
   }
   try {

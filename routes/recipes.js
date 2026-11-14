@@ -9,7 +9,7 @@ const { pick } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { addToCatalog } = require('../lib/catalog');
 const { shoppingName } = require('../lib/ingredients');
-const { importFromLink, fetchPhoto, parsePasted } = require('../lib/recipe-import');
+const { importFromLink, fetchPhoto, parsePasted, socialOf } = require('../lib/recipe-import');
 
 const router = express.Router();
 router.use('/s/recipes', requireAuth, requireSection('recipes'));
@@ -103,8 +103,27 @@ router.get('/s/recipes/new', async (req, res, next) => {
   }
 });
 
+const importView = (extra) => ({ active: 'recipes', error: null, link: '', text: '', pasteLink: '', shared: '', ...extra });
+
 router.get('/s/recipes/import', (req, res) => {
-  res.render('recipes/import', { active: 'recipes', error: null, link: '', text: '' });
+  res.render('recipes/import', importView({}));
+});
+
+// Android's share menu sends links here ("Share → Nestly" from Instagram, TikTok, a browser...).
+// It only fills in the import page; nothing is fetched until Get recipe is tapped.
+router.get('/share', requireAuth, requireSection('recipes'), (req, res) => {
+  const text = String(req.query.text || '').slice(0, 20000);
+  const urlParam = String(req.query.url || '').trim();
+  const inText = (text.match(/https?:\/\/[^\s"'<>]+/) || [])[0] || '';
+  const link = (isHttp(urlParam) ? urlParam : inText).slice(0, 1000);
+  const rest = text.replace(link, '').trim();
+  const from = socialOf(link);
+  res.render('recipes/import', importView({
+    link,
+    pasteLink: link,
+    text: rest.length > 40 ? rest : '',
+    shared: link ? `Shared${from ? ` from ${{ instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook' }[from]}` : ''}. Tap Get recipe, or paste the caption below.` : 'Shared text is below. Tap Read recipe.',
+  }));
 });
 
 // Reads a link or pasted text into the form for review. Nothing is saved until Save.
@@ -116,8 +135,9 @@ router.post('/s/recipes/import', async (req, res, next) => {
     if (req.body.mode === 'text') {
       found = parsePasted(text);
       if (!found.ingredients.length && !found.steps.length) {
-        return res.status(422).render('recipes/import', { active: 'recipes', error: 'Paste the recipe, with its ingredients and steps.', link, text });
+        return res.status(422).render('recipes/import', importView({ error: 'Paste the recipe, with its ingredients and steps.', text, pasteLink: link }));
       }
+      if (isHttp(link)) found.link = link; // e.g. the Instagram post the caption came from
     } else {
       found = await importFromLink(link);
     }
@@ -125,7 +145,7 @@ router.post('/s/recipes/import', async (req, res, next) => {
     res.render('recipes/form', await formView(req, { ...blank(req), ...rest, photoUrl }, null, { imported: true }));
   } catch (err) {
     if (!err.userFacing) return next(err);
-    res.status(422).render('recipes/import', { active: 'recipes', error: err.message, link, text });
+    res.status(422).render('recipes/import', importView({ error: err.message, link, text, pasteLink: err.social ? link : '' }));
   }
 });
 

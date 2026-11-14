@@ -1,20 +1,22 @@
 <%- include('../partials/top', { title: 'Import a recipe' }) %>
 <main class="stack">
   <div class="head"><div><h1>Import a recipe</h1><p class="sub">You'll check everything before it's saved.</p></div><a class="link-btn" href="/s/recipes">Cancel</a></div>
+  <% if (shared) { %><p class="notice" role="status"><%= shared %></p><% } %>
   <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
   <form class="card" method="post" action="/s/recipes/import">
     <h2>From a link</h2>
     <input type="hidden" name="mode" value="link">
     <div class="field"><label for="link">Recipe page</label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= link %>" required></div>
     <button class="btn btn-primary btn-block" type="submit">Get recipe</button>
-    <p class="hint">Works with most recipe sites. If one doesn't, paste the recipe below.</p>
+    <p class="hint">Works with most recipe sites. For Instagram, TikTok, and Facebook, Nestly reads the caption when the site allows it. If it doesn't, paste the recipe below.</p>
   </form>
   <form class="card" method="post" action="/s/recipes/import">
     <h2>Paste the text</h2>
     <input type="hidden" name="mode" value="text">
-    <div class="field"><label for="text">Recipe</label><textarea id="text" name="text" rows="10" maxlength="20000" placeholder="Name&#10;Ingredients&#10;2 cups flour&#10;...&#10;Instructions&#10;1. Mix...&#10;"><%= text %></textarea></div>
+    <div class="field"><label for="text">Recipe or caption</label><textarea id="text" name="text" rows="10" maxlength="20000" placeholder="Name&#10;Ingredients&#10;2 cups flour&#10;...&#10;Instructions&#10;1. Mix...&#10;"<%= pasteLink ? ' autofocus' : '' %>><%= text %></textarea></div>
+    <div class="field"><label for="pasteLink">Link <span class="muted">(optional: the post or video it came from)</span></label><input id="pasteLink" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= pasteLink %>"></div>
     <button class="btn btn-ghost btn-block" type="submit">Read recipe</button>
-    <p class="hint">Headings like “Ingredients” and “Instructions” help it split things up.</p>
+    <p class="hint">Headings like “Ingredients” and “Instructions” help it split things up. Without them, lines that start with an amount become ingredients.</p>
   </form>
 </main>
 <%- include('../partials/bottom') %>

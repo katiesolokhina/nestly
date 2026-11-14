@@ -9,7 +9,7 @@ const Meal = require('../models/Meal');
 const ShoppingItem = require('../models/ShoppingItem');
 const CatalogItem = require('../models/CatalogItem');
 const { parseIngredient, shoppingName, combine } = require('../lib/ingredients');
-const { extractRecipe, parsePasted, duration, checkUrl } = require('../lib/recipe-import');
+const { extractRecipe, parsePasted, duration, checkUrl, socialOf, captionFrom, metaTag } = require('../lib/recipe-import');
 const { addDays } = require('../lib/dates');
 
 const PW = 'correct horse';
@@ -39,6 +39,19 @@ test('ingredient and recipe parsing', () => {
   assert.equal(p.title, 'Pancakes');
   assert.deepEqual(p.ingredients.map((i) => i.name), ['flour', 'eggs']);
   assert.deepEqual(p.steps, ['Mix.', 'Cook.']);
+
+  // Instagram, TikTok, Facebook: the caption becomes the recipe; hashtags are dropped.
+  assert.equal(socialOf('https://www.instagram.com/reel/x/'), 'instagram');
+  assert.equal(socialOf('https://vm.tiktok.com/x'), 'tiktok');
+  assert.equal(socialOf('https://fb.watch/x'), 'facebook');
+  assert.equal(socialOf('https://www.allrecipes.com/x'), '');
+  const og = '<meta property="og:description" content="12 likes, 3 comments - cook on May 1, 2026: &quot;Garlic pasta&#10;Ingredients:&#10;- 8 oz spaghetti&#10;- 3 cloves garlic, minced&#10;Steps:&#10;1. Boil.&#10;2. Toss. #pasta #dinner&#10;#food&quot;.">';
+  const cap = captionFrom('instagram', metaTag(og, 'og:description'), '');
+  assert.equal(cap, 'Garlic pasta\nIngredients:\n- 8 oz spaghetti\n- 3 cloves garlic, minced\nSteps:\n1. Boil.\n2. Toss.');
+  const fromCap = parsePasted(cap);
+  assert.equal(fromCap.title, 'Garlic pasta');
+  assert.deepEqual(fromCap.ingredients[0], { qty: '8 oz', name: 'spaghetti' });
+  assert.deepEqual(fromCap.steps, ['Boil.', 'Toss.']);
 
   // The server never fetches local or private addresses, or odd ports.
   for (const bad of ['http://127.0.0.1/x', 'http://localhost:3000/', 'http://10.0.0.5/', 'http://[::1]/', 'file:///etc/passwd', 'https://example.com:8443/', 'https://user:pw@example.com/']) {
@@ -122,6 +135,27 @@ test('recipes and meals', async (t) => {
   assert.match(r.text, /can’t be reached/);
   r = await katie('/s/recipes/import', { method: 'POST', form: { mode: 'link', link: 'not a link' } });
   assert.match(r.text, /starting with https/);
+
+  // A social link that won't share its caption asks for it, keeping the link for the pasted text.
+  r = await katie('/s/recipes/import', { method: 'POST', form: { mode: 'link', link: 'https://www.instagram.com/reel/abc123/' } });
+  assert.equal(r.status, 422);
+  assert.match(r.text, /Instagram didn’t share/);
+  assert.match(r.text, /name="link"[^>]*value="https:\/\/www\.instagram\.com\/reel\/abc123\/"/);
+  r = await katie('/s/recipes/import', { method: 'POST', form: { mode: 'text', link: 'https://www.instagram.com/reel/abc123/', text: 'Garlic pasta\n8 oz spaghetti\n3 cloves garlic\nBoil the pasta.' } });
+  assert.match(r.text, /value="https:\/\/www\.instagram\.com\/reel\/abc123\/"/);
+  assert.match(r.text, /value="spaghetti"/);
+
+  // Share → Nestly (Android) fills in the import page, even after signing in first.
+  r = await katie('/share?title=Look&text=' + encodeURIComponent('Best tacos https://www.instagram.com/reel/xyz/'));
+  assert.equal(r.status, 200);
+  assert.match(r.text, /Shared from Instagram/);
+  assert.match(r.text, /value="https:\/\/www\.instagram\.com\/reel\/xyz\/"/);
+  const fresh = client(app.base);
+  r = await fresh('/share?url=' + encodeURIComponent('https://example.com/soup'));
+  assert.equal(r.location, '/login');
+  r = await fresh('/login', { method: 'POST', form: { email: 'sam@test.dev', password: PW } });
+  assert.equal(r.location, '/share?url=' + encodeURIComponent('https://example.com/soup'));
+  r = await fresh('/login', { method: 'GET' });
 
   // ---------- Meal plan ----------
   r = await katie(`/s/meals/new?recipe=${tacosId}`);
