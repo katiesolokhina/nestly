@@ -13,6 +13,8 @@ const reminderSchema = new mongoose.Schema(
     // Who gets a notification on the day: everyone, just the person who added it, chosen people, or nobody.
     notify: { type: String, enum: ['all', 'me', 'some', 'none'], default: 'all' },
     notifyTo: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] },
+    // Personal snoozes: notify this one person again at `until`. Other people aren't affected.
+    snoozes: { type: [{ _id: false, userId: mongoose.Schema.Types.ObjectId, until: Date }], default: [] },
     category: { type: String, default: 'Uncategorized' },
     done: { type: Boolean, default: false },
   },

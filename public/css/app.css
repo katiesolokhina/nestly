@@ -193,3 +193,4 @@ input[type="number"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .time-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-size: 14px; font-weight: 500; }
 .time-row input, .time-row select { width: auto; }
 .notify-prefs { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
+.snooze-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

@@ -208,3 +208,82 @@ test('notify routes', async (t) => {
   assert.equal((activity.text.match(/started shopping at Costco/g) || []).length, 1);
   assert.doesNotMatch(activity.text, /started out shopping/);
 });
+
+test('reminder page and snooze', async (t) => {
+  const app = await startApp({
+    name: 'nestly_test_snooze',
+    port: 3991,
+    async seed() {
+      const home = await Household.create({ name: 'Home' });
+      const hash = await User.hashPassword(PW);
+      const katie = await User.create({ householdId: home._id, email: 'katie@test.dev', name: 'Katie', role: 'admin', passwordHash: hash });
+      const r = await Reminder.create({ householdId: home._id, createdBy: katie._id, byName: 'Katie', text: 'Call vet', details: 'Ask about shots', date: '2026-11-14', time: '14:14' });
+      return { reminderId: r.id, katieId: katie.id };
+    },
+  });
+  t.after(() => app.stop());
+  const katie = client(app.base);
+  await katie('/login', { method: 'POST', form: { email: 'katie@test.dev', password: PW } });
+  const id = app.seeded.reminderId;
+
+  const page = await katie(`/s/remember/${id}`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /Ask about shots/);
+  assert.match(page.text, />Done</);
+  assert.match(page.text, /Tomorrow morning \(8:00 AM\)/);
+  assert.match(page.text, /Everyone/);
+
+  // The list and Today open the reminder page, not the edit form.
+  assert.match((await katie('/s/remember')).text, new RegExp(`href="/s/remember/${id}"`));
+
+  // Snooze 30 minutes: saved for Katie only, shown on the page, no Activity entry.
+  const before = Date.now();
+  const s = await katie(`/s/remember/${id}/snooze`, { method: 'POST', form: { minutes: '30' } });
+  assert.equal(s.location, `/s/remember/${id}`);
+  await withDb(app.uri, async () => {
+    const r = await Reminder.findById(id).lean();
+    assert.equal(r.snoozes.length, 1);
+    assert.equal(String(r.snoozes[0].userId), app.seeded.katieId);
+    const mins = (r.snoozes[0].until - before) / 60000;
+    assert.ok(mins > 29.9 && mins < 30.5);
+  });
+  assert.match((await katie(`/s/remember/${id}`)).text, /Snoozed until/);
+  assert.doesNotMatch((await katie('/activity')).text, /snooze/i);
+
+  // Snoozing again replaces it; bad numbers are ignored.
+  await katie(`/s/remember/${id}/snooze`, { method: 'POST', form: { minutes: 'morning' } });
+  await katie(`/s/remember/${id}/snooze`, { method: 'POST', form: { minutes: '-5' } });
+  await withDb(app.uri, async () => {
+    const r = await Reminder.findById(id).lean();
+    assert.equal(r.snoozes.length, 1);
+    assert.ok(r.snoozes[0].until - Date.now() > 60 * 60000);
+  });
+
+  // Done from the reminder page.
+  const done = await katie(`/s/remember/${id}/done`, { method: 'POST', form: { from: 'view' } });
+  assert.equal(done.location, '/s/remember');
+});
+
+test('snoozed reminders notify the snoozer again', async (t) => {
+  const db = await startDatabase('nestly_test_snooze_tick');
+  await mongoose.connect(db.uri);
+  await mongoose.connection.db.dropDatabase();
+  await NotifyLog.init();
+  t.after(async () => { await mongoose.disconnect(); await db.stop(); });
+  const home = await Household.create({ name: 'Home' });
+  const hash = await User.hashPassword(PW);
+  const katie = await User.create({ householdId: home._id, email: 'k@t.dev', name: 'Katie', passwordHash: hash, timezone: CHICAGO });
+  const sam = await User.create({ householdId: home._id, email: 's@t.dev', name: 'Sam', passwordHash: hash, timezone: CHICAGO });
+  await PushSubscription.create({ userId: katie._id, endpoint: 'https://push.test/k', keys: { p256dh: 'p', auth: 'a' } });
+  await PushSubscription.create({ userId: sam._id, endpoint: 'https://push.test/s', keys: { p256dh: 'p', auth: 'a' } });
+  // An old reminder (outside the usual date window), snoozed by Katie until 3:00 PM.
+  await Reminder.create({ householdId: home._id, createdBy: katie._id, byName: 'Katie', text: 'Old one', date: '2026-11-01', snoozes: [{ userId: katie._id, until: at('15:00') }] });
+  const sent = [];
+  const send = async (userId, p) => { sent.push({ to: String(userId), ...p }); return 1; };
+  await tick(at('14:59'), send);
+  assert.equal(sent.length, 0);
+  await tick(at('15:00'), send);
+  await tick(at('15:01'), send);
+  assert.deepEqual(sent.map((s) => s.to), [katie.id]);
+  assert.equal(sent[0].url.endsWith('/edit'), false);
+});

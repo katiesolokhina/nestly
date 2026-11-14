@@ -108,7 +108,7 @@ router.get('/s/calendar', async (req, res, next) => {
         meta: [timeText(e, day), e.location, e.category === 'Uncategorized' ? '' : e.category, repeatText(e)].filter(Boolean).join(' · '),
         tag: e.private ? 'Only me' : 'Event', lilac: e.private, href: `/s/calendar/${e._id}?day=${day}`, color: color(e),
       })),
-      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: r.time ? `Reminder · ${time12(r.time)}` : 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit`, color: remColor })),
+      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: r.time ? `Reminder · ${time12(r.time)}` : 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}`, color: remColor })),
     ];
     res.render('calendar/month', {
       active: 'calendar', month, day, today, blanks, agenda, cat,

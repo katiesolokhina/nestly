@@ -10,7 +10,7 @@
     <% items.forEach((r) => { %>
       <div class="row">
         <form method="post" action="/s/remember/<%= r._id %>/done"><button class="check" type="submit" aria-label="Check off <%= r.text %>"><i></i></button></form>
-        <a class="row-body row-link" href="/s/remember/<%= r._id %>/edit"><span class="row-title"><%= r.text %></span><span class="row-meta<%= r.late ? ' late' : '' %>"><%= r.meta %></span></a>
+        <a class="row-body row-link" href="/s/remember/<%= r._id %>"><span class="row-title"><%= r.text %></span><span class="row-meta<%= r.late ? ' late' : '' %>"><%= r.meta %></span></a>
         <% if (r.private) { %><span class="tag lilac">Only me</span><% } %>
       </div>
     <% }) %>

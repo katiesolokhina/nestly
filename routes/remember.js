@@ -5,7 +5,7 @@ const Reminder = require('../models/Reminder');
 const { recordChange, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
 const User = require('../models/User');
-const { todayIn, dayLabel, isDate, time12 } = require('../lib/dates');
+const { todayIn, dayLabel, longDay, isDate, time12, addDays, zonedDate, clockIn } = require('../lib/dates');
 
 const router = express.Router();
 router.use('/s/remember', requireAuth, requireSection('remember'));
@@ -97,6 +97,58 @@ router.get('/s/remember/:id/edit', async (req, res, next) => {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
     res.render('remember/form', await formView(req, item.toObject()));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// What a notification opens: the reminder, with Done and Snooze.
+router.get('/s/remember/:id', async (req, res, next) => {
+  try {
+    const item = await find(req);
+    if (!item) return res.status(404).send('Not found');
+    const tz = req.user.timezone;
+    const today = todayIn(tz);
+    const members = await membersOf(req);
+    const names = (ids) => members.filter((m) => ids.some((id) => String(id) === String(m._id))).map((m) => (String(m._id) === req.user.id ? 'You' : m.name));
+    const notifies = !item.date ? 'Nobody (add a date to get notified)'
+      : item.notify === 'none' ? 'Nobody'
+      : item.notify === 'me' || item.private ? (String(item.createdBy) === req.user.id ? 'Just you' : `Just ${item.byName}`)
+      : item.notify === 'some' ? names(item.notifyTo).join(', ') || 'Nobody'
+      : 'Everyone';
+    const mine = (item.snoozes || []).filter((s) => String(s.userId) === req.user.id && s.until > new Date()).sort((a, b) => a.until - b.until)[0];
+    res.render('remember/show', {
+      active: 'remember',
+      item,
+      when: item.date ? `${['Today', 'Tomorrow', 'Yesterday'].includes(dayLabel(item.date, today)) ? `${dayLabel(item.date, today)}, ` : ''}${longDay(item.date)}${item.time ? ` at ${time12(item.time)}` : ''}` : 'No date',
+      notifies,
+      snoozedText: mine ? `Snoozed until ${clockIn(mine.until, tz, today)}. You’ll get it again then.` : '',
+      morning: time12((req.user.notify && req.user.notify.morning) || '08:00'),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Snooze is personal: it notifies only the person who tapped it, and isn't a change to the reminder.
+router.post('/s/remember/:id/snooze', async (req, res, next) => {
+  try {
+    const item = await find(req);
+    if (!item) return res.status(404).send('Not found');
+    const tz = req.user.timezone;
+    let until;
+    if (req.body.minutes === 'morning') {
+      const [h, m] = ((req.user.notify && req.user.notify.morning) || '08:00').split(':').map(Number);
+      until = zonedDate(addDays(todayIn(tz), 1), h * 60 + m, tz);
+    } else {
+      const minutes = parseInt(req.body.minutes, 10);
+      if (!(minutes >= 1 && minutes <= 1440)) return res.redirect(`/s/remember/${item._id}`);
+      until = new Date(Date.now() + minutes * 60000);
+    }
+    const keep = (item.snoozes || []).filter((s) => String(s.userId) !== req.user.id && s.until > new Date(Date.now() - 86400000));
+    // No timestamp change, so snoozing never blocks someone's undo.
+    await Reminder.updateOne({ _id: item._id }, { $set: { snoozes: [...keep, { userId: req.user._id, until }] } }, { timestamps: false });
+    res.redirect(`/s/remember/${item._id}`);
   } catch (err) {
     next(err);
   }
