@@ -344,6 +344,17 @@ test('sections', async (t) => {
     assert.match(none.text, /Filter none/);
     assert.doesNotMatch(none.text, /Filter fam/);
     assert.match((await sam(`/s/calendar?day=${today}&cat=Nope`)).text, /Filter reminder/, 'unknown categories show everything');
+    const rem = await sam(`/s/calendar?day=${today}&show=reminders`);
+    assert.match(rem.text, /Filter reminder/);
+    assert.doesNotMatch(rem.text, /Filter fam|Filter none/);
+    assert.match(rem.text, /show=reminders" aria-label="Next month"/);
+    assert.match(rem.text, /background:#a77bc9/i, 'default reminder color');
+    await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: '#225588' } });
+    assert.match((await katie(`/s/calendar?day=${today}`)).text, /background:#225588/);
+    assert.match((await katie('/')).text, /background:#225588/, 'Today uses the reminder color');
+    await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: 'blue' } });
+    assert.match((await sam('/settings/lists')).text, /Choose a color/);
+    assert.match((await katie('/activity')).text, /changed the color for reminders/);
   });
 
   await t.test('Today can be reordered and trimmed per person, and resets', async () => {

@@ -1,7 +1,7 @@
 <%- include('../partials/top', { title: 'Calendar', scripts: ['chip-scroll'] }) %>
 <main class="stack">
   <div class="chips chips-scroll" role="group" aria-label="Filter by category" data-chip-scroll>
-    <% catChips.forEach((c) => { %><a class="chip<%= cat === c.value ? ' on' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= day %><%= c.value ? '&cat=' + encodeURIComponent(c.value) : '' %>"<%- cat === c.value ? ' aria-current="true"' : '' %>><% if (c.color) { %><span class="cat-dot" style="background:<%= c.color %>" aria-hidden="true"></span><% } %><%= c.name %></a><% }) %>
+    <% catChips.forEach((c) => { %><a class="chip<%= c.on ? ' on' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= day %><%= c.query %>"<%- c.on ? ' aria-current="true"' : '' %>><% if (c.color) { %><span class="cat-dot" style="background:<%= c.color %>" aria-hidden="true"></span><% } %><%= c.name %></a><% }) %>
   </div>
   <div class="card">
     <div class="row-h">
@@ -17,8 +17,8 @@
   </div>
   <div class="card">
     <div class="row-h"><h2><%= dayTitle %></h2><a class="btn btn-primary" href="/s/calendar/new?date=<%= day %><%= cat && cat !== 'Uncategorized' ? '&category=' + encodeURIComponent(cat) : '' %>">Add event</a></div>
-    <% if (!agenda.length) { %><p class="muted small center"><%= cat ? `No ${cat} events this day.` : 'Nothing planned.' %></p><% } %>
-    <% if (cat) { %><p class="hint">Showing only <%= cat %> events. Reminders are hidden. <a href="/s/calendar?month=<%= month %>&day=<%= day %>">Show everything</a></p><% } %>
+    <% if (!agenda.length) { %><p class="muted small center"><%= filterLabel ? `No ${filterLabel} this day.` : 'Nothing planned.' %></p><% } %>
+    <% if (filterLabel) { %><p class="hint">Showing only <%= filterLabel %>. <a href="/s/calendar?month=<%= month %>&day=<%= day %>">Show everything</a></p><% } %>
     <% agenda.forEach((a) => { %><div class="row"><% if (a.color) { %><span class="cat-dot" style="background:<%= a.color %>" aria-hidden="true"></span><% } %><a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta"><%= a.meta %></span></a><span class="tag<%= a.lilac ? ' lilac' : '' %>"><%= a.tag %></span></div><% }) %>
   </div>
 </main>

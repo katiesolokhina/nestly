@@ -1,7 +1,7 @@
 // Stores, aisles, tags, and categories. Anyone in the household can change them, and every change is logged.
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
-const { LISTS, categoryColor, PALETTE, HEX } = require('../lib/lists');
+const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 
 const router = express.Router();
@@ -12,7 +12,21 @@ const available = (household) => Object.keys(LISTS).filter((k) => household.feat
 const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
 
 router.get('/settings/lists', (req, res) => {
-  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), colorOf: (name) => categoryColor(req.household, name), error: null });
+  res.render('lists', { active: 'settings', lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })), colorOf: (name) => categoryColor(req.household, name), reminderColor: reminderColor(req.household), showReminders: req.household.features.remember !== false, error: null });
+});
+
+// Reminders aren't an event category, so their calendar color is set on its own.
+router.post('/settings/lists/reminder-color', async (req, res, next) => {
+  try {
+    const color = String(req.body.color || '');
+    if (!HEX.test(color)) { req.session.flash = 'Choose a color.'; return res.redirect('/settings/lists#eventCats'); }
+    req.household.reminderColor = color.toLowerCase();
+    await req.household.save();
+    await logActivity(req.user, { section: SECTION, text: `${req.user.name} changed the color for reminders` });
+    res.redirect('/settings/lists#eventCats');
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/settings/lists/:key', async (req, res, next) => {

@@ -5,7 +5,7 @@ const Event = require('../models/Event');
 const Reminder = require('../models/Reminder');
 const Upload = require('../models/Upload');
 const { recordChange, visible } = require('../lib/changes');
-const { pick, categoryColor } = require('../lib/lists');
+const { pick, categoryColor, reminderColor } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { occursOn, timeText, sortKey, repeatText, DAY_NAMES } = require('../lib/recurrence');
 const { todayIn, isDate, weekday, longDay, monthLabel, shiftMonth, monthCells } = require('../lib/dates');
@@ -80,18 +80,22 @@ router.get('/s/calendar', async (req, res, next) => {
     const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month || '') ? req.query.month : day.slice(0, 7);
     const scope = visible(req.user);
     // Filtering by a category shows only those events; reminders have no event category, so they hide.
+    // "Reminders" is its own filter, kept apart from event categories so a category can share its name.
+    const remindersOn = req.household.features.remember !== false;
     const cats = ['Uncategorized', ...req.household.eventCats];
-    const cat = cats.includes(req.query.cat) ? req.query.cat : '';
+    const onlyReminders = remindersOn && req.query.show === 'reminders';
+    const cat = !onlyReminders && cats.includes(req.query.cat) ? req.query.cat : '';
     const [events, reminders] = await Promise.all([
-      Event.find(cat ? { ...scope, category: cat } : scope).lean(),
-      req.household.features.remember !== false && !cat ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
+      onlyReminders ? [] : Event.find(cat ? { ...scope, category: cat } : scope).lean(),
+      remindersOn && !cat ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
     ]);
+    const remColor = reminderColor(req.household);
     const { blanks, days } = monthCells(month);
     const color = (e) => categoryColor(req.household, e.category);
     // Up to three dots per day: one per event color, then one for reminders.
     const dots = (d) => {
       const colors = [...new Set(events.filter((e) => occursOn(e, d)).map(color))];
-      if (reminders.some((r) => r.date === d)) colors.push('');
+      if (reminders.some((r) => r.date === d)) colors.push(remColor);
       return colors.slice(0, 3);
     };
     const agenda = [
@@ -100,12 +104,17 @@ router.get('/s/calendar', async (req, res, next) => {
         meta: [timeText(e, day), e.location, e.category === 'Uncategorized' ? '' : e.category, repeatText(e)].filter(Boolean).join(' · '),
         tag: e.private ? 'Only me' : 'Event', lilac: e.private, href: `/s/calendar/${e._id}?day=${day}`, color: color(e),
       })),
-      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit` })),
+      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit`, color: remColor })),
     ];
     res.render('calendar/month', {
       active: 'calendar', month, day, today, blanks, agenda, cat,
-      catQuery: cat ? `&cat=${encodeURIComponent(cat)}` : '',
-      catChips: [{ name: 'All', value: '', color: '' }, ...[...req.household.eventCats, 'Uncategorized'].map((c) => ({ name: c, value: c, color: categoryColor(req.household, c) }))],
+      filterLabel: onlyReminders ? 'reminders' : cat ? `${cat} events` : '',
+      catQuery: onlyReminders ? '&show=reminders' : cat ? `&cat=${encodeURIComponent(cat)}` : '',
+      catChips: [
+        { name: 'All', query: '', on: !cat && !onlyReminders, color: '' },
+        ...[...req.household.eventCats, 'Uncategorized'].map((c) => ({ name: c, query: `&cat=${encodeURIComponent(c)}`, on: cat === c, color: categoryColor(req.household, c) })),
+        ...(remindersOn ? [{ name: 'Reminders', query: '&show=reminders', on: onlyReminders, color: remColor }] : []),
+      ],
       cells: days.map((d) => { const ds = dots(d); return { date: d, num: Number(d.slice(8)), has: ds.length > 0, dots: ds }; }),
       label: monthLabel(month), dayTitle: longDay(day), prev: shiftMonth(month, -1), next: shiftMonth(month, 1),
     });
