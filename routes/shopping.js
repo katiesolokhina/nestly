@@ -12,6 +12,7 @@ const { dayLabel, todayIn } = require('../lib/dates');
 const User = require('../models/User');
 const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
+const { restock } = require('../lib/pantry');
 
 const router = express.Router();
 router.use('/s/shopping', requireAuth, requireSection('shopping'));
@@ -322,6 +323,7 @@ router.post('/s/shopping/:id/toggle', async (req, res, next) => {
     await item.save();
     const text = item.bought ? `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}` : `moved ${item.name} back to Shopping`;
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text, label: item.name });
+    if (item.bought && req.household.features.pantry !== false) await restock(req.user, item.key);
     res.redirect(listBack(req));
   } catch (err) {
     next(err);

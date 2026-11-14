@@ -8,12 +8,12 @@
     <form class="stack" method="post" action="/s/shopping/ingredients">
       <% Object.entries(src.hidden).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
       <div class="card">
-        <p class="row-meta">Untick what you already have. Things already on the list are left off. Tap Undo next to “Usually have” to stop skipping something.</p>
+        <p class="row-meta">Untick what you already have. Things already on the list are left off, and things the pantry has start unticked. Tap Undo next to “Usually have” to stop skipping something.</p>
         <% rows.forEach((r) => { %>
           <label class="row ing-pick<%= r.onList ? ' done' : '' %>">
             <input type="checkbox" name="add" value="<%= r.key %>"<%= r.checked ? ' checked' : '' %><%= r.onList ? ' disabled' : '' %>>
             <span class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= [r.qty, r.from.length > 1 || src.kind === 'week' ? r.from.join(', ') : ''].filter(Boolean).join(' · ') %></span></span>
-            <% if (r.onList) { %><span class="tag">On the list</span><% } else if (r.usuallyHave) { %><span class="tag lilac">Usually have</span><button class="link-btn" type="submit" formaction="/s/shopping/ingredients/usual" formnovalidate name="unmark" value="<%= r.key %>">Undo<span class="sr-only"> usually have for <%= r.name %></span></button><% } %>
+            <% if (r.onList) { %><span class="tag">On the list</span><% } else if (r.inPantry) { %><span class="tag good">In pantry<%= r.pantryAmount ? ': ' + r.pantryAmount : '' %></span><% } else if (r.usuallyHave) { %><span class="tag lilac">Usually have</span><button class="link-btn" type="submit" formaction="/s/shopping/ingredients/usual" formnovalidate name="unmark" value="<%= r.key %>">Undo<span class="sr-only"> usually have for <%= r.name %></span></button><% } %>
           </label>
         <% }) %>
       </div>

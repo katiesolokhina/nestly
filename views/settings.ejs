@@ -40,6 +40,15 @@
       <label class="check-row">When someone starts shopping<input type="checkbox" name="shopping"<%= user.notify.shopping !== false ? ' checked' : '' %>></label>
       <label class="time-row" for="morning">Morning time<input id="morning" name="morning" type="time" required value="<%= user.notify.morning || '08:00' %>"></label>
       <p class="hint">For reminders without a time and for all-day events. How early each event notifies is set on the event.</p>
+      <% if (household.features.pantry !== false) { const pn = user.notify; %>
+        <input type="hidden" name="pantryForm" value="1">
+        <h3 class="sub-h">Pantry</h3>
+        <div class="check-row">
+          <label for="pantryExpiry" class="grow">When something’s about to expire</label>
+          <select name="pantryExpiryDays" aria-label="How early"><% [[0, 'On the day'], [1, '1 day before'], [2, '2 days before'], [3, '3 days before'], [5, '5 days before'], [7, '7 days before']].forEach(([d, l]) => { %><option value="<%= d %>"<%= (pn.pantryExpiryDays ?? 2) === d ? ' selected' : '' %>><%= l %></option><% }) %></select>
+          <input id="pantryExpiry" type="checkbox" name="pantryExpiry"<%= pn.pantryExpiry !== false ? ' checked' : '' %>>
+        </div>
+      <% } %>
       <% if (household.features.bills !== false) { const n = user.notify; %>
         <input type="hidden" name="billsForm" value="1">
         <h3 class="sub-h">Bills</h3>

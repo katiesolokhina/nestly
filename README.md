@@ -4,7 +4,7 @@ A private, installable household app: shared shopping lists, reminders, calendar
 
 ## Status
 
-Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, Bills (repeating, split, balances), Meals, Recipes (with import from a link or pasted text), editable lists, and notifications. Pantry, Chores, and Home info are placeholders until they're built.
+Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, Bills (repeating, split, balances), Pantry (have/low/out, linked to Shopping), Meals, Recipes (with import from a link or pasted text), editable lists, and notifications. Chores and Home info are placeholders until they're built.
 
 Nestly is online-only: nothing is queued while offline.
 

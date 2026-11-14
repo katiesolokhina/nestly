@@ -7,6 +7,7 @@ const Recipe = require('../models/Recipe');
 const Meal = require('../models/Meal');
 const ShoppingItem = require('../models/ShoppingItem');
 const CatalogItem = require('../models/CatalogItem');
+const PantryItem = require('../models/PantryItem');
 const { visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { keyOf, fromCatalog, addToCatalog } = require('../lib/catalog');
@@ -50,13 +51,22 @@ async function source(req) {
 async function review(req, src) {
   const rows = combine(src.recipes.flatMap((r) => r.ingredients.map((i) => ({ qty: i.qty, name: i.name, from: r.title }))));
   const keys = rows.map((r) => r.key);
-  const [onList, usual] = await Promise.all([
+  const [onList, usual, pantry] = await Promise.all([
     ShoppingItem.find({ ...visible(req.user), key: { $in: keys }, bought: false, clearedAt: null }, { key: 1 }).lean(),
     CatalogItem.find({ householdId: req.user.householdId, key: { $in: keys }, usuallyHave: true }, { key: 1 }).lean(),
+    req.household.features.pantry !== false ? PantryItem.find({ householdId: req.user.householdId, key: { $in: keys }, status: 'have' }, { key: 1, amount: 1 }).lean() : [],
   ]);
   const listed = new Set(onList.map((x) => x.key));
   const have = new Set(usual.map((x) => x.key));
-  return rows.map((r) => ({ ...r, onList: listed.has(r.key), usuallyHave: have.has(r.key), checked: !listed.has(r.key) && !have.has(r.key) }));
+  const stocked = new Map(pantry.map((x) => [x.key, x]));
+  return rows.map((r) => ({
+    ...r,
+    onList: listed.has(r.key),
+    usuallyHave: have.has(r.key),
+    inPantry: stocked.has(r.key),
+    pantryAmount: stocked.has(r.key) ? stocked.get(r.key).amount : '',
+    checked: !listed.has(r.key) && !have.has(r.key) && !stocked.has(r.key),
+  }));
 }
 
 router.get('/s/shopping/ingredients', async (req, res, next) => {

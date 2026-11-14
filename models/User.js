@@ -33,6 +33,8 @@ const userSchema = new mongoose.Schema(
       billsPaid: { type: Boolean, default: true }, // someone paid a bill I share: here's my part
       billsPaidBack: { type: Boolean, default: true },
       billsWeekly: { type: Boolean, default: false }, // Sunday: what I still owe
+      pantryExpiry: { type: Boolean, default: true },
+      pantryExpiryDays: { type: Number, min: 0, max: 14, default: 2 },
     },
     lastTripAlertAt: { type: Date, default: null },
   },

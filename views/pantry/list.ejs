@@ -1,0 +1,39 @@
+<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Pantry</h1><p class="sub"><%= lowCount %> low or out<%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div>
+  <form class="add pantry-add" method="post" action="/s/pantry/quick">
+    <input type="hidden" name="query" value="<%= query %>">
+    <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add to the pantry" placeholder="Add an item" autocomplete="off">
+    <select name="spot" aria-label="Where it’s kept"><% household.pantrySpots.forEach((s) => { %><option<%= spot === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
+    <button class="btn btn-primary" type="submit">Add</button>
+  </form>
+  <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+  <div class="chips chips-scroll" role="group" aria-label="Filter" data-chip-scroll>
+    <a class="chip<%= !show && !spot ? ' on' : '' %>" href="/s/pantry"<%- !show && !spot ? ' aria-current="true"' : '' %>>All</a>
+    <a class="chip<%= show === 'low' ? ' on' : '' %>" href="/s/pantry?show=low"<%- show === 'low' ? ' aria-current="true"' : '' %>>Low &amp; out<%= lowCount ? ' (' + lowCount + ')' : '' %></a>
+    <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="/s/pantry?show=soon"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring soon<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
+    <% household.pantrySpots.forEach((s) => { %><a class="chip<%= spot === s ? ' on' : '' %>" href="/s/pantry?spot=<%= encodeURIComponent(s) %>"<%- spot === s ? ' aria-current="true"' : '' %>><%= s %></a><% }) %>
+  </div>
+  <div class="card">
+    <% if (!groups.length) { %><p class="muted small center"><%= show || spot ? 'Nothing here.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
+    <% groups.forEach((g) => { %>
+      <div>
+        <p class="aisle"><%= g.name %></p>
+        <% g.items.forEach((i) => { %>
+          <div class="swipe" data-swipe id="p-<%= i._id %>">
+            <form class="swipe-delete" method="post" action="/s/pantry/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= query %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form>
+            <div class="row pantry-row status-<%= i.status %>">
+              <a class="row-body row-link" href="/s/pantry/<%= i._id %>/edit"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %></a>
+              <form class="status-seg" method="post" action="/s/pantry/<%= i._id %>/status" aria-label="<%= i.name %>: <%= STATUS[i.status] %>">
+                <input type="hidden" name="query" value="<%= query %>">
+                <% Object.entries(STATUS).forEach(([v, l]) => { %><button type="submit" name="status" value="<%= v %>" class="seg-<%= v %><%= i.status === v ? ' on' : '' %>" aria-pressed="<%= i.status === v %>"><%= l %><span class="sr-only"> <%= i.name %></span></button><% }) %>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+  <p class="hint"><% if (shoppingOn) { %>Marking something Low or Out puts it on the shopping list, and buying it there marks it Have again. <% } %>Swipe an item left to delete it.</p>
+</main>
+<%- include('../partials/bottom') %>

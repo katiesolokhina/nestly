@@ -1,0 +1,25 @@
+<%- include('../partials/top', { title: item._id ? 'Edit pantry item' : 'Add to pantry', scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit pantry item' : 'Add to pantry' %></h1><a class="link-btn" href="/s/pantry">Cancel</a></div>
+  <form class="card" method="post" action="/s/pantry<%= item._id ? '/' + item._id : '' %>" novalidate>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="name">Item</label><input id="name" name="name" type="text" maxlength="80" required list="catalog-names" autocomplete="off" value="<%= item.name %>"></div>
+    <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+    <div class="fields">
+      <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
+      <div class="field"><label for="status">Status</label><select id="status" name="status"><% Object.entries(STATUS).forEach(([v, l]) => { %><option value="<%= v %>"<%= item.status === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="amount">Amount <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="2 cans, half a bag" value="<%= item.amount %>"></div>
+      <div class="field"><label for="expires">Use by <span class="muted">(optional)</span></label><input id="expires" name="expires" type="date" value="<%= item.expires %>"></div>
+    </div>
+    <label class="check-row">Add to shopping when it’s low or out<input type="checkbox" name="autoShop"<%= item.autoShop !== false ? ' checked' : '' %>></label>
+    <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Brand we like, top shelf…" value="<%= item.note %>"></div>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <% if (item._id) { %>
+    <p class="hint">Last changed by <%= item.statusBy || item.byName %>.</p>
+    <form method="post" action="/s/pantry/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the pantry<span class="sr-only"> <%= item.name %></span></button></form>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>
