@@ -1,0 +1,53 @@
+<%- include('../partials/top', { title: item._id ? 'Edit bill' : 'Add bill', scripts: ['bill-form', 'confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit bill' : 'Add bill' %></h1><a class="link-btn" href="<%= item._id ? '/s/bills/' + item._id : '/s/bills' %>">Cancel</a></div>
+  <form class="card" method="post" action="/s/bills<%= item._id ? '/' + item._id : '' %>" enctype="multipart/form-data" novalidate data-bill-form>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="name">Bill</label><input id="name" name="name" type="text" maxlength="80" required placeholder="Rent, internet, electric…" value="<%= item.name %>"></div>
+    <div class="fields">
+      <div class="field"><label for="amount">Amount</label><input id="amount" name="amount" type="text" inputmode="decimal" required placeholder="0.00" value="<%= item.cents == null ? '' : centsInput(item.cents) %>" data-total></div>
+      <div class="field"><label for="dueDate">Due</label><input id="dueDate" name="dueDate" type="date" required value="<%= item.dueDate %>"></div>
+    </div>
+    <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.billCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
+
+    <fieldset class="group">
+      <legend>Repeats</legend>
+      <div class="fields">
+        <div class="field"><label for="repeat">How often</label><select id="repeat" name="repeat" data-repeat><% [['none', 'Does not repeat'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].forEach(([v, l]) => { %><option value="<%= v %>"<%= (item.repeat || 'none') === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
+        <div class="field" data-repeat-only><label for="interval">Every</label><input id="interval" name="interval" type="number" min="1" max="24" inputmode="numeric" value="<%= item.interval || 1 %>"></div>
+      </div>
+      <div class="field" data-repeat-only><label for="until">Until <span class="muted">(optional)</span></label><input id="until" name="until" type="date" value="<%= item.until || '' %>"></div>
+      <p class="hint" data-repeat-only>Each time, a new bill appears a month ahead with the last amount filled in. Change it if that time’s amount is different.</p>
+      <% if (item.seriesId) { %><label class="check-row">Use these details for future bills too<input type="checkbox" name="applyFuture" checked></label><% } %>
+    </fieldset>
+
+    <fieldset class="group" data-split>
+      <legend>Split</legend>
+      <div class="field"><label for="splitMode" class="sr-only">How to split</label><select id="splitMode" name="splitMode" data-split-mode>
+        <% [['even', 'Evenly'], ['amount', 'By amount'], ['percent', 'By percent'], ['none', 'Not split']].forEach(([v, l]) => { %><option value="<%= v %>"<%= item.splitMode === v ? ' selected' : '' %>><%= l %></option><% }) %>
+      </select></div>
+      <div class="split-people" data-split-people>
+        <% members.forEach((m) => { const s = (item.shares || []).find((x) => String(x.userId) === String(m._id)); %>
+          <div class="split-row" data-person>
+            <label class="split-who"><input type="checkbox" name="people" value="<%= m._id %>"<%= s ? ' checked' : '' %> data-person-on><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %></label>
+            <input class="split-amt" name="amt_<%= m._id %>" type="text" inputmode="decimal" placeholder="0.00" aria-label="<%= m.name %>’s amount" value="<%= s && item.splitMode === 'amount' ? centsInput(s.cents) : '' %>" data-amt>
+            <input class="split-pct" name="pct_<%= m._id %>" type="text" inputmode="decimal" placeholder="%" aria-label="<%= m.name %>’s percent" value="<%= s && s.percent != null ? s.percent : '' %>" data-pct>
+            <span class="split-even muted" data-even></span>
+          </div>
+        <% }) %>
+      </div>
+      <p class="hint" data-split-sum></p>
+    </fieldset>
+
+    <div class="field"><label for="link">Pay online link <span class="muted">(optional)</span></label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
+    <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="500" placeholder="Account number ends 1234, autopay…" value="<%= item.note %>"></div>
+    <div class="field">
+      <label for="receipt">Receipt or bill <span class="muted">(optional)</span></label>
+      <% if (receipt) { %><p class="file-row"><a href="/files/<%= receipt._id %>/view?back=/s/bills/<%= item._id %>/edit"><%= receipt.name %></a><label class="inline-check"><input type="checkbox" name="removeReceipt">Remove</label></p><% } %>
+      <input id="receipt" name="receipt" type="file" accept="image/*,.pdf">
+    </div>
+    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me (not shared or split)<input type="checkbox" name="private" data-private<%= item.private ? ' checked' : '' %>></label><% } %>
+    <button class="btn btn-primary btn-block" type="submit">Save bill</button>
+  </form>
+</main>
+<%- include('../partials/bottom') %>

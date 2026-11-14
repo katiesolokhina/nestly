@@ -70,6 +70,16 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
     n.reminders = b.reminders === 'on';
     n.events = b.events === 'on';
     n.shopping = b.shopping === 'on';
+    if (b.billsForm === '1') {
+      n.billsBefore = b.billsBefore === 'on';
+      const days = parseInt(b.billsBeforeDays, 10);
+      if ([1, 2, 3, 5, 7, 14].includes(days)) n.billsBeforeDays = days;
+      n.billsDue = b.billsDue === 'on';
+      n.billsOverdue = b.billsOverdue === 'on';
+      n.billsPaid = b.billsPaid === 'on';
+      n.billsPaidBack = b.billsPaidBack === 'on';
+      n.billsWeekly = b.billsWeekly === 'on';
+    }
     await req.user.save();
     res.redirect('/settings?saved=notify#notifications');
   } catch (err) {

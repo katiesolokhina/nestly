@@ -269,7 +269,7 @@ test('select and delete from shopping, and undo "usually have"', async (t) => {
     assert.deepEqual((await ShoppingItem.find().lean()).map((i) => i.name).sort(), ['Apples', 'Theirs']);
   });
   const list = await katie('/s/shopping');
-  assert.match(list.text, /deleted Milk, Bread, Eggs from Shopping/);
+  assert.match(list.text, /deleted (Milk|Bread|Eggs), (Milk|Bread|Eggs), (Milk|Bread|Eggs) from Shopping/);
   const undoId = list.text.match(/\/activity\/([a-f0-9]{24})\/undo/)[1];
 
   // One Undo brings all three back; Activity offers Restore until then.

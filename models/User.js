@@ -25,6 +25,14 @@ const userSchema = new mongoose.Schema(
       reminders: { type: Boolean, default: true },
       events: { type: Boolean, default: true },
       shopping: { type: Boolean, default: true }, // "Katie is shopping at Costco"
+      // Bills: each person picks which of these they want.
+      billsBefore: { type: Boolean, default: true },
+      billsBeforeDays: { type: Number, min: 1, max: 14, default: 3 },
+      billsDue: { type: Boolean, default: true },
+      billsOverdue: { type: Boolean, default: true },
+      billsPaid: { type: Boolean, default: true }, // someone paid a bill I share: here's my part
+      billsPaidBack: { type: Boolean, default: true },
+      billsWeekly: { type: Boolean, default: false }, // Sunday: what I still owe
     },
     lastTripAlertAt: { type: Date, default: null },
   },

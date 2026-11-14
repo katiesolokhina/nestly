@@ -1,0 +1,63 @@
+<%- include('../partials/top', { title: bill.name, scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= bill.name %></h1><p class="sub<%= status.tone === 'late' ? ' late' : '' %>"><%= status.text %></p></div><a class="link-btn" href="/s/bills<%= bill.paid ? '?tab=paid' : '' %>">Back</a></div>
+
+  <div class="card">
+    <div class="row"><div class="row-body"><span class="row-meta">Amount</span><span class="bill-big"><%= money(bill.cents) %></span></div><% if (bill.private) { %><span class="tag lilac">Only me</span><% } %></div>
+    <div class="row"><div class="row-body"><span class="row-meta">Due</span><span class="row-title"><%= new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(bill.dueDate + 'T00:00:00Z')) %></span><% if (repeatText) { %><span class="row-meta"><%= repeatText %></span><% } %></div></div>
+    <% if (bill.category !== 'Uncategorized') { %><div class="row"><div class="row-body"><span class="row-meta">Category</span><span class="row-title"><%= bill.category %></span></div></div><% } %>
+    <% if (bill.note) { %><div class="row"><div class="row-body"><span class="row-meta">Note</span><span class="details-text"><%= bill.note %></span></div></div><% } %>
+  </div>
+
+  <% if (bill.link && !bill.paid) { %><a class="btn btn-ghost btn-block" href="<%= bill.link %>" target="_blank" rel="noopener noreferrer">Pay online</a><% } %>
+
+  <% if (!bill.paid) { %>
+    <form class="card" method="post" action="/s/bills/<%= bill._id %>/paid" enctype="multipart/form-data">
+      <h2>Mark paid</h2>
+      <div class="fields">
+        <div class="field"><label for="paidBy">Paid by</label><select id="paidBy" name="paidBy"><% members.forEach((m) => { %><option value="<%= m._id %>"<%= String(m._id) === user.id ? ' selected' : '' %>><%= String(m._id) === user.id ? 'Me (' + m.name + ')' : m.name %></option><% }) %></select></div>
+        <div class="field"><label for="paidOn">Paid on</label><input id="paidOn" name="paidOn" type="date" value="<%= today %>"></div>
+      </div>
+      <div class="field"><label for="receipt">Receipt <span class="muted">(optional)</span></label><input id="receipt" name="receipt" type="file" accept="image/*,.pdf"></div>
+      <button class="btn btn-primary btn-block" type="submit">Mark paid</button>
+    </form>
+  <% } %>
+
+  <% if (bill.shares.length) { %>
+    <section class="card" aria-labelledby="split">
+      <h2 id="split">Split<span class="muted small"> · <%= { even: 'evenly', amount: 'by amount', percent: 'by percent' }[bill.splitMode] || '' %></span></h2>
+      <% bill.shares.forEach((s) => { const isPayer = bill.paid && String(s.userId) === String(bill.paidBy); %>
+        <div class="row">
+          <span class="avatar" aria-hidden="true"><%= s.name.charAt(0).toUpperCase() %></span>
+          <div class="row-body">
+            <span class="row-title"><%= s.name %><%= String(s.userId) === user.id ? ' (you)' : '' %></span>
+            <span class="row-meta"><%= money(s.cents) %><%= s.percent != null ? ' · ' + s.percent + '%' : '' %><%= isPayer ? ' · paid the bill' : bill.paid ? (s.settled ? ' · paid back' : ' · owes ' + bill.paidByName) : '' %></span>
+          </div>
+          <% if (bill.paid && !isPayer && s.cents) { %>
+            <form method="post" action="/s/bills/<%= bill._id %>/share"><input type="hidden" name="userId" value="<%= s.userId %>"><input type="hidden" name="settled" value="<%= s.settled ? '0' : '1' %>">
+              <% if (s.settled) { %><button class="tag good" type="submit" aria-label="<%= s.name %> paid back. Tap to undo.">Paid back ✓</button><% } else { %><button class="btn btn-ghost btn-sm" type="submit">Mark paid back<span class="sr-only"> for <%= s.name %></span></button><% } %>
+            </form>
+          <% } %>
+        </div>
+      <% }) %>
+    </section>
+  <% } %>
+
+  <% if (receipt) { %><a class="btn btn-ghost btn-block" href="/files/<%= receipt._id %>/view?back=/s/bills/<%= bill._id %>">View receipt</a><% } %>
+  <% if (bill.paid) { %><form method="post" action="/s/bills/<%= bill._id %>/unpaid" data-confirm="Mark this bill as not paid? Paid-back ticks are cleared too."><button class="btn btn-ghost btn-block" type="submit">Mark not paid</button></form><% } %>
+
+  <% if (historyRows.length) { %>
+    <section class="card" aria-labelledby="hist">
+      <h2 id="hist">Other times</h2>
+      <% historyRows.forEach((h) => { %><a class="row bill-row" href="/s/bills/<%= h._id %>"><span class="row-body"><span class="row-title"><%= new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(h.dueDate + 'T00:00:00Z')) %></span><span class="row-meta<%= h.status.tone === 'late' ? ' late' : '' %>"><%= h.status.text %></span></span><span class="bill-amt"><%= money(h.cents) %></span></a><% }) %>
+    </section>
+  <% } %>
+
+  <div class="btn-row">
+    <a class="btn btn-ghost" href="/s/bills/<%= bill._id %>/edit">Edit</a>
+    <% if (series && series.active) { %><form method="post" action="/s/bills/<%= bill._id %>/stop" data-confirm="Stop this bill from repeating? Bills already paid stay in history."><button class="btn btn-ghost" type="submit">Stop repeating</button></form><% } %>
+  </div>
+  <form method="post" action="/s/bills/<%= bill._id %>/delete" data-confirm="Delete this bill?"><button class="link-btn link-danger" type="submit">Delete this bill<span class="sr-only"> <%= bill.name %></span></button></form>
+  <p class="hint">Added by <%= bill.byName %>.</p>
+</main>
+<%- include('../partials/bottom') %>

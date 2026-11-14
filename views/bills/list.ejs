@@ -1,0 +1,34 @@
+<%- include('../partials/top', { title: 'Bills', scripts: ['chip-scroll'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Bills</h1><p class="sub"><% if (tab === 'upcoming') { %><%= dueCount %> due in the next 30 days · <%= dueTotal %><% } else { %>Paid bills<% } %></p></div><a class="btn btn-primary" href="/s/bills/new">Add</a></div>
+
+  <a class="card balance-card" href="/s/bills/balances">
+    <span class="row-title">Balances</span>
+    <% if (!mine.length) { %><span class="row-meta">You’re all square<%= othersOwing ? ', see others' : '' %>.</span><% } %>
+    <% mine.forEach((m) => { %><span class="row-meta<%= m.owe ? ' late' : ' good' %>"><%= m.text %></span><% }) %>
+  </a>
+
+  <div class="seg" role="tablist" aria-label="Bills">
+    <a role="tab" class="seg-item<%= tab === 'upcoming' ? ' on' : '' %>" aria-selected="<%= tab === 'upcoming' %>" href="/s/bills<%= category ? '?category=' + encodeURIComponent(category) : '' %>">Upcoming</a>
+    <a role="tab" class="seg-item<%= tab === 'paid' ? ' on' : '' %>" aria-selected="<%= tab === 'paid' %>" href="/s/bills?tab=paid<%= category ? '&category=' + encodeURIComponent(category) : '' %>">Paid</a>
+  </div>
+  <div class="chips chips-scroll" role="group" aria-label="Filter by category" data-chip-scroll>
+    <a class="chip<%= !category ? ' on' : '' %>" href="/s/bills<%= tab === 'paid' ? '?tab=paid' : '' %>"<%- !category ? ' aria-current="true"' : '' %>>All</a>
+    <% [...household.billCats, 'Uncategorized'].forEach((c) => { %><a class="chip<%= category === c ? ' on' : '' %>" href="/s/bills?<%= tab === 'paid' ? 'tab=paid&' : '' %>category=<%= encodeURIComponent(c) %>"<%- category === c ? ' aria-current="true"' : '' %>><%= c %></a><% }) %>
+  </div>
+
+  <div class="card">
+    <% if (!items.length) { %><p class="muted small center"><%= tab === 'paid' ? 'No paid bills yet.' : 'No bills coming up.' %></p><% } %>
+    <% items.forEach((b) => { %>
+      <a class="row bill-row" href="/s/bills/<%= b._id %>">
+        <span class="row-body">
+          <span class="row-title"><%= b.name %><% if (b.repeats) { %> <span class="repeat-mark" title="Repeats" aria-label="Repeats">↻</span><% } %></span>
+          <span class="row-meta<%= b.status.tone === 'late' ? ' late' : '' %>"><%= b.status.text %><%= b.mine != null && b.shares.length > 1 ? ' · Your share ' + money(b.mine) : '' %></span>
+        </span>
+        <% if (b.private) { %><span class="tag lilac">Only me</span><% } %>
+        <span class="bill-amt<%= b.status.tone === 'late' ? ' late' : '' %>"><%= money(b.cents) %></span>
+      </a>
+    <% }) %>
+  </div>
+</main>
+<%- include('../partials/bottom') %>

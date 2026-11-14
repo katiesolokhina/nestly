@@ -16,6 +16,7 @@ const householdSchema = new mongoose.Schema(
     remCats: { type: [String], default: ['Errands', 'Car', 'Home', 'Family'] },
     eventCats: { type: [String], default: ['Appointments', 'Birthdays', 'Family', 'Home'] },
     mealSlots: { type: [String], default: ['Breakfast', 'Lunch', 'Dinner'] },
+    billCats: { type: [String], default: ['Housing', 'Utilities', 'Internet & phone', 'Subscriptions', 'Insurance', 'Car'] },
     recipeCats: { type: [String], default: ['Breakfast', 'Mains', 'Sides', 'Soups', 'Desserts', 'Snacks'] },
     // Colors for event categories. Categories without one get a color from the palette.
     reminderColor: { type: String, default: '#A77BC9' },

@@ -1,0 +1,21 @@
+<%- include('../partials/top', { title: 'Balances', scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Balances</h1><p class="sub">From paid bills that haven’t been paid back.</p></div><a class="link-btn" href="/s/bills">Back</a></div>
+  <% if (!pairs.length) { %><div class="card"><p class="muted small center">Everyone’s square.</p></div><% } %>
+  <% pairs.forEach((p) => { %>
+    <section class="card">
+      <div class="row-h"><h2><%= p.text %></h2><span class="bill-big<%= p.from.id === user.id ? ' late' : p.to.id === user.id ? ' good' : '' %>"><%= money(p.cents) %></span></div>
+      <% p.bills.forEach((b) => { %>
+        <a class="row bill-row" href="/s/bills/<%= b.billId %>"><span class="row-body"><span class="row-title"><%= b.line %></span><span class="row-meta"><%= b.dir === 'owes' ? p.from.name + '’s share, paid by ' + p.to.name : p.to.name + '’s share, paid by ' + p.from.name %></span></span><span class="bill-amt<%= b.dir === 'owes' ? '' : ' muted' %>"><%= b.dir === 'owes' ? '' : '−' %><%= money(b.cents) %></span></a>
+      <% }) %>
+      <% if (p.canSettle && p.cents) { %>
+        <form method="post" action="/s/bills/settle" data-confirm="Mark everything between <%= p.from.name %> and <%= p.to.name %> as paid back (<%= money(p.cents) %>)?">
+          <input type="hidden" name="from" value="<%= p.from.id %>"><input type="hidden" name="to" value="<%= p.to.id %>">
+          <button class="btn btn-primary btn-block" type="submit">Settle up <%= money(p.cents) %></button>
+        </form>
+      <% } %>
+    </section>
+  <% }) %>
+  <p class="hint">Bills paid by one person and shared with others show here until each share is marked paid back. Amounts owed both ways are netted out.</p>
+</main>
+<%- include('../partials/bottom') %>

@@ -139,7 +139,7 @@ router.post('/s/shopping/start', async (req, res, next) => {
 router.post('/s/shopping/delete-many', async (req, res, next) => {
   try {
     const ids = [].concat(req.body.ids || []).map(String).filter((id) => mongoose.isValidObjectId(id)).slice(0, 500);
-    const items = ids.length ? await ShoppingItem.find({ _id: { $in: ids }, ...visible(req.user), clearedAt: null }) : [];
+    const items = ids.length ? await ShoppingItem.find({ _id: { $in: ids }, ...visible(req.user), clearedAt: null }).sort({ createdAt: 1 }) : [];
     if (!items.length) {
       req.session.flash = 'Nothing was selected.';
       return res.redirect(listBack(req));

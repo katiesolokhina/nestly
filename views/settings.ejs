@@ -40,6 +40,21 @@
       <label class="check-row">When someone starts shopping<input type="checkbox" name="shopping"<%= user.notify.shopping !== false ? ' checked' : '' %>></label>
       <label class="time-row" for="morning">Morning time<input id="morning" name="morning" type="time" required value="<%= user.notify.morning || '08:00' %>"></label>
       <p class="hint">For reminders without a time and for all-day events. How early each event notifies is set on the event.</p>
+      <% if (household.features.bills !== false) { const n = user.notify; %>
+        <input type="hidden" name="billsForm" value="1">
+        <h3 class="sub-h">Bills</h3>
+        <div class="check-row">
+          <label for="billsBefore" class="grow">Before a bill is due</label>
+          <select name="billsBeforeDays" aria-label="How many days before"><% [1, 2, 3, 5, 7, 14].forEach((d) => { %><option value="<%= d %>"<%= n.billsBeforeDays === d ? ' selected' : '' %>><%= d %> <%= d === 1 ? 'day' : 'days' %></option><% }) %></select>
+          <input id="billsBefore" type="checkbox" name="billsBefore"<%= n.billsBefore !== false ? ' checked' : '' %>>
+        </div>
+        <label class="check-row">On the due date<input type="checkbox" name="billsDue"<%= n.billsDue !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When a bill is overdue<input type="checkbox" name="billsOverdue"<%= n.billsOverdue !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When someone pays a bill I share (my part)<input type="checkbox" name="billsPaid"<%= n.billsPaid !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When someone pays me back<input type="checkbox" name="billsPaidBack"<%= n.billsPaidBack !== false ? ' checked' : '' %>></label>
+        <label class="check-row">Sunday reminder of what I owe<input type="checkbox" name="billsWeekly"<%= n.billsWeekly ? ' checked' : '' %>></label>
+        <p class="hint">Due-date notifications only go to the people sharing the bill, at your morning time, and stop once it’s paid.</p>
+      <% } %>
       <button class="btn btn-ghost" type="submit">Save notification settings</button>
     </form>
   </section>
