@@ -8,6 +8,9 @@ const { recordChange, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { dayLabel, todayIn } = require('../lib/dates');
+const User = require('../models/User');
+const { sendToUser } = require('../lib/push');
+const { logActivity } = require('../lib/activity');
 
 const router = express.Router();
 router.use('/s/shopping', requireAuth, requireSection('shopping'));
@@ -122,6 +125,35 @@ router.post('/s/shopping/quick', async (req, res, next) => {
     await addByName(req, res, name, listBack(req));
   } catch (err) {
     next(err);
+  }
+});
+
+// "Start shopping": opens shopping mode and lets everyone else know, so they can add what they need.
+// One alert per person every 30 minutes, so stopping and starting again doesn't spam the house.
+const TRIP_GAP_MS = 30 * 60 * 1000;
+router.post('/s/shopping/start', async (req, res, next) => {
+  try {
+    const q = String(req.body.query || '');
+    const query = /^[\w%+=&.\-]*$/.test(q) ? q : '';
+    res.redirect(`/s/shopping?${query ? `${query}&` : ''}mode=shop`);
+    const store = req.household.stores.includes(req.body.store) ? req.body.store : '';
+    const claimed = await User.updateOne(
+      { _id: req.user._id, $or: [{ lastTripAlertAt: null }, { lastTripAlertAt: { $lt: new Date(Date.now() - TRIP_GAP_MS) } }] },
+      { $set: { lastTripAlertAt: new Date() } }
+    );
+    if (!claimed.modifiedCount) return;
+    const where = store ? `shopping at ${store}` : 'out shopping';
+    await logActivity(req.user, { section: SECTION, text: `${req.user.name} started ${where}` });
+    const others = await User.find({ householdId: req.user.householdId, _id: { $ne: req.user._id }, disabled: { $ne: true }, 'notify.shopping': { $ne: false } }, { _id: 1 }).lean();
+    await Promise.all(others.map((u) => sendToUser(u._id, {
+      title: `${req.user.name} is ${where}`,
+      body: 'Need anything? Add it to the list now.',
+      url: '/s/shopping',
+      tag: `trip-${req.user._id}`,
+    })));
+  } catch (err) {
+    if (res.headersSent) console.error('Shopping alert failed:', err.message);
+    else next(err);
   }
 });
 

@@ -13,6 +13,7 @@ const NOTICES = {
   password: 'Password changed. Your other devices were signed out.',
   appearance: 'Appearance saved.',
   pins: 'Bottom bar saved.',
+  notify: 'Notification settings saved.',
   pinLimit: `The bottom bar holds ${MAX_PINS} sections, so only the first ${MAX_PINS} were saved.`,
   sections: 'Sections saved.',
   revoked: 'Invite canceled.',
@@ -55,6 +56,24 @@ router.post('/settings/appearance', requireAuth, async (req, res, next) => {
       await req.user.save();
     }
     res.redirect('/settings?saved=appearance');
+  } catch (err) {
+    next(err);
+  }
+});
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+router.post('/settings/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const b = req.body;
+    const n = req.user.notify;
+    if (TIME.test(b.morning || '')) n.morning = b.morning;
+    n.reminders = b.reminders === 'on';
+    n.events = b.events === 'on';
+    n.shopping = b.shopping === 'on';
+    if (['none', '0', '15', '60', '1440'].includes(b.eventTimed)) n.eventTimed = b.eventTimed;
+    if (['none', '0', '1440'].includes(b.eventAllDay)) n.eventAllDay = b.eventAllDay;
+    await req.user.save();
+    res.redirect('/settings?saved=notify#notifications');
   } catch (err) {
     next(err);
   }

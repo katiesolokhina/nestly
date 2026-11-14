@@ -3,7 +3,8 @@
   <% if (shopping) { %>
     <div class="notice shop-bar"><span><strong>Shopping<%= store ? ' at ' + store : '' %>.</strong> <%= count %> <%= count === 1 ? 'item' : 'items' %> left.</span><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Finish</a></div>
   <% } else { %>
-    <div class="head"><div><h1>Shopping</h1><p class="sub"><%= count %> <%= count === 1 ? 'item' : 'items' %> · About <%= total %></p></div><a class="btn btn-ghost" href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Start shopping</a></div>
+    <div class="head"><div><h1>Shopping</h1><p class="sub"><%= count %> <%= count === 1 ? 'item' : 'items' %> · About <%= total %></p></div><form method="post" action="/s/shopping/start"><input type="hidden" name="query" value="<%= query %>"><input type="hidden" name="store" value="<%= store %>"><button class="btn btn-ghost" type="submit">Start shopping</button></form></div>
+    <p class="hint">Start shopping lets everyone else know<%= store ? ' you’re at ' + store : '' %>, so they can add what they need. <a href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Shop without telling anyone</a></p>
     <form class="stack" method="get" action="/s/shopping" data-auto-submit>
       <div class="fields">
         <div class="field"><label for="method">Buying</label><select id="method" name="method"><% ['All', 'In person', 'Online'].forEach((m) => { %><option value="<%= m === 'All' ? '' : m %>"<%= method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>

@@ -9,6 +9,10 @@ const reminderSchema = new mongoose.Schema(
     text: { type: String, required: true, trim: true, maxlength: 160 },
     details: { type: String, trim: true, maxlength: 1000, default: '' },
     date: { type: String, default: '' }, // YYYY-MM-DD or empty
+    time: { type: String, default: '' }, // HH:MM, or empty to notify at each person's morning time
+    // Who gets a notification on the day: everyone, just the person who added it, chosen people, or nobody.
+    notify: { type: String, enum: ['all', 'me', 'some', 'none'], default: 'all' },
+    notifyTo: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] },
     category: { type: String, default: 'Uncategorized' },
     done: { type: Boolean, default: false },
   },

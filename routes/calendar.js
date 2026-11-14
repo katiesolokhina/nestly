@@ -8,12 +8,15 @@ const { recordChange, visible } = require('../lib/changes');
 const { pick, categoryColor, reminderColor } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { occursOn, timeText, sortKey, repeatText, DAY_NAMES } = require('../lib/recurrence');
-const { todayIn, isDate, weekday, longDay, monthLabel, shiftMonth, monthCells } = require('../lib/dates');
+const { todayIn, isDate, weekday, longDay, monthLabel, shiftMonth, monthCells, time12 } = require('../lib/dates');
 
 const router = express.Router();
 router.use('/s/calendar', requireAuth, requireSection('calendar'));
 const SECTION = 'Calendar';
 const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
+const ALERTS = ['default', 'none', '0', '15', '60', '1440'];
+const ALERT_TEXT = { default: 'Your default', none: 'No notification', 0: 'At start time', 15: '15 minutes before', 60: '1 hour before', 1440: '1 day before' };
+const ALL_DAY_ALERT_TEXT = { default: 'Your default', none: 'No notification', 0: 'Morning of', 15: 'Morning of', 60: 'Morning of', 1440: 'Morning before' };
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isHttp = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 const withFile = parseFiles(['file']);
@@ -46,6 +49,7 @@ function readForm(req) {
     days: repeat === 'weekly' ? (picked.length ? picked : isDate(date) ? [weekday(date)] : []) : [],
     until,
     category: pick(req.household, 'eventCats', b.category),
+    alert: ALERTS.includes(b.alert) ? b.alert : 'default',
     details: String(b.details || '').trim().slice(0, 1000),
     private: b.private === 'on',
   };
@@ -62,7 +66,7 @@ function readForm(req) {
 
 async function formView(req, item, error) {
   const file = item.fileId ? await Upload.findById(item.fileId).lean() : null;
-  return { active: 'calendar', item, error: error || null, file, dayNames: DAY_NAMES };
+  return { active: 'calendar', item, error: error || null, file, dayNames: DAY_NAMES, alertText: ALERT_TEXT };
 }
 
 // Attaches, replaces, or removes the event's file, and keeps its privacy in step with the event.
@@ -104,7 +108,7 @@ router.get('/s/calendar', async (req, res, next) => {
         meta: [timeText(e, day), e.location, e.category === 'Uncategorized' ? '' : e.category, repeatText(e)].filter(Boolean).join(' · '),
         tag: e.private ? 'Only me' : 'Event', lilac: e.private, href: `/s/calendar/${e._id}?day=${day}`, color: color(e),
       })),
-      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit`, color: remColor })),
+      ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: r.time ? `Reminder · ${time12(r.time)}` : 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}/edit`, color: remColor })),
     ];
     res.render('calendar/month', {
       active: 'calendar', month, day, today, blanks, agenda, cat,
@@ -128,7 +132,7 @@ router.get('/s/calendar/new', async (req, res, next) => {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
     // Adding from a filtered calendar starts in that category.
     const category = req.household.eventCats.includes(req.query.category) ? req.query.category : 'Uncategorized';
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, details: '', private: false };
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: 'default', details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);
@@ -164,6 +168,7 @@ router.get('/s/calendar/:id', async (req, res, next) => {
     res.render('calendar/event', {
       active: 'calendar', item, day, file,
       when: longDay(day), time: timeText(item, day), repeat: repeatText(item), color: categoryColor(req.household, item.category),
+      alert: (item.time ? ALERT_TEXT : ALL_DAY_ALERT_TEXT)[item.alert || 'default'],
       maps: item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : '',
     });
   } catch (err) {

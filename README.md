@@ -4,7 +4,7 @@ A private, installable household app: shared shopping lists, reminders, calendar
 
 ## Status
 
-Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, and editable lists. Meals, Recipes, Pantry, Bills, Chores, and Home info are placeholders until they're built.
+Built: households, sign-in, one-time invite and reset links, admin controls, section toggles, Activity with undo and restore, a customizable Today, the bottom bar, Shopping with a shared item catalog and secure uploads, Remember, Calendar, editable lists, and notifications. Meals, Recipes, Pantry, Bills, Chores, and Home info are placeholders until they're built.
 
 Nestly is online-only: nothing is queued while offline.
 
@@ -42,6 +42,12 @@ pm2 start server.js --name nestly && pm2 save
 Point Nginx at the port, add a certificate for `nestly.trisolocreations.com` with Certbot, and set `client_max_body_size 11m;` so receipt uploads get through. Nginx must send `X-Forwarded-Proto`, or the session cookie won't be marked secure. `APP_ORIGIN` must exactly match the public URL.
 
 Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `UPLOAD_DIR`), outside `public/`, and need their own backup: `tar czf` or `rsync` that folder nightly.
+
+## Notifications
+
+Reminders, events, and "someone's shopping" alerts use web push, the same as Questly. Generate a new key pair for Nestly with `npx web-push generate-vapid-keys` and put it in `.env` as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (a `mailto:` address). Without them, notifications stay off and everything else works.
+
+Each person turns notifications on per device in Settings. On iPhone, that only works in the app added to the Home Screen. A check runs every minute; anything missed by more than an hour (say, during a restart) is skipped rather than sent late.
 
 ## Locked out?
 

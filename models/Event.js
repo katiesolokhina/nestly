@@ -19,6 +19,9 @@ const eventSchema = new mongoose.Schema(
     days: { type: [Number], default: [] }, // weekly: 0 = Sunday ... 6 = Saturday
     until: { type: String, default: '' }, // last day it can repeat, or empty for forever
     category: { type: String, default: 'Uncategorized' },
+    // Minutes before the start to notify, 'none', or 'default' for each person's own setting.
+    // All-day events notify at the morning time, on the day ('0') or the day before ('1440').
+    alert: { type: String, enum: ['default', 'none', '0', '15', '60', '1440'], default: 'default' },
     details: { type: String, trim: true, maxlength: 1000, default: '' },
   },
   { timestamps: true }

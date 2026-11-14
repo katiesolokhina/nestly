@@ -1,15 +1,30 @@
-<%- include('../partials/top', { title: item._id ? 'Edit reminder' : 'Add reminder' }) %>
+<%- include('../partials/top', { title: item._id ? 'Edit reminder' : 'Add reminder', scripts: ['notify-form'] }) %>
 <main class="stack">
   <div class="head"><h1><%= item._id ? 'Edit reminder' : 'Add reminder' %></h1><a class="link-btn" href="/s/remember">Cancel</a></div>
-  <form class="card" method="post" action="/s/remember<%= item._id ? '/' + item._id : '' %>" novalidate>
+  <form class="card" method="post" action="/s/remember<%= item._id ? '/' + item._id : '' %>" novalidate data-notify-form>
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="text">What to remember</label><input id="text" name="text" type="text" maxlength="160" required value="<%= item.text %>"></div>
     <div class="field"><label for="details">Details</label><textarea id="details" name="details" maxlength="1000" rows="3" placeholder="Anything else that helps"><%= item.details %></textarea></div>
     <div class="fields">
       <div class="field"><label for="date">Remind on</label><input id="date" name="date" type="date" value="<%= item.date %>"></div>
+      <div class="field"><label for="time">Time <span class="muted">(optional)</span></label><input id="time" name="time" type="time" value="<%= item.time || '' %>"></div>
+    </div>
+    <p class="hint">No time? It notifies at each person’s morning time, set in Settings.</p>
+    <% const mine = !item._id || String(item.createdBy) === user.id; const who = mine ? 'me' : (item.byName || 'who added it'); %>
+    <fieldset class="group" data-recipients>
+      <legend>Notify</legend>
+      <div class="radio-row wrap">
+        <% [['all', 'Everyone'], ['me', 'Just ' + who], ['some', 'Choose people'], ['none', 'No one']].forEach(([v, l]) => { %><label data-shared-only="<%= v === 'all' || v === 'some' ? '1' : '' %>"><input type="radio" name="notify" value="<%= v %>"<%= (item.notify || 'all') === v ? ' checked' : '' %>><%= l %></label><% }) %>
+      </div>
+      <div class="people" data-people>
+        <% members.forEach((m) => { %><label class="check-row"><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %><input type="checkbox" name="notifyTo" value="<%= m._id %>"<%= (item.notifyTo || []).some((id) => String(id) === String(m._id)) ? ' checked' : '' %>></label><% }) %>
+      </div>
+      <p class="hint" data-private-hint hidden>Only-me reminders only ever notify you.</p>
+    </fieldset>
+    <div class="fields">
       <div class="field"><label for="category">Category</label><select id="category" name="category"><% household.remCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option></select></div>
     </div>
-    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %>
+    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private" data-private<%= item.private ? ' checked' : '' %>></label><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
   <% if (item._id) { %><form method="post" action="/s/remember/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.text %></span></button></form><% } %>

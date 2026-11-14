@@ -19,6 +19,16 @@ const userSchema = new mongoose.Schema(
     pins: { type: [String], default: ['shopping', 'calendar'] },
     // This person's Today layout, in order. Empty means the default.
     dashboard: { type: [{ _id: false, k: String, on: Boolean }], default: [] },
+    // What this person gets notified about. Turning notifications on happens per device.
+    notify: {
+      morning: { type: String, default: '08:00' }, // for reminders without a time and all-day events
+      reminders: { type: Boolean, default: true },
+      events: { type: Boolean, default: true },
+      shopping: { type: Boolean, default: true }, // "Katie is shopping at Costco"
+      eventTimed: { type: String, enum: ['none', '0', '15', '60', '1440'], default: '60' },
+      eventAllDay: { type: String, enum: ['none', '0', '1440'], default: '0' },
+    },
+    lastTripAlertAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

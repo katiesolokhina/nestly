@@ -6,6 +6,8 @@ const { MongoStore } = require('connect-mongo');
 const path = require('path');
 const { connectDB } = require('./config/db');
 const { sameOrigin } = require('./middleware/auth');
+const { configurePush } = require('./lib/push');
+const { startNotifications } = require('./lib/notify');
 
 if (!process.env.SESSION_SECRET) {
   console.error('SESSION_SECRET is not set');
@@ -46,6 +48,7 @@ app.use(sameOrigin);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 app.use(require('./routes/auth'));
+app.use(require('./routes/push'));
 app.use(require('./routes/access'));
 app.use(require('./routes/shopping'));
 app.use(require('./routes/remember'));
@@ -65,6 +68,7 @@ app.use((err, req, res, next) => {
 connectDB(process.env.MONGODB_URI)
   .then(() => {
     app.listen(PORT, () => console.log(`Nestly on http://localhost:${PORT}`));
+    if (configurePush()) startNotifications();
   })
   .catch((err) => {
     console.error('Startup failed:', err.message);

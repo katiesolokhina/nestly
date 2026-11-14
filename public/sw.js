@@ -1,6 +1,6 @@
 // Nestly service worker. Nestly is online-only: pages are always fetched live, nothing is
 // queued, and an offline page shows without a connection.
-const CACHE = 'nestly-v10';
+const CACHE = 'nestly-v11';
 const PRECACHE = ['/offline.html', '/css/app.css', '/icons/icon-192.png', '/brand/nestly-mark.png'];
 
 self.addEventListener('install', (event) => {
@@ -40,4 +40,33 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match(req))
     );
   }
+});
+
+// ---------- Notifications ----------
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data && event.data.text() }; }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Nestly', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      tag: data.tag, // a newer notification about the same thing replaces the old one
+      renotify: Boolean(data.tag),
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+// Tap: open Nestly on the right page, reusing an open window if there is one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data.url || '/', self.location.origin);
+  if (url.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      const win = wins.find((w) => w.url.startsWith(self.location.origin));
+      if (win) return win.navigate(url.href).then((w) => (w || win).focus());
+      return self.clients.openWindow(url.href);
+    })
+  );
 });
