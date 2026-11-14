@@ -10,6 +10,15 @@ document.querySelectorAll('form[data-event-form]').forEach((form) => {
     form.querySelectorAll('[data-weekly-only]').forEach((el) => { el.hidden = repeat.value !== 'weekly'; });
     if (unit && units[repeat.value]) unit.textContent = `Number of ${units[repeat.value]} between each one`;
   };
+  // The end date follows the start date until someone sets a different end date.
+  const start = form.querySelector('[data-start-date]');
+  const end = form.querySelector('[data-end-date]');
+  let lastStart = start.value;
+  start.addEventListener('change', () => {
+    if (!end.value || end.value === lastStart || end.value < start.value) end.value = start.value;
+    end.min = start.value;
+    lastStart = start.value;
+  });
   form.addEventListener('change', update);
   update();
 });

@@ -5,8 +5,8 @@
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="title">Event</label><input id="title" name="title" type="text" maxlength="120" required value="<%= item.title %>"></div>
     <div class="fields">
-      <div class="field"><label for="date">Starts</label><input id="date" name="date" type="date" required value="<%= item.date %>"></div>
-      <div class="field"><label for="endDate">Ends <span class="muted">(optional)</span></label><input id="endDate" name="endDate" type="date" value="<%= item.endDate %>"></div>
+      <div class="field"><label for="date">Starts</label><input id="date" name="date" type="date" required value="<%= item.date %>" data-start-date></div>
+      <div class="field"><label for="endDate">Ends</label><input id="endDate" name="endDate" type="date" min="<%= item.date %>" value="<%= item.endDate || item.date %>" data-end-date></div>
     </div>
     <label class="check-row">All day<input type="checkbox" name="allDay" data-all-day<%= item._id && !item.time ? ' checked' : '' %>></label>
     <div class="fields" data-times>
