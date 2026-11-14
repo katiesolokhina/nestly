@@ -12,13 +12,13 @@
     <% if (lastPaid) { %><p class="hint"><%= lastPaid %></p><% } %>
     <div class="field" id="receipt">
       <label for="receiptFile">Receipt</label>
-      <% if (receipt) { %><p class="file-row"><a href="/files/<%= receipt._id %>" target="_blank" rel="noopener"><%= receipt.name %></a><label class="inline-check"><input type="checkbox" name="removeReceipt">Remove</label></p><% } %>
+      <% if (receipt) { %><p class="file-row"><% if (receipt.type.startsWith('image/')) { %><img class="file-thumb" src="/files/<%= receipt._id %>" alt=""><% } %><a href="/files/<%= receipt._id %>/view?back=/s/shopping/<%= item._id %>/edit"><%= receipt.name %></a><label class="inline-check"><input type="checkbox" name="removeReceipt">Remove</label></p><% } %>
       <input id="receiptFile" name="receipt" type="file" accept="image/*,.pdf">
       <span class="hint">A photo or PDF, up to 10 MB.</span>
     </div>
     <div class="field">
       <label for="photoFile">Reference photo</label>
-      <% if (photo) { %><p class="file-row"><img class="file-thumb" src="/files/<%= photo._id %>" alt=""><a href="/files/<%= photo._id %>" target="_blank" rel="noopener"><%= photo.name %></a><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>
+      <% if (photo) { %><p class="file-row"><a href="/files/<%= photo._id %>/view?back=/s/shopping/<%= item._id %>/edit"><img class="file-thumb" src="/files/<%= photo._id %>" alt=""></a><a href="/files/<%= photo._id %>/view?back=/s/shopping/<%= item._id %>/edit"><%= photo.name %></a><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>
       <input id="photoFile" name="photo" type="file" accept="image/*">
     </div>
     <div class="fields">

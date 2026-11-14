@@ -155,3 +155,5 @@ input[type="file"] { width: 100%; min-height: 44px; font: inherit; font-size: 14
 .rename input { flex: 1; min-width: 0; }
 .list-actions { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 [hidden] { display: none !important; }
+.file-title { font-size: 18px; overflow-wrap: anywhere; }
+.file-full { display: block; width: 100%; height: auto; border-radius: 12px; }

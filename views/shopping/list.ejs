@@ -47,7 +47,7 @@
         <div class="row done">
           <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit" aria-label="Move <%= i.name %> back to the list"><i>✓</i></button></form>
           <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
-          <% if (i.receiptId) { %><a class="link-btn" href="/files/<%= i.receiptId %>" target="_blank" rel="noopener">View receipt<span class="sr-only"> for <%= i.name %></span></a><% } else { %><a class="link-btn" href="/s/shopping/<%= i._id %>/edit#receipt">Add receipt<span class="sr-only"> for <%= i.name %></span></a><% } %>
+          <% if (i.receiptId) { %><a class="link-btn" href="/files/<%= i.receiptId %>/view?back=/s/shopping">View receipt<span class="sr-only"> for <%= i.name %></span></a><% } else { %><a class="link-btn" href="/s/shopping/<%= i._id %>/edit#receipt">Add receipt<span class="sr-only"> for <%= i.name %></span></a><% } %>
         </div>
       <% }) %>
     </div>

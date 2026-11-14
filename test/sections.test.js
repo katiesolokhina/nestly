@@ -205,6 +205,19 @@ test('sections', async (t) => {
     const secret = await item('Secret');
     assert.equal((await get(s, secret.receiptId)).status, 404, 'private receipts stay private');
     assert.equal((await fetch(`${app.base}/uploads/${uploaded.file}`)).status, 404, 'uploads are not public files');
+    // Viewing stays inside the app, with a Back link that only goes to Nestly pages.
+    const view = await fetch(`${app.base}/files/${lamp.receiptId}/view?back=/s/shopping/${lamp._id}/edit`, { headers: { cookie: k.cookie } });
+    const viewHtml = await view.text();
+    assert.match(viewHtml, new RegExp(`href="/s/shopping/${lamp._id}/edit">Back`));
+    assert.match(viewHtml, /class="file-full"/);
+    assert.doesNotMatch(viewHtml, /target="_blank"/);
+    const evil = await (await fetch(`${app.base}/files/${lamp.receiptId}/view?back=//evil.example`, { headers: { cookie: k.cookie } })).text();
+    assert.match(evil, /href="\/s\/shopping">Back/);
+    assert.equal((await fetch(`${app.base}/files/${lamp.receiptId}/view`, { headers: { cookie: o.cookie } })).status, 404);
+    assert.match((await get(k, lamp.receiptId)).headers.get('content-disposition'), /^inline/);
+    assert.match((await fetch(`${app.base}/files/${lamp.receiptId}?download=1`, { headers: { cookie: k.cookie } })).headers.get('content-disposition'), /^attachment/);
+    const list = await fetch(`${app.base}/s/shopping`, { headers: { cookie: k.cookie } });
+    assert.doesNotMatch(await list.text(), /files\/[a-f0-9]{24}" target/);
     // Sam can edit a shared item without changing whose it is or making it private.
     await sam(`/s/shopping/${lamp._id}`, { method: 'POST', form: { name: 'Lamp', method: 'In person', store: 'Any store', aisle: 'Unassigned', tag: 'Home', private: 'on' } });
     assert.equal((await item('Lamp')).private, false);

@@ -1,0 +1,12 @@
+<%- include('partials/top', { title: upload.name }) %>
+<main class="stack">
+  <div class="head"><h1 class="file-title"><%= upload.name %></h1><a class="btn btn-ghost" href="<%= back %>">Back</a></div>
+  <% if (upload.type.startsWith('image/')) { %>
+    <div class="card"><img class="file-full" src="/files/<%= upload._id %>" alt="<%= upload.name %>"></div>
+    <% if (upload.type === 'image/heic') { %><p class="hint">If the photo doesn't show, this device can't display HEIC. Download it instead.</p><% } %>
+  <% } else { %>
+    <div class="card"><p>PDFs can't be shown inside the app on every phone, so this one opens in your phone's PDF viewer.</p></div>
+  <% } %>
+  <a class="btn btn-ghost btn-block" href="/files/<%= upload._id %>?download=1" download="<%= upload.name %>">Download<%= upload.type === 'application/pdf' ? ' PDF' : '' %></a>
+</main>
+<%- include('partials/bottom') %>
