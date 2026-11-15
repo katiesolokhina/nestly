@@ -1,0 +1,2 @@
+<div class="head"><div><h1><%= heading %></h1><% if (typeof sub !== 'undefined' && sub) { %><p class="sub"><%= sub %></p><% } %></div><a class="link-btn" href="<%= typeof back !== 'undefined' && back ? back : '/settings' %>">Back</a></div>
+<% if (typeof notice !== 'undefined' && notice) { %><p class="notice" role="status"><%= notice %></p><% } %>

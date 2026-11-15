@@ -1,0 +1,17 @@
+<%- include('../partials/top', { title: 'Sections' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Sections', sub: 'For everyone in ' + household.name + '.' }) %>
+  <form class="card" method="post" action="/settings/sections">
+    <p class="row-meta">Turning a section off hides it for the household and keeps its data. Rename one to call it what your household does.</p>
+    <% sections.forEach((s) => { %>
+      <div class="section-row">
+        <input type="checkbox" name="sections" value="<%= s.key %>" id="on-<%= s.key %>"<%= household.features[s.key] !== false ? ' checked' : '' %> aria-label="<%= nameOf(s.key) %> on">
+        <label class="sr-only" for="name-<%= s.key %>">Name for <%= s.label %></label>
+        <input id="name-<%= s.key %>" name="name_<%= s.key %>" type="text" maxlength="24" value="<%= nameOf(s.key) %>" placeholder="<%= s.label %>">
+      </div>
+    <% }) %>
+    <p class="hint">Clear a name to go back to the original.</p>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+</main>
+<%- include('../partials/bottom') %>

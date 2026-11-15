@@ -3,6 +3,7 @@ const Household = require('../models/Household');
 const Activity = require('../models/Activity');
 const Membership = require('../models/Membership');
 const { homesOf } = require('../lib/members');
+const { sectionName } = require('../lib/prefs');
 const { bottomBar } = require('../lib/sections');
 
 // Loads the signed-in user and their household, or sends them to /login.
@@ -36,6 +37,8 @@ async function requireAuth(req, res, next) {
     res.locals.member = member;
     res.locals.household = household;
     res.locals.homes = homes;
+    res.locals.secName = (key) => sectionName(household, key);
+    res.locals.isAdmin = member.role === 'admin';
     res.locals.theme = user.theme && user.theme !== 'system' ? user.theme : '';
     res.locals.nav = (active) => bottomBar(member, household, active);
     res.locals.path = req.originalUrl;

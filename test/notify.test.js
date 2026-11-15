@@ -166,7 +166,7 @@ test('notify routes', async (t) => {
 
   // Without VAPID keys, push is off but nothing breaks.
   assert.equal((await katie('/api/push/key')).status, 503);
-  const page = await katie('/settings');
+  const page = await katie('/settings/notifications');
   assert.match(page.text, /Turn on notifications/);
   assert.match(page.text, /Morning time/);
 

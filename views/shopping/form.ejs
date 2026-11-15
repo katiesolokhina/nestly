@@ -22,7 +22,7 @@
       <input id="photoFile" name="photo" type="file" accept="image/*">
     </div>
     <div class="fields">
-      <div class="field"><label for="method">Buying</label><select id="method" name="method"><% ['In person', 'Online'].forEach((m) => { %><option<%= item.method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>
+      <div class="field"><label for="method">Buying</label><select id="method" name="method"><% [...new Set([...household.methods, item.method].filter(Boolean))].forEach((m) => { %><option<%= item.method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>
       <div class="field"><label for="store">Store</label><select id="store" name="store"><option>Any store</option><% household.stores.forEach((s) => { %><option<%= item.store === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
     </div>
     <div class="fields">

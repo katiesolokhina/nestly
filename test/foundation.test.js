@@ -63,11 +63,11 @@ test('foundation', async (t) => {
 
   await t.test('an invite link is shown once and joins the admin’s household', async () => {
     await admin('/settings/household/invites', { method: 'POST', form: { label: 'Sam' } });
-    const first = await admin('/settings');
+    const first = await admin('/settings/people');
     invitePath = linkIn(first.text, 'invite');
     assert.ok(invitePath);
     assert.match(first.text, /Invite link for Sam/);
-    const second = await admin('/settings');
+    const second = await admin('/settings/people');
     assert.equal(linkIn(second.text, 'invite'), undefined);
     assert.match(second.text, /Waiting to be used/);
 
@@ -86,9 +86,11 @@ test('foundation', async (t) => {
     assert.equal((await sam(`/settings/household/members/${app.seeded.adminId}`)).status, 404);
     assert.equal((await sam('/settings/household/invites', { method: 'POST', form: {} })).status, 404);
     assert.equal((await sam('/settings/sections', { method: 'POST', form: {} })).status, 404);
-    const page = await sam('/settings');
+    const page = await sam('/settings/people');
     assert.doesNotMatch(page.text, /Create invite link/);
-    assert.doesNotMatch(page.text, /Save sections/);
+    assert.equal((await sam('/settings/sections')).status, 404);
+    assert.equal((await sam('/settings/s/shopping')).status, 404);
+    assert.doesNotMatch((await sam('/settings')).text, /\/settings\/s\//);
   });
 
   await t.test('admins cannot manage themselves or other households', async () => {
@@ -96,7 +98,7 @@ test('foundation', async (t) => {
     assert.equal((await admin(`/settings/household/members/${app.seeded.outsiderId}`)).status, 404);
     assert.equal((await outsider(`/settings/household/members/${samId}`)).status, 404);
     assert.equal((await outsider(`/settings/household/members/${samId}/disable`, { method: 'POST', form: {} })).status, 404);
-    assert.doesNotMatch((await outsider('/settings')).text, /sam@test\.dev/);
+    assert.doesNotMatch((await outsider('/settings/people')).text, /sam@test\.dev/);
     assert.doesNotMatch((await outsider('/activity')).text, /Sam/);
   });
 
@@ -107,9 +109,9 @@ test('foundation', async (t) => {
 
   await t.test('a reset link works once, signs out other devices, and replaces older links', async () => {
     await admin(`/settings/household/members/${samId}/reset`, { method: 'POST', form: {} });
-    const older = linkIn((await admin('/settings')).text, 'reset');
+    const older = linkIn((await admin('/settings/people')).text, 'reset');
     await admin(`/settings/household/members/${samId}/reset`, { method: 'POST', form: {} });
-    resetPath = linkIn((await admin('/settings')).text, 'reset');
+    resetPath = linkIn((await admin('/settings/people')).text, 'reset');
     assert.equal((await stranger(older)).status, 410, 'only the newest link works');
     assert.match((await stranger(resetPath)).text, /sam@test\.dev/);
     const r = await stranger(resetPath, { method: 'POST', form: { password: 'brand new pass', confirmPassword: 'brand new pass' } });
@@ -124,7 +126,7 @@ test('foundation', async (t) => {
     await phone('/login', { method: 'POST', form: { email: 'sam@test.dev', password: 'brand new pass' } });
     assert.equal((await sam('/settings/password', { method: 'POST', form: { currentPassword: 'wrong', newPassword: 'another pass', confirmPassword: 'another pass' } })).status, 422);
     const r = await sam('/settings/password', { method: 'POST', form: { currentPassword: 'brand new pass', newPassword: 'another pass', confirmPassword: 'another pass' } });
-    assert.equal(r.location, '/settings?saved=password');
+    assert.equal(r.location, '/settings/account?saved=password');
     assert.equal((await sam('/')).status, 200);
     assert.equal((await phone('/')).location, '/login');
   });
@@ -140,19 +142,19 @@ test('foundation', async (t) => {
     assert.equal((await sam('/s/made-up')).status, 404);
     await admin('/settings/sections', { method: 'POST', form: [...keep, ['sections', 'shopping']] });
     assert.equal((await sam('/s/shopping')).status, 200);
-    const saved = await withDb(app.uri, () => User.findById(samId).lean());
+    const saved = await withDb(app.uri, () => require('../models/Membership').findOne({ userId: samId }).lean());
     assert.deepEqual(saved.pins, ['shopping', 'calendar']);
   });
 
   await t.test('the bottom bar holds three pins, and pinned sections leave More', async () => {
     const r = await sam('/settings/pins', { method: 'POST', form: [['pins', 'bills'], ['pins', 'chores'], ['pins', 'meals'], ['pins', 'pantry']] });
-    assert.equal(r.location, '/settings?saved=pinLimit');
+    assert.equal(r.location, '/settings/bottom-bar?saved=pinLimit');
     const home = await sam('/');
     for (const label of ['Bills', 'Chores', 'Meals']) assert.match(home.text, new RegExp(`</svg>${label}</a>`));
     assert.doesNotMatch(home.text, /<\/svg>Pantry<\/a>/);
     assert.doesNotMatch((await sam('/more')).text, /more-link[^\n]*Bills/);
     assert.match((await sam('/more')).text, /more-link[^\n]*Pantry/);
-    assert.equal((await admin('/settings/pins', { method: 'POST', form: [['pins', 'made-up']] })).location, '/settings?saved=pins');
+    assert.equal((await admin('/settings/pins', { method: 'POST', form: [['pins', 'made-up']] })).location, '/settings/bottom-bar?saved=pins');
   });
 
   await t.test('appearance is saved per person', async () => {
@@ -177,7 +179,7 @@ test('foundation', async (t) => {
   await t.test('deleting an account needs the email typed, and history keeps the name', async () => {
     const wrong = await admin(`/settings/household/members/${samId}/delete`, { method: 'POST', form: { confirmEmail: 'nope' } });
     assert.equal(wrong.status, 422);
-    assert.equal((await admin(`/settings/household/members/${samId}/delete`, { method: 'POST', form: { confirmEmail: 'SAM@test.dev' } })).location, '/settings?saved=removed#household');
+    assert.equal((await admin(`/settings/household/members/${samId}/delete`, { method: 'POST', form: { confirmEmail: 'SAM@test.dev' } })).location, '/settings/people?saved=removed');
     assert.equal((await sam('/')).location, '/login');
     const page = await admin('/activity');
     assert.match(page.text, /Sam joined the household/);

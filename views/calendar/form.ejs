@@ -39,7 +39,7 @@
     </div>
     <div class="field">
       <label for="alert">Notify</label>
-      <select id="alert" name="alert" data-alert>
+      <select id="alert" name="alert" data-alert data-default-timed="<%= household.eventAlert || '60' %>" data-default-allday="<%= household.eventAlertAllDay || '0' %>">
         <% alertChoices.forEach((c) => { %><option value="<%= c.value %>" data-kind="<%= c.kind %>"<%= alertPick.value === c.value && (c.kind === 'both' || (c.kind === 'allday') === (item._id ? !item.time : false)) ? ' selected' : '' %>><%= c.label %></option><% }) %>
       </select>
       <span class="hint">Notifies everyone who can see this event. All-day events notify at each person’s morning time.</span>

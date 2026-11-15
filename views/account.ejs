@@ -1,6 +1,7 @@
 <%- include('partials/top', { title: 'Account' }) %>
 <main class="stack">
   <div class="head"><h1>Account</h1><a class="link-btn" href="/settings">Back</a></div>
+  <% if (typeof notice !== 'undefined' && notice) { %><p class="notice" role="status"><%= notice %></p><% } %>
   <p class="row-meta">Signed in as <%= user.email %></p>
   <form class="card" method="post" action="/settings/password" novalidate>
     <h2>Change password</h2>

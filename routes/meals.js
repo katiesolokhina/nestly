@@ -9,11 +9,12 @@ const { todayIn, addDays, isDate, weekday, shortDay } = require('../lib/dates');
 const { titled } = require('../lib/meals');
 
 const router = express.Router();
-router.use('/s/meals', requireAuth, requireSection('meals'));
+router.use('/s/meals', requireAuth, requireSection('meals'), (req, res, next) => { req.weekOf = weekOfFor(req.household); next(); });
 const SECTION = 'Meals';
 
 // Weeks run Sunday to Saturday, like the calendar.
-const weekOf = (d) => addDays(d, -weekday(d));
+// Weeks start on the household's chosen day (Sunday or Monday), like the calendar.
+const weekOfFor = (household) => (d) => addDays(d, -((weekday(d) - (household.weekStart === 1 ? 1 : 0) + 7) % 7));
 const fmtDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${d}T00:00:00Z`));
 
 async function find(req) {
@@ -37,7 +38,7 @@ const slotsFor = (household, meals) => {
 router.get('/s/meals', async (req, res, next) => {
   try {
     const today = todayIn(req.user.timezone);
-    const start = weekOf(isDate(req.query.week) ? req.query.week : today);
+    const start = req.weekOf(isDate(req.query.week) ? req.query.week : today);
     const end = addDays(start, 6);
     const raw = await Meal.find({ ...visible(req.user), date: { $gte: start, $lte: end } }).sort({ createdAt: 1 }).lean();
     const ids = raw.filter((m) => m.recipeId).map((m) => m.recipeId);
@@ -62,11 +63,11 @@ router.get('/s/meals', async (req, res, next) => {
       days,
       count: meals.length,
       withRecipes: meals.filter((m) => m.hasRecipe).length,
-      title: start === weekOf(today) ? 'This week' : start === weekOf(addDays(today, 7)) ? 'Next week' : start === weekOf(addDays(today, -7)) ? 'Last week' : `Week of ${shortDay(start)}`,
+      title: start === req.weekOf(today) ? 'This week' : start === req.weekOf(addDays(today, 7)) ? 'Next week' : start === req.weekOf(addDays(today, -7)) ? 'Last week' : `Week of ${shortDay(start)}`,
       range: `${fmtDay(start)} – ${fmtDay(end)}`,
       prev: addDays(start, -7),
       next: addDays(start, 7),
-      isThisWeek: start === weekOf(today),
+      isThisWeek: start === req.weekOf(today),
       lastWeekCount,
       shoppingOn: req.household.features.shopping !== false,
     });
@@ -103,7 +104,7 @@ router.get('/s/meals/new', async (req, res, next) => {
     const item = {
       _id: null,
       date: isDate(req.query.date) ? req.query.date : today,
-      slot: req.household.mealSlots.includes(req.query.slot) ? req.query.slot : req.household.mealSlots[req.household.mealSlots.length - 1] || 'Other',
+      slot: req.household.mealSlots.includes(req.query.slot) ? req.query.slot : req.household.mealSlots.includes(req.household.mealSlot) ? req.household.mealSlot : req.household.mealSlots[req.household.mealSlots.length - 1] || 'Other',
       recipeId: picked ? picked._id : null,
       title: '',
       note: '',
@@ -121,7 +122,7 @@ router.post('/s/meals', async (req, res, next) => {
     if (error) return res.status(422).render('meals/form', formView(req, { ...values, _id: null }, recipes, error));
     const item = await Meal.create({ ...values, householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name });
     await recordChange(req, { kind: 'create', model: 'Meal', doc: item, section: SECTION, text: `planned ${describe(item)}`, label: item.title });
-    res.redirect(`/s/meals?week=${weekOf(item.date)}#d-${item.date}`);
+    res.redirect(`/s/meals?week=${req.weekOf(item.date)}#d-${item.date}`);
   } catch (err) {
     next(err);
   }
@@ -130,7 +131,7 @@ router.post('/s/meals', async (req, res, next) => {
 // Copies last week's meals into this week, day for day. Meals already there aren't doubled.
 router.post('/s/meals/copy-week', async (req, res, next) => {
   try {
-    const start = weekOf(isDate(req.body.week) ? req.body.week : todayIn(req.user.timezone));
+    const start = req.weekOf(isDate(req.body.week) ? req.body.week : todayIn(req.user.timezone));
     const [from, already] = await Promise.all([
       Meal.find({ ...visible(req.user), date: { $gte: addDays(start, -7), $lte: addDays(start, -1) } }).lean(),
       Meal.find({ ...visible(req.user), date: { $gte: start, $lte: addDays(start, 6) } }).lean(),
@@ -173,7 +174,7 @@ router.post('/s/meals/:id', async (req, res, next) => {
     item.set(values);
     await item.save();
     await recordChange(req, { kind: 'update', model: 'Meal', doc: item, before, section: SECTION, text: `changed the plan to ${describe(item)}`, label: item.title });
-    res.redirect(`/s/meals?week=${weekOf(item.date)}#d-${item.date}`);
+    res.redirect(`/s/meals?week=${req.weekOf(item.date)}#d-${item.date}`);
   } catch (err) {
     next(err);
   }
@@ -186,10 +187,11 @@ router.post('/s/meals/:id/delete', async (req, res, next) => {
     const before = item.toObject();
     await item.deleteOne();
     await recordChange(req, { kind: 'delete', model: 'Meal', doc: item, before, section: SECTION, text: `removed ${describe(item)}`, label: item.title });
-    res.redirect(`/s/meals?week=${weekOf(item.date)}#d-${item.date}`);
+    res.redirect(`/s/meals?week=${req.weekOf(item.date)}#d-${item.date}`);
   } catch (err) {
     next(err);
   }
 });
 
 module.exports = router;
+module.exports.weekOfFor = weekOfFor;

@@ -7,13 +7,17 @@ const { recordChange, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { keyOf, addToCatalog } = require('../lib/catalog');
-const { STATUS, addToShopping, expiryText } = require('../lib/pantry');
+const { addToShopping, expiryText } = require('../lib/pantry');
+const { pantryNames } = require('../lib/prefs');
+const Upload = require('../models/Upload');
+const { parseFiles, saveUpload } = require('../lib/uploads');
+const withPhoto = parseFiles(['photo']);
+const STATUS_KEYS = ['have', 'low', 'out'];
 const { todayIn, addDays, isDate } = require('../lib/dates');
 
 const router = express.Router();
 router.use('/s/pantry', requireAuth, requireSection('pantry'));
 const SECTION = 'Pantry';
-const SOON_DAYS = 3;
 
 async function find(req) {
   if (!mongoose.isValidObjectId(req.params.id)) return null;
@@ -28,6 +32,7 @@ const backTo = (q) => {
 
 router.get('/s/pantry', async (req, res, next) => {
   try {
+    const SOON_DAYS = req.household.pantrySoonDays || 3;
     const today = todayIn(req.user.timezone);
     const spots = [...req.household.pantrySpots];
     const show = ['low', 'soon'].includes(req.query.show) ? req.query.show : '';
@@ -55,7 +60,7 @@ router.get('/s/pantry', async (req, res, next) => {
     const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
     res.render('pantry/list', {
       active: 'pantry', groups, catalog, show, spot, query, total: items.length,
-      lowCount: counts[0], soonCount: counts[1], STATUS, shoppingOn: req.household.features.shopping !== false,
+      lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.household.features.shopping !== false && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {
     next(err);
@@ -67,12 +72,12 @@ router.post('/s/pantry/:id/status', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    const status = Object.keys(STATUS).includes(req.body.status) ? req.body.status : item.status;
+    const status = STATUS_KEYS.includes(req.body.status) ? req.body.status : item.status;
     if (status !== item.status) {
       item.set({ status, statusBy: req.user.name, statusAt: new Date() });
       await item.save();
       const added = await addToShopping(req.user, req.household, item);
-      await logActivity(req.user, { section: SECTION, text: `${req.user.name} marked ${item.name} ${status === 'have' ? 'stocked' : status === 'low' ? 'running low' : 'out'}${added ? ' and added it to Shopping' : ''}` });
+      await logActivity(req.user, { section: SECTION, text: `${req.user.name} marked ${item.name} ${pantryNames(req.household)[status]}${added ? ' and added it to Shopping' : ''}` });
       if (added) req.session.flash = `${item.name} is on the shopping list now.`;
     }
     res.redirect(`${backTo(req.body.query)}#p-${item._id}`);
@@ -86,7 +91,7 @@ function readForm(req) {
   const values = {
     name: String(b.name || '').trim().slice(0, 80),
     spot: pick(req.household, 'pantrySpots', b.spot),
-    status: Object.keys(STATUS).includes(b.status) ? b.status : 'have',
+    status: STATUS_KEYS.includes(b.status) ? b.status : 'have',
     amount: String(b.amount || '').trim().slice(0, 40),
     expires: isDate(b.expires) ? b.expires : '',
     autoShop: b.autoShop === 'on',
@@ -97,9 +102,17 @@ function readForm(req) {
 }
 
 const formView = async (req, item, error) => ({
-  active: 'pantry', item, error: error || null, STATUS,
+  active: 'pantry', item, error: error || null, STATUS: pantryNames(req.household),
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
+  photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
 });
+
+// Reference photo: a new one replaces the old; "Remove" takes it off.
+async function applyPhoto(req, item) {
+  if ((req.body || {}).removePhoto === 'on') item.photoId = null;
+  const f = (req.files || {}).photo;
+  if (f) item.photoId = (await saveUpload(req.user, f[0], { isPrivate: false, imagesOnly: true }))._id;
+}
 
 // Quick add from the top of the list: just a name and where it's kept.
 router.post('/s/pantry/quick', async (req, res, next) => {
@@ -127,20 +140,28 @@ router.post('/s/pantry/quick', async (req, res, next) => {
 
 router.get('/s/pantry/new', async (req, res, next) => {
   try {
-    const spot = req.household.pantrySpots.includes(req.query.spot) ? req.query.spot : req.household.pantrySpots[0] || 'Other';
+    const h = req.household;
+    const spot = h.pantrySpots.includes(req.query.spot) ? req.query.spot : h.pantrySpots.includes(h.pantryDefaultSpot) ? h.pantryDefaultSpot : h.pantrySpots[0] || 'Other';
     res.render('pantry/form', await formView(req, { _id: null, name: '', spot, status: 'have', amount: '', expires: '', autoShop: true, note: '' }));
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/s/pantry', async (req, res, next) => {
+router.post('/s/pantry', withPhoto, async (req, res, next) => {
   try {
     const { values, error } = readForm(req);
-    if (error) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, error));
+    if (error || req.uploadError) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, error || req.uploadError));
     const dup = await PantryItem.findOne({ householdId: req.user.householdId, key: values.key }).lean();
     if (dup) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, `${dup.name} is already in the pantry. Edit that one instead.`));
-    const item = await PantryItem.create({ ...values, householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name, statusBy: req.user.name, statusAt: new Date() });
+    const item = new PantryItem({ ...values, householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name, statusBy: req.user.name, statusAt: new Date() });
+    try {
+      await applyPhoto(req, item);
+    } catch (e) {
+      if (!e.userFacing) throw e;
+      return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, e.message));
+    }
+    await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
     await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text: `added ${item.name} to the pantry`, label: item.name });
     if (await addToShopping(req.user, req.household, item)) req.session.flash = `${item.name} is on the shopping list now.`;
@@ -160,7 +181,7 @@ router.get('/s/pantry/:id/edit', async (req, res, next) => {
   }
 });
 
-router.post('/s/pantry/:id', async (req, res, next) => {
+router.post('/s/pantry/:id', withPhoto, async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
@@ -173,6 +194,12 @@ router.post('/s/pantry/:id', async (req, res, next) => {
     const statusChanged = values.status !== item.status;
     item.set(values);
     if (statusChanged) item.set({ statusBy: req.user.name, statusAt: new Date() });
+    try {
+      await applyPhoto(req, item);
+    } catch (e) {
+      if (!e.userFacing) throw e;
+      return res.status(422).render('pantry/form', await formView(req, { ...before, ...values }, e.message));
+    }
     await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
     await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: `edited ${item.name} in the pantry`, label: item.name });

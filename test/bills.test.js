@@ -152,7 +152,7 @@ test('bills', async (t) => {
     assert.equal(u.notify.billsOverdue, false);
     assert.equal(u.notify.billsWeekly, true);
   });
-  assert.match((await sam('/settings')).text, /Sunday reminder of what I owe/);
+  assert.match((await sam('/settings/notifications')).text, /Sunday reminder of what I owe/);
 });
 
 test('bill notifications', async (t) => {

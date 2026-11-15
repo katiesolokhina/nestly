@@ -11,7 +11,7 @@ const catalogSchema = new mongoose.Schema(
     store: { type: String, default: 'Any store' },
     aisle: { type: String, default: 'Unassigned' },
     tag: { type: String, default: 'Unassigned' },
-    method: { type: String, enum: ['In person', 'Online'], default: 'In person' },
+    method: { type: String, default: 'In person' }, // one of the household's purchase methods
     brand: { type: String, trim: true, maxlength: 80, default: '' },
     staple: { type: Boolean, default: false },
     // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).

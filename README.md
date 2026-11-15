@@ -43,6 +43,16 @@ Point Nginx at the port, add a certificate for `nestly.trisolocreations.com` wit
 
 Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `UPLOAD_DIR`), outside `public/`, and need their own backup: `tar czf` or `rsync` that folder nightly.
 
+## Settings
+
+Settings is a menu of pages, each with Back:
+
+- **You**: account, notifications (all of them on one page), appearance, bottom bar, Today, households.
+- **Household**: people and invites; sections on/off and their names.
+- **Sections** (admins only): one page per section with its lists and defaults, also reachable from the gear next to each section's title.
+
+Household settings include purchase methods, default store, the "someone's shopping" alert and how often, pantry status names, which statuses add to Shopping, the "expiring soon" window, default pantry spot, week start (Sunday or Monday), new-event notify and category, new-reminder recipients and category, default meal slot, default bill split, currency, how early repeating bills appear, and the starting fields for each Home info type.
+
 ## Households
 
 One sign-in can belong to several households. Each person's role (admin or member), whether they're turned off, their bottom bar, and their Today layout are set per household (the `memberships` collection). Notification settings and appearance belong to the person.

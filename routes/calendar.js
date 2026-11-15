@@ -96,7 +96,11 @@ router.get('/s/calendar', async (req, res, next) => {
       remindersOn && !cat ? Reminder.find({ ...scope, done: false, date: { $ne: '' } }).lean() : [],
     ]);
     const remColor = reminderColor(req.household);
-    const { blanks, days } = monthCells(month);
+    const cells0 = monthCells(month);
+    const ws = req.household.weekStart === 1 ? 1 : 0;
+    const blanks = (cells0.blanks - ws + 7) % 7; // blank days before the 1st, for the household's week start
+    const { days } = cells0;
+    const dows = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].slice(ws).concat(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].slice(0, ws));
     const color = (e) => categoryColor(req.household, e.category);
     // Up to three dots per day: one per event color, then one for reminders.
     const dots = (d) => {
@@ -113,7 +117,7 @@ router.get('/s/calendar', async (req, res, next) => {
       ...reminders.filter((r) => r.date === day).map((r) => ({ title: r.text, meta: r.time ? `Reminder · ${time12(r.time)}` : 'Reminder', tag: r.private ? 'Only me' : 'Reminder', lilac: r.private, href: `/s/remember/${r._id}`, color: remColor })),
     ];
     res.render('calendar/month', {
-      active: 'calendar', month, day, today, blanks, agenda, cat,
+      active: 'calendar', month, day, today, blanks, dows, agenda, cat,
       filterLabel: onlyReminders ? 'reminders' : cat ? `${cat} events` : '',
       catQuery: onlyReminders ? '&show=reminders' : cat ? `&cat=${encodeURIComponent(cat)}` : '',
       catChips: [
@@ -133,8 +137,8 @@ router.get('/s/calendar/new', async (req, res, next) => {
   try {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
     // Adding from a filtered calendar starts in that category.
-    const category = req.household.eventCats.includes(req.query.category) ? req.query.category : 'Uncategorized';
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: '60', details: '', private: false };
+    const category = req.household.eventCats.includes(req.query.category) ? req.query.category : req.household.eventCats.includes(req.household.eventCat) ? req.household.eventCat : 'Uncategorized';
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: req.household.eventAlert || '60', details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);

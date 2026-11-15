@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Recipes', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="head"><div><h1>Recipes</h1><p class="sub"><%= items.length %> <%= items.length === 1 ? 'recipe' : 'recipes' %><%= q || category ? ' found' : '' %></p></div><a class="btn btn-primary" href="/s/recipes/new">Add</a></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('recipes') %><%- include('../partials/gear', { key: 'recipes' }) %></h1><p class="sub"><%= items.length %> <%= items.length === 1 ? 'recipe' : 'recipes' %><%= q || category ? ' found' : '' %></p></div><a class="btn btn-primary" href="/s/recipes/new">Add</a></div>
   <a class="btn btn-ghost btn-block" href="/s/recipes/import">Import from a link or text</a>
   <form class="add" method="get" action="/s/recipes" role="search">
     <% if (category) { %><input type="hidden" name="category" value="<%= category %>"><% } %>

@@ -46,10 +46,10 @@ test('households', async (t) => {
 
   // Start a second household: Katie is its admin and it opens.
   let r = await katie('/households', { method: 'POST', form: { name: 'Lake house' } });
-  assert.equal(r.location, '/settings#household');
+  assert.equal(r.location, '/settings/people');
   let page = await katie('/settings');
   assert.match(page.text, /Lake house/);
-  assert.match(page.text, /Create invite link/);
+  assert.match((await katie('/settings/people')).text, /Create invite link/);
   const lakeId = await withDb(app.uri, async () => String((await Household.findOne({ name: 'Lake house' }).lean())._id));
   assert.match((await katie('/')).text, /home-chip[^>]*>Lake house/);
 
@@ -65,7 +65,7 @@ test('households', async (t) => {
   // Invite Sam, who already has an account, to the lake house.
   await katie(`/h/${lakeId}?next=/settings`);
   await katie('/settings/household/invites', { method: 'POST', form: { label: 'Sam' } });
-  const inviteUrl = new URL((await katie('/settings')).text.match(/https?:\/\/[^"<\s]+\/invite\/[\w-]+/)[0]);
+  const inviteUrl = new URL((await katie('/settings/people')).text.match(/https?:\/\/[^"<\s]+\/invite\/[\w-]+/)[0]);
   page = await sam(inviteUrl.pathname);
   assert.match(page.text, /Join Lake house/);
   assert.match(page.text, /signed in as Sam/);
@@ -78,7 +78,7 @@ test('households', async (t) => {
 
   // Signed out with an existing email: told to sign in, then the link picks up after sign-in.
   await katie('/settings/household/invites', { method: 'POST', form: { label: 'Mia' } });
-  const invite2 = new URL((await katie('/settings')).text.match(/https?:\/\/[^"<\s]+\/invite\/[\w-]+/)[0]);
+  const invite2 = new URL((await katie('/settings/people')).text.match(/https?:\/\/[^"<\s]+\/invite\/[\w-]+/)[0]);
   const fresh = client(app.base);
   r = await fresh(invite2.pathname, { method: 'POST', form: { name: 'Mia', email: 'mia@test.dev', password: 'whatever123', confirmPassword: 'whatever123' } });
   assert.equal(r.status, 422);

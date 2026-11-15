@@ -107,7 +107,7 @@ test('home info', async (t) => {
   // Settings.
   await sam('/settings/notifications', { method: 'POST', form: { morning: '08:00', infoForm: '1', warranty: 'on', warrantyDays: '60' } });
   await withDb(app.uri, async () => assert.equal((await User.findOne({ name: 'Sam' }).lean()).notify.warrantyDays, 60));
-  assert.match((await sam('/settings')).text, /Before an appliance warranty ends/);
+  assert.match((await sam('/settings/notifications')).text, /Before an appliance warranty ends/);
 });
 
 test('warranty notifications', async (t) => {

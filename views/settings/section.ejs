@@ -1,0 +1,89 @@
+<%- include('../partials/top', { title: title + ' settings', scripts: ['color-submit', 'rows'] }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: title, sub: 'For everyone in ' + household.name + '.', back }) %>
+  <% const sel = (name, options, value, label) => { %>
+    <label class="time-row" for="f-<%= name %>"><%= label %><select id="f-<%= name %>" name="<%= name %>"><% options.forEach(([v, l]) => { %><option value="<%= v %>"<%= String(value) === String(v) ? ' selected' : '' %>><%= l %></option><% }) %></select></label>
+  <% }; %>
+  <% const weekRow = () => sel('weekStart', [[0, 'Sunday'], [1, 'Monday']], household.weekStart, 'Week starts on'); %>
+
+  <% if (key !== 'recipes' && key !== 'info') { %>
+  <form class="card stack" method="post" action="/settings/s/<%= key %><%= back !== '/settings' ? '?from=section' : '' %>">
+    <h2>Defaults</h2>
+    <% if (key === 'shopping') { %>
+      <% sel('defaultStore', [['Any store', 'Any store'], ...household.stores.map((s) => [s, s])], household.defaultStore, 'New items go to') %>
+      <label class="check-row">Tell everyone when someone starts shopping<input type="checkbox" name="tripAlerts"<%= household.tripAlerts !== false ? ' checked' : '' %>></label>
+      <% sel('tripGapMin', [[15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [120, '2 hours']], household.tripGapMin, 'At most once every') %>
+      <p class="hint">Each person can still turn shopping alerts off for themselves in Notifications.</p>
+    <% } else if (key === 'remember') { %>
+      <% sel('remNotify', [['all', 'Everyone'], ['me', 'Just whoever adds it'], ['none', 'No one']], household.remNotify, 'New reminders notify') %>
+      <% sel('remCat', [['', 'First in the list'], ...household.remCats.map((c) => [c, c])], household.remCat, 'Category') %>
+    <% } else if (key === 'calendar') { %>
+      <% weekRow() %>
+      <% sel('eventAlert', alertChoices.filter((c) => c.kind === 'timed' || c.value === 'none').map((c) => [c.value, c.label]), household.eventAlert, 'Events with a time notify') %>
+      <% sel('eventAlertAllDay', alertChoices.filter((c) => c.kind === 'allday' || c.value === 'none').map((c) => [c.value, c.label]), household.eventAlertAllDay, 'All-day events notify') %>
+      <% sel('eventCat', [['Uncategorized', 'Uncategorized'], ...household.eventCats.map((c) => [c, c])], household.eventCat, 'Category') %>
+      <p class="hint">These are what a new event starts with. Each event can still be changed.</p>
+    <% } else if (key === 'meals') { %>
+      <% weekRow() %>
+      <% sel('mealSlot', [['', 'Last in the list'], ...household.mealSlots.map((s) => [s, s])], household.mealSlot, 'New meals go in') %>
+      <p class="hint">The week start is shared with the Calendar.</p>
+    <% } else if (key === 'pantry') { %>
+      <fieldset class="group">
+        <legend>Status names</legend>
+        <div class="fields">
+          <div class="field"><label for="nameHave">Plenty</label><input id="nameHave" name="nameHave" type="text" maxlength="16" value="<%= names.have %>"></div>
+          <div class="field"><label for="nameLow">Running low</label><input id="nameLow" name="nameLow" type="text" maxlength="16" value="<%= names.low %>"></div>
+          <div class="field"><label for="nameOut">None left</label><input id="nameOut" name="nameOut" type="text" maxlength="16" value="<%= names.out %>"></div>
+        </div>
+      </fieldset>
+      <% sel('pantryShop', [['both', names.low + ' or ' + names.out], ['out', names.out + ' only'], ['never', 'Never']], household.pantryShop, 'Add to shopping when') %>
+      <% sel('pantrySoonDays', [[1, '1 day'], [2, '2 days'], [3, '3 days'], [5, '5 days'], [7, '7 days'], [14, '14 days']], household.pantrySoonDays, '“Expiring soon” means within') %>
+      <% sel('pantryDefaultSpot', [['', 'First in the list'], ...household.pantrySpots.map((s) => [s, s])], household.pantryDefaultSpot, 'New items go in') %>
+    <% } else if (key === 'bills') { %>
+      <% sel('billSplit', [['even', 'Evenly with everyone'], ['none', 'Not split']], household.billSplit, 'New bills are split') %>
+      <label class="time-row" for="f-currency">Currency symbol<input id="f-currency" name="currency" type="text" maxlength="4" list="currencies" value="<%= household.currency || '$' %>" style="width:5em"></label>
+      <datalist id="currencies"><% ['$', '€', '£', '¥', '₹', 'C$', 'A$', '₪', 'R$', 'CHF'].forEach((c) => { %><option value="<%= c %>"></option><% }) %></datalist>
+      <% sel('billAheadDays', [[7, '1 week'], [14, '2 weeks'], [31, 'About a month'], [60, 'About 2 months']], household.billAheadDays, 'Repeating bills show up') %>
+      <p class="hint">How far before they're due.</p>
+    <% } %>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <% } %>
+
+  <% lists.forEach((l) => { %><%- include('../partials/list-editor', { l }) %><% }) %>
+
+  <% if (key === 'info') { %>
+    <section class="card stack" aria-labelledby="tpl">
+      <h2 id="tpl">Starting fields</h2>
+      <p class="row-meta">What a new item of each type starts with. People can still add, rename, or remove fields on any item.</p>
+      <% templates.forEach((t) => { %>
+        <form class="stack tpl-type" id="tpl-<%= encodeURIComponent(t.type) %>" method="post" action="/settings/s/info<%= back !== '/settings' ? '?from=section' : '' %>" data-rows-form>
+          <input type="hidden" name="type" value="<%= t.type %>">
+          <h3 class="sub-h"><%= t.type %></h3>
+          <div class="info-fields" data-rows>
+            <% (t.fields.length ? t.fields : [{ label: '', kind: 'text' }]).forEach((f) => { %>
+              <div class="info-field-top" data-row>
+                <input class="info-label" name="fLabel" type="text" maxlength="40" placeholder="Field name" aria-label="Field name" value="<%= f.label %>">
+                <select class="info-kind" name="fKind" aria-label="Kind of field"><% Object.entries(KINDS).forEach(([k, lab]) => { %><option value="<%= k %>"<%= f.kind === k ? ' selected' : '' %>><%= lab %></option><% }) %></select>
+                <button class="mini" type="button" data-row-remove aria-label="Remove this field">×</button>
+              </div>
+            <% }) %>
+          </div>
+          <div class="btn-row"><button class="btn btn-ghost" type="button" data-row-add>Add a field</button><button class="btn btn-primary" type="submit">Save <%= t.type %></button></div>
+        </form>
+      <% }) %>
+    </section>
+  <% } %>
+
+  <% if (usual) { %>
+    <section class="card" id="usual">
+      <h2>Usually have</h2>
+      <p class="hint">When meal ingredients go to the shopping list, these start unticked. Remove one to stop skipping it.</p>
+      <% if (!usual.length) { %><p class="muted small">Nothing yet.</p><% } %>
+      <% usual.forEach((u) => { %>
+        <div class="row"><span class="row-body row-title"><%= u.name %></span><form method="post" action="/settings/lists/usually-have"><input type="hidden" name="key" value="<%= u.key %>"><button class="link-btn link-danger" type="submit">Remove<span class="sr-only"> <%= u.name %></span></button></form></div>
+      <% }) %>
+    </section>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>

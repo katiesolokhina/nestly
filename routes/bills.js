@@ -8,6 +8,7 @@ const Upload = require('../models/Upload');
 const { recordChange, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
+const { currency } = require('../lib/prefs');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { sendToUser } = require('../lib/push');
 const Membership = require('../models/Membership');
@@ -16,7 +17,11 @@ const { todayIn, addDays, isDate, dayLabel, shortDay } = require('../lib/dates')
 const { money, toCents, centsInput, buildShares, nextDue, ensureUpcoming, balances } = require('../lib/bills');
 
 const router = express.Router();
-router.use('/s/bills', requireAuth, requireSection('bills'));
+router.use('/s/bills', requireAuth, requireSection('bills'), (req, res, next) => {
+  // Amounts in the household's currency.
+  req.money = (cents) => money(cents, currency(req.household));
+  next();
+});
 const SECTION = 'Bills';
 const REPEATS = ['none', 'weekly', 'monthly', 'yearly'];
 const MODES = ['none', 'even', 'amount', 'percent'];
@@ -105,12 +110,13 @@ async function formView(req, item, error, extra = {}) {
     item.receiptId ? Upload.findById(item.receiptId).lean() : null,
     item.seriesId ? BillSeries.findOne({ _id: item.seriesId, householdId: req.user.householdId }).lean() : null,
   ]);
-  return { active: 'bills', item, error: error || null, members, receipt, series, centsInput, money, ...extra };
+  return { active: 'bills', item, error: error || null, members, receipt, series, centsInput, money: req.money, ...extra };
 }
 
 const blank = (req, members) => ({
   _id: null, name: '', category: 'Uncategorized', cents: null, dueDate: todayIn(req.user.timezone), link: '', note: '', private: false,
-  splitMode: 'even', shares: members.map((m) => ({ userId: m._id, name: m.name, cents: 0 })), seriesId: null,
+  splitMode: req.household.billSplit === 'none' ? 'none' : 'even',
+  shares: req.household.billSplit === 'none' ? [] : members.map((m) => ({ userId: m._id, name: m.name, cents: 0 })), seriesId: null,
   repeat: 'none', interval: 1, until: '',
 });
 
@@ -120,7 +126,7 @@ async function tellShares(req, bill) {
   await Promise.all(bill.shares.filter((s) => !same(s.userId, bill.paidBy) && s.cents && !s.settled).map((s) => {
     const u = people.find((p) => same(p._id, s.userId));
     if (!u || (u.notify && u.notify.billsPaid === false)) return null;
-    return sendToUser(s.userId, { title: `${bill.paidByName} paid ${bill.name}`, body: `${money(bill.cents)} total. Your share: ${money(s.cents)}.`, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-paid-${bill._id}` });
+    return sendToUser(s.userId, { title: `${bill.paidByName} paid ${bill.name}`, body: `${req.money(bill.cents)} total. Your share: ${req.money(s.cents)}.`, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-paid-${bill._id}` });
   }));
 }
 
@@ -140,11 +146,11 @@ router.get('/s/bills', async (req, res, next) => {
     const mine = owed.filter((p) => p.from.id === me || p.to.id === me);
     const dueSoon = rows.filter((b) => !b.paid && b.dueDate <= addDays(today, 30));
     res.render('bills/list', {
-      active: 'bills', tab, category, money,
+      active: 'bills', tab, category, money: req.money,
       items: rows.map((b) => ({ ...b, status: status(b, today), mine: myShare(b, req.user), repeats: Boolean(b.seriesId) })),
-      dueTotal: money(dueSoon.reduce((n, b) => n + b.cents, 0)),
+      dueTotal: req.money(dueSoon.reduce((n, b) => n + b.cents, 0)),
       dueCount: dueSoon.length,
-      mine: mine.map((p) => ({ text: p.from.id === me ? `You owe ${p.to.name} ${money(p.cents)}` : `${p.from.name} owes you ${money(p.cents)}`, owe: p.from.id === me })),
+      mine: mine.map((p) => ({ text: p.from.id === me ? `You owe ${p.to.name} ${req.money(p.cents)}` : `${p.from.name} owes you ${req.money(p.cents)}`, owe: p.from.id === me })),
       othersOwing: owed.length - mine.length,
     });
   } catch (err) {
@@ -158,7 +164,7 @@ router.get('/s/bills/balances', async (req, res, next) => {
     const me = req.user.id;
     const today = todayIn(req.user.timezone);
     res.render('bills/balances', {
-      active: 'bills', money,
+      active: 'bills', money: req.money,
       pairs: owed.map((p) => ({
         ...p,
         text: p.from.id === me ? `You owe ${p.to.name}` : p.to.id === me ? `${p.from.name} owes you` : `${p.from.name} owes ${p.to.name}`,
@@ -196,13 +202,13 @@ router.post('/s/bills/settle', async (req, res, next) => {
     if (count) {
       const names = Object.fromEntries((await User.find({ _id: { $in: [a, c] } }, { name: 1 }).lean()).map((u) => [String(u._id), u.name]));
       const [payer, payee] = cents >= 0 ? [a, c] : [c, a];
-      await logActivity(req.user, { section: SECTION, text: `${req.user.name} settled up: ${names[payer]} paid ${names[payee]} ${money(Math.abs(cents))} (${count} ${count === 1 ? 'bill' : 'bills'})` });
+      await logActivity(req.user, { section: SECTION, text: `${req.user.name} settled up: ${names[payer]} paid ${names[payee]} ${req.money(Math.abs(cents))} (${count} ${count === 1 ? 'bill' : 'bills'})` });
       const other = payer === req.user.id ? payee : payer;
       const u = await User.findById(other, { notify: 1 }).lean();
       if (u && other !== req.user.id && !(u.notify && u.notify.billsPaidBack === false)) {
-        await sendToUser(other, { title: 'Settled up', body: `${req.user.name} marked it settled: ${names[payer]} paid ${names[payee]} back ${money(Math.abs(cents))}.`, url: inHome(req.user.householdId, '/s/bills/balances'), tag: 'bills-settled' });
+        await sendToUser(other, { title: 'Settled up', body: `${req.user.name} marked it settled: ${names[payer]} paid ${names[payee]} back ${req.money(Math.abs(cents))}.`, url: inHome(req.user.householdId, '/s/bills/balances'), tag: 'bills-settled' });
       }
-      req.session.flash = `Settled up: ${money(Math.abs(cents))}.`;
+      req.session.flash = `Settled up: ${req.money(Math.abs(cents))}.`;
     }
     res.redirect('/s/bills/balances');
   } catch (err) {
@@ -247,7 +253,7 @@ router.post('/s/bills', withReceipt, async (req, res, next) => {
       }
     }
     await bill.save();
-    await recordChange(req, { kind: 'create', model: 'Bill', doc: bill, section: SECTION, text: `added the bill ${bill.name} (${money(bill.cents)}, due ${shortDay(bill.dueDate).replace(/, \d{4}$/, '')})`, label: bill.name });
+    await recordChange(req, { kind: 'create', model: 'Bill', doc: bill, section: SECTION, text: `added the bill ${bill.name} (${req.money(bill.cents)}, due ${shortDay(bill.dueDate).replace(/, \d{4}$/, '')})`, label: bill.name });
     res.redirect(`/s/bills/${bill._id}`);
   } catch (err) {
     next(err);
@@ -268,7 +274,7 @@ router.get('/s/bills/:id', async (req, res, next) => {
     const history = series ? await Bill.find({ ...visible(req.user), seriesId: series._id, _id: { $ne: bill._id } }).sort({ dueDate: -1 }).limit(12).lean() : [];
     const repeatText = series && series.active ? `Repeats ${series.interval > 1 ? `every ${series.interval} ` : ''}${{ weekly: series.interval > 1 ? 'weeks' : 'weekly', monthly: series.interval > 1 ? 'months' : 'monthly', yearly: series.interval > 1 ? 'years' : 'yearly' }[series.repeat]}${series.until ? ` until ${shortDay(series.until)}` : ''}` : '';
     res.render('bills/show', {
-      active: 'bills', bill, members, receipt, series, history, repeatText, today, money,
+      active: 'bills', bill, members, receipt, series, history, repeatText, today, money: req.money,
       status: status(bill, today),
       historyRows: history.map((h) => ({ ...h, status: status(h, today) })),
     });
@@ -369,7 +375,7 @@ router.post('/s/bills/:id/paid', withReceipt, async (req, res, next) => {
     await bill.save();
     // Next time this repeating bill comes, it starts from this amount.
     if (bill.seriesId) await BillSeries.updateOne({ _id: bill.seriesId, householdId: req.user.householdId }, { $set: { cents: bill.cents } });
-    await recordChange(req, { kind: 'update', model: 'Bill', doc: bill, before, section: SECTION, text: `marked ${bill.name} (${money(bill.cents)}) paid${same(payer._id, req.user._id) ? '' : ` by ${payer.name}`}`, label: bill.name });
+    await recordChange(req, { kind: 'update', model: 'Bill', doc: bill, before, section: SECTION, text: `marked ${bill.name} (${req.money(bill.cents)}) paid${same(payer._id, req.user._id) ? '' : ` by ${payer.name}`}`, label: bill.name });
     await tellShares(req, bill);
     res.redirect(`/s/bills/${bill._id}`);
   } catch (err) {
@@ -403,14 +409,14 @@ router.post('/s/bills/:id/share', async (req, res, next) => {
     share.settled = req.body.settled === '1';
     share.settledAt = share.settled ? new Date() : null;
     await bill.save();
-    const text = share.settled ? `marked ${share.name}’s ${money(share.cents)} for ${bill.name} as paid back` : `marked ${share.name}’s ${money(share.cents)} for ${bill.name} as not paid back`;
+    const text = share.settled ? `marked ${share.name}’s ${req.money(share.cents)} for ${bill.name} as paid back` : `marked ${share.name}’s ${req.money(share.cents)} for ${bill.name} as not paid back`;
     await recordChange(req, { kind: 'update', model: 'Bill', doc: bill, before, section: SECTION, text, label: bill.name });
     if (share.settled) {
       // Tell the other person: the payer if the person who owed marked it, and the other way round.
       const other = same(req.user._id, share.userId) ? bill.paidBy : same(req.user._id, bill.paidBy) ? share.userId : null;
       const u = other ? await User.findById(other, { notify: 1 }).lean() : null;
       if (u && !(u.notify && u.notify.billsPaidBack === false)) {
-        const body = same(other, bill.paidBy) ? `${share.name} paid you back ${money(share.cents)} for ${bill.name}.` : `${req.user.name} marked your ${money(share.cents)} for ${bill.name} as paid back.`;
+        const body = same(other, bill.paidBy) ? `${share.name} paid you back ${req.money(share.cents)} for ${bill.name}.` : `${req.user.name} marked your ${req.money(share.cents)} for ${bill.name} as paid back.`;
         await sendToUser(other, { title: 'Paid back', body, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-back-${bill._id}` });
       }
     }
@@ -443,7 +449,7 @@ router.post('/s/bills/:id/delete', async (req, res, next) => {
     const before = bill.toObject();
     await bill.deleteOne();
     // A deleted bill from a series isn't made again: the series has already moved past its date.
-    await recordChange(req, { kind: 'delete', model: 'Bill', doc: bill, before, section: SECTION, text: `deleted the bill ${bill.name} (${money(bill.cents)})`, label: bill.name });
+    await recordChange(req, { kind: 'delete', model: 'Bill', doc: bill, before, section: SECTION, text: `deleted the bill ${bill.name} (${req.money(bill.cents)})`, label: bill.name });
     res.redirect('/s/bills');
   } catch (err) {
     next(err);

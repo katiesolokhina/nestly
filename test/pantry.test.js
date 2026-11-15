@@ -66,9 +66,9 @@ test('pantry', async (t) => {
   await withDb(app.uri, async () => {
     const items = await ShoppingItem.find({ key: 'milk' }).lean();
     assert.equal(items.length, 1);
-    assert.match(items[0].note, /Pantry: running low/);
+    assert.match(items[0].note, /Pantry: Low/);
   });
-  assert.match((await katie('/activity')).text, /Sam marked Milk running low and added it to Shopping/);
+  assert.match((await katie('/activity')).text, /Sam marked Milk Low and added it to Shopping/);
   assert.match((await katie('/s/pantry?show=low')).text, /Milk/);
   assert.doesNotMatch((await katie('/s/pantry?show=low')).text, /row-title">Rice</);
 
@@ -99,7 +99,7 @@ test('pantry', async (t) => {
   assert.match(home.text, /low or out in the pantry/);
 
   // Removing a spot moves its items to Other; spots are in Settings.
-  assert.match((await katie('/settings/lists')).text, /Pantry spots/);
+  assert.match((await katie('/settings/s/pantry')).text, /Pantry spots/);
   await katie('/settings/lists/pantrySpots', { method: 'POST', form: { action: 'remove', value: 'Fridge' } });
   assert.match((await katie('/s/pantry')).text, /Other/);
 
@@ -112,7 +112,7 @@ test('pantry', async (t) => {
   // Settings.
   await sam('/settings/notifications', { method: 'POST', form: { morning: '08:00', reminders: 'on', events: 'on', pantryForm: '1', pantryExpiry: 'on', pantryExpiryDays: '5' } });
   await withDb(app.uri, async () => assert.equal((await User.findOne({ name: 'Sam' }).lean()).notify.pantryExpiryDays, 5));
-  assert.match((await sam('/settings')).text, /about to expire/);
+  assert.match((await sam('/settings/notifications')).text, /about to expire/);
 });
 
 test('pantry expiry notifications', async (t) => {

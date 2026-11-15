@@ -1,0 +1,38 @@
+<%- include('../partials/top', { title: 'People', scripts: ['share-link', 'confirm'] }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'People', sub: household.name }) %>
+  <section class="card" id="household" aria-labelledby="hh">
+    <h2 id="hh">People</h2>
+    <% if (link) { %>
+      <div class="link-box" role="status">
+        <strong><%= link.kind === 'invite' ? 'Invite link' : 'Password reset link' %><%= link.label ? ' for ' + link.label : '' %></strong>
+        <input type="text" readonly value="<%= link.url %>" aria-label="Link" data-link-input>
+        <div class="btn-row">
+          <button class="btn btn-ghost" type="button" data-share-link="<%= link.url %>">Share</button>
+          <button class="btn btn-ghost" type="button" data-copy-link="<%= link.url %>">Copy</button>
+        </div>
+        <p class="small">Works once, for <%= link.days %>. This is the only time it's shown, so send it now.</p>
+      </div>
+    <% } %>
+    <% members.forEach((m) => { %>
+      <div class="row">
+        <span class="avatar" aria-hidden="true"><%= m.name.charAt(0).toUpperCase() %></span>
+        <div class="row-body"><span class="row-title"><%= m.name %></span><span class="row-meta"><%= m.email %> · <%= m.role === 'admin' ? 'Admin' : 'Member' %><%= m.disabled ? ' · Turned off' : '' %></span></div>
+        <% if (member.role === 'admin' && String(m._id) !== user.id) { %><a class="link-btn" href="/settings/household/members/<%= m._id %>">Manage<span class="sr-only"> <%= m.name %></span></a><% } %>
+      </div>
+    <% }) %>
+    <% if (member.role === 'admin') { %>
+      <% invites.forEach((inv) => { %>
+        <div class="row">
+          <div class="row-body"><span class="row-title"><%= inv.label || 'Unnamed invite' %></span><span class="row-meta">Waiting to be used</span></div>
+          <form method="post" action="/settings/household/invites/<%= inv._id %>/revoke"><button class="link-btn" type="submit">Cancel<span class="sr-only"> invite<%= inv.label ? ' for ' + inv.label : '' %></span></button></form>
+        </div>
+      <% }) %>
+      <form class="stack" method="post" action="/settings/household/invites">
+        <div class="field"><label for="inviteLabel">Who's it for? <span class="muted">(optional)</span></label><input id="inviteLabel" name="label" type="text" maxlength="40" placeholder="e.g. Mom"></div>
+        <button class="btn btn-primary" type="submit">Create invite link</button>
+      </form>
+    <% } %>
+  </section>
+</main>
+<%- include('../partials/bottom') %>

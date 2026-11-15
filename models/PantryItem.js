@@ -15,6 +15,7 @@ const pantrySchema = new mongoose.Schema(
     expires: { type: String, default: '' }, // YYYY-MM-DD use-by date, optional
     autoShop: { type: Boolean, default: true }, // Low or Out puts it on the shopping list
     note: { type: String, trim: true, maxlength: 300, default: '' },
+    photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null }, // what it looks like (the brand you buy)
     statusBy: { type: String, default: '' },
     statusAt: { type: Date, default: null },
   },

@@ -13,13 +13,14 @@ const User = require('../models/User');
 const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
 const { restock } = require('../lib/pantry');
+const { currency } = require('../lib/prefs');
 const { membersOf, inHome } = require('../lib/members');
 
 const router = express.Router();
 router.use('/s/shopping', requireAuth, requireSection('shopping'));
 
 const SECTION = 'Shopping';
-const money = (n) => `$${Number(n).toFixed(2)}`;
+const money = (n, symbol = '$') => `${symbol}${Number(n).toFixed(2)}`;
 const isHttp = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 
 async function find(req) {
@@ -44,7 +45,8 @@ router.get('/s/shopping', async (req, res, next) => {
   try {
     const { household, user } = req;
     const today = todayIn(user.timezone);
-    const method = ['In person', 'Online'].includes(req.query.method) ? req.query.method : 'All';
+    const method = req.household.methods.includes(req.query.method) ? req.query.method : 'All';
+    const cur = currency(req.household);
     const store = household.stores.includes(req.query.store) ? req.query.store : '';
     const tag = household.tags.includes(req.query.tag) ? req.query.tag : '';
     const shopping = req.query.mode === 'shop';
@@ -61,7 +63,7 @@ router.get('/s/shopping', async (req, res, next) => {
       CatalogItem.find({ householdId: user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
     ]);
     const active = items.filter((i) => !i.bought);
-    const meta = (i) => [i.method === 'Online' ? 'Online' : '', i.brand, i.store === 'Any store' ? '' : i.store, i.price != null ? money(i.price) : '', i.ref, i.note].filter(Boolean).join(' · ');
+    const meta = (i) => [i.method !== req.household.methods[0] ? i.method : '', i.brand, i.store === 'Any store' ? '' : i.store, i.price != null ? money(i.price, cur) : '', i.ref, i.note].filter(Boolean).join(' · ');
     const groups = [...household.aisles, 'Unassigned']
       .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i) })) }))
       .filter((g) => g.items.length);
@@ -69,7 +71,8 @@ router.get('/s/shopping', async (req, res, next) => {
     res.render('shopping/list', {
       active: 'shopping', method, store, tag, shopping, selecting, groups, staples, catalog,
       count: active.length,
-      total: money(active.reduce((n, i) => n + (i.price || 0), 0)),
+      total: money(active.reduce((n, i) => n + (i.price || 0), 0), cur),
+      methods: req.household.methods,
       bought: items.filter((i) => i.bought).map((i) => ({ ...i, meta: `${i.boughtByName} · ${dayLabel(new Intl.DateTimeFormat('en-CA', { timeZone: user.timezone }).format(i.boughtAt), today)}` })),
       query: new URLSearchParams(Object.entries({ method: method === 'All' ? '' : method, store, tag }).filter(([, v]) => v)).toString(),
     });
@@ -110,15 +113,15 @@ router.post('/s/shopping/quick', async (req, res, next) => {
 
 // "Start shopping": opens shopping mode and lets everyone else know, so they can add what they need.
 // One alert per person every 30 minutes, so stopping and starting again doesn't spam the house.
-const TRIP_GAP_MS = 30 * 60 * 1000;
 router.post('/s/shopping/start', async (req, res, next) => {
   try {
     const q = String(req.body.query || '');
     const query = /^[\w%+=&.\-]*$/.test(q) ? q : '';
     res.redirect(`/s/shopping?${query ? `${query}&` : ''}mode=shop`);
+    if (req.household.tripAlerts === false) return; // turned off for this household
     const store = req.household.stores.includes(req.body.store) ? req.body.store : '';
     const claimed = await User.updateOne(
-      { _id: req.user._id, $or: [{ lastTripAlertAt: null }, { lastTripAlertAt: { $lt: new Date(Date.now() - TRIP_GAP_MS) } }] },
+      { _id: req.user._id, $or: [{ lastTripAlertAt: null }, { lastTripAlertAt: { $lt: new Date(Date.now() - (req.household.tripGapMin || 30) * 60 * 1000) } }] },
       { $set: { lastTripAlertAt: new Date() } }
     );
     if (!claimed.modifiedCount) return;
@@ -176,7 +179,7 @@ async function formData(req, item, error) {
     const past = await ShoppingItem.findOne({ ...visible(req.user), key: item.key, bought: true, price: { $ne: null } }).sort({ boughtAt: -1 }).lean();
     if (past) {
       const day = new Intl.DateTimeFormat('en-CA', { timeZone: req.user.timezone }).format(past.boughtAt);
-      lastPaid = `Last paid ${money(past.price)}${past.store !== 'Any store' ? ` at ${past.store}` : ''}, ${dayLabel(day, todayIn(req.user.timezone))}`;
+      lastPaid = `Last paid ${money(past.price, currency(req.household))}${past.store !== 'Any store' ? ` at ${past.store}` : ''}, ${dayLabel(day, todayIn(req.user.timezone))}`;
     }
   }
   const catalog = await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean();
@@ -197,7 +200,7 @@ function readForm(req) {
     name, key: keyOf(name),
     qty: String(b.qty || '').trim().slice(0, 30) || '1',
     price,
-    method: b.method === 'Online' ? 'Online' : 'In person',
+    method: req.household.methods.includes(b.method) ? b.method : req.household.methods[0] || 'In person',
     store: b.store === 'Any store' ? 'Any store' : pick(req.household, 'stores', b.store),
     aisle: pick(req.household, 'aisles', b.aisle),
     tag: pick(req.household, 'tags', b.tag),

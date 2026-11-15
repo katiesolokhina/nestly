@@ -1,0 +1,74 @@
+<%- include('../partials/top', { title: 'Notifications', scripts: ['push-setup'] }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Notifications' }) %>
+  <div class="card" id="notifications">
+    <h2>This device</h2>
+    <div id="push-card" hidden aria-live="polite">
+      <div data-state="off" hidden>
+        <p class="push-title">Off on this device</p>
+        <p class="row-meta">Turn on each phone or computer you want notifications on.</p>
+        <button class="btn btn-primary" type="button" data-action="enable">Turn on notifications</button>
+      </div>
+      <div data-state="on" hidden>
+        <p class="push-title">On for this device</p>
+        <p class="row-meta">Each phone or computer is set up separately.</p>
+        <div class="push-actions">
+          <button class="link-btn" type="button" data-action="test">Send a test</button>
+          <button class="link-btn link-danger" type="button" data-action="disable">Turn off on this device</button>
+        </div>
+      </div>
+      <div data-state="blocked" hidden>
+        <p class="push-title">Blocked on this device</p>
+        <p class="row-meta">Nestly isn’t allowed to notify you here. Allow notifications for Nestly in your phone’s or browser’s settings, then reopen the app.</p>
+      </div>
+      <p class="row-meta" data-status></p>
+    </div>
+    <p class="row-meta" data-push-unsupported>This browser can’t show notifications. On iPhone, add Nestly to your Home Screen (Share, then Add to Home Screen), open it from there, and come back here.</p>
+
+    </div>
+  <form class="card stack" method="post" action="/settings/notifications">
+      <h2>What you hear about</h2>
+      <p class="row-meta">These choices are just for you, in every household.</p>
+      <label class="check-row">Reminders<input type="checkbox" name="reminders"<%= user.notify.reminders !== false ? ' checked' : '' %>></label>
+      <label class="check-row">Events<input type="checkbox" name="events"<%= user.notify.events !== false ? ' checked' : '' %>></label>
+      <label class="check-row">When someone starts shopping<input type="checkbox" name="shopping"<%= user.notify.shopping !== false ? ' checked' : '' %>></label>
+      <label class="time-row" for="morning">Morning time<input id="morning" name="morning" type="time" required value="<%= user.notify.morning || '08:00' %>"></label>
+      <p class="hint">For reminders without a time and for all-day events. How early each event notifies is set on the event.</p>
+      <% if (household.features.info !== false) { const wn = user.notify; %>
+        <input type="hidden" name="infoForm" value="1">
+        <h3 class="sub-h"><%= secName('info') %></h3>
+        <div class="check-row">
+          <label for="warranty" class="grow">Before an appliance warranty ends</label>
+          <select name="warrantyDays" aria-label="How early"><% [7, 14, 30, 60, 90].forEach((d) => { %><option value="<%= d %>"<%= (wn.warrantyDays ?? 30) === d ? ' selected' : '' %>><%= d %> days</option><% }) %></select>
+          <input id="warranty" type="checkbox" name="warranty"<%= wn.warranty !== false ? ' checked' : '' %>>
+        </div>
+        <p class="hint">Uses the “Warranty ends” date on items in Home info.</p>
+      <% } %>
+      <% if (household.features.pantry !== false) { const pn = user.notify; %>
+        <input type="hidden" name="pantryForm" value="1">
+        <h3 class="sub-h"><%= secName('pantry') %></h3>
+        <div class="check-row">
+          <label for="pantryExpiry" class="grow">When something’s about to expire</label>
+          <select name="pantryExpiryDays" aria-label="How early"><% [[0, 'On the day'], [1, '1 day before'], [2, '2 days before'], [3, '3 days before'], [5, '5 days before'], [7, '7 days before']].forEach(([d, l]) => { %><option value="<%= d %>"<%= (pn.pantryExpiryDays ?? 2) === d ? ' selected' : '' %>><%= l %></option><% }) %></select>
+          <input id="pantryExpiry" type="checkbox" name="pantryExpiry"<%= pn.pantryExpiry !== false ? ' checked' : '' %>>
+        </div>
+      <% } %>
+      <% if (household.features.bills !== false) { const n = user.notify; %>
+        <input type="hidden" name="billsForm" value="1">
+        <h3 class="sub-h"><%= secName('bills') %></h3>
+        <div class="check-row">
+          <label for="billsBefore" class="grow">Before a bill is due</label>
+          <select name="billsBeforeDays" aria-label="How many days before"><% [1, 2, 3, 5, 7, 14].forEach((d) => { %><option value="<%= d %>"<%= n.billsBeforeDays === d ? ' selected' : '' %>><%= d %> <%= d === 1 ? 'day' : 'days' %></option><% }) %></select>
+          <input id="billsBefore" type="checkbox" name="billsBefore"<%= n.billsBefore !== false ? ' checked' : '' %>>
+        </div>
+        <label class="check-row">On the due date<input type="checkbox" name="billsDue"<%= n.billsDue !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When a bill is overdue<input type="checkbox" name="billsOverdue"<%= n.billsOverdue !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When someone pays a bill I share (my part)<input type="checkbox" name="billsPaid"<%= n.billsPaid !== false ? ' checked' : '' %>></label>
+        <label class="check-row">When someone pays me back<input type="checkbox" name="billsPaidBack"<%= n.billsPaidBack !== false ? ' checked' : '' %>></label>
+        <label class="check-row">Sunday reminder of what I owe<input type="checkbox" name="billsWeekly"<%= n.billsWeekly ? ' checked' : '' %>></label>
+        <p class="hint">Due-date notifications only go to the people sharing the bill, at your morning time, and stop once it’s paid.</p>
+      <% } %>
+      <button class="btn btn-primary btn-block" type="submit">Save</button>
+    </form>
+</main>
+<%- include('../partials/bottom') %>

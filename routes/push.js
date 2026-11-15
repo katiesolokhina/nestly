@@ -42,7 +42,7 @@ router.post('/api/push/unsubscribe', async (req, res, next) => {
 // "Send a test" proves the whole chain works on this device.
 router.post('/api/push/test', async (req, res, next) => {
   try {
-    const sent = await sendToUser(req.user._id, { title: 'Nestly', body: 'Notifications are working.', url: '/settings#notifications', tag: 'nestly-test' });
+    const sent = await sendToUser(req.user._id, { title: 'Nestly', body: 'Notifications are working.', url: '/settings/notifications', tag: 'nestly-test' });
     res.json({ sent });
   } catch (err) {
     next(err);

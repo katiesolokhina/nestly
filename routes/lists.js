@@ -1,42 +1,41 @@
-// Stores, aisles, tags, and categories. Anyone in the household can change them, and every change is logged.
+// Stores, aisles, tags, and categories. Admins change them from each section's settings page; every change is logged.
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
 
 const router = express.Router();
-router.use('/settings/lists', requireAuth);
+router.use('/settings/lists', requireAuth, requireAdmin);
 const SECTION = 'Settings';
 
 const available = (household) => Object.keys(LISTS).filter((k) => household.features[LISTS[k].feature] !== false);
 const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
 
-router.get('/settings/lists', async (req, res, next) => {
-  try {
-    const usual = req.household.features.shopping !== false
-      ? await CatalogItem.find({ householdId: req.user.householdId, usuallyHave: true }, { name: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean()
-      : null;
-    res.render('lists', {
-      usual,
-      active: 'settings',
-      lists: available(req.household).map((key) => ({ key, ...LISTS[key], values: req.household[key] })),
-      colorOf: (name) => categoryColor(req.household, name),
-      reminderColor: reminderColor(req.household),
-      showReminders: req.household.features.remember !== false,
-      error: null,
-    });
-  } catch (err) {
-    next(err);
+// Lists live on each section's settings page now.
+router.get('/settings/lists', (req, res) => res.redirect('/settings'));
+const pageFor = (key) => `/settings/s/${LISTS[key].feature}#${key}`;
+
+// Household settings that point at a list entry follow it when it's renamed or removed.
+const LINKED = { stores: ['defaultStore', 'Any store'], pantrySpots: ['pantryDefaultSpot', ''], eventCats: ['eventCat', 'Uncategorized'], remCats: ['remCat', ''], mealSlots: ['mealSlot', ''] };
+function follow(household, key, from, to) {
+  const link = LINKED[key];
+  if (link && household[link[0]] === from) household[link[0]] = to == null ? link[1] : to;
+  if (key === 'infoTypes') {
+    const tpl = (household.infoTemplates || []).find((t) => t.type === from);
+    if (tpl) {
+      if (to == null) household.infoTemplates = household.infoTemplates.filter((t) => t.type !== from);
+      else tpl.type = to;
+    }
   }
-});
+}
 
 // "Usually have": things skipped when meal ingredients go to the shopping list.
 router.post('/settings/lists/usually-have', async (req, res, next) => {
   try {
     const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(req.body.key || ''), usuallyHave: true }, { $set: { usuallyHave: false } });
     if (item) await logActivity(req.user, { section: SECTION, text: `${req.user.name} stopped marking ${item.name} as usually have` });
-    res.redirect('/settings/lists#usual');
+    res.redirect('/settings/s/shopping#usual');
   } catch (err) {
     next(err);
   }
@@ -46,11 +45,11 @@ router.post('/settings/lists/usually-have', async (req, res, next) => {
 router.post('/settings/lists/reminder-color', async (req, res, next) => {
   try {
     const color = String(req.body.color || '');
-    if (!HEX.test(color)) { req.session.flash = 'Choose a color.'; return res.redirect('/settings/lists#eventCats'); }
+    if (!HEX.test(color)) { req.session.flash = 'Choose a color.'; return res.redirect('/settings/s/calendar#eventCats'); }
     req.household.reminderColor = color.toLowerCase();
     await req.household.save();
     await logActivity(req.user, { section: SECTION, text: `${req.user.name} changed the color for reminders` });
-    res.redirect('/settings/lists#eventCats');
+    res.redirect('/settings/s/calendar#eventCats');
   } catch (err) {
     next(err);
   }
@@ -67,7 +66,7 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     const { action, value } = req.body;
     const name = String(req.body.name || '').trim().slice(0, 40);
     const i = list.indexOf(value);
-    const fail = (msg) => { req.session.flash = msg; res.redirect(`/settings/lists#${key}`); };
+    const fail = (msg) => { req.session.flash = msg; res.redirect(pageFor(key)); };
 
     // Colors are stored by name, so they follow renames and go away with removals.
     const colors = (household.eventColors || []).map((c) => ({ name: c.name, color: c.color }));
@@ -81,7 +80,7 @@ router.post('/settings/lists/:key', async (req, res, next) => {
       household.eventColors = colors;
       await household.save();
       await logActivity(user, { section: SECTION, text: `${user.name} changed the color for ${value}` });
-      return res.redirect(`/settings/lists#${key}`);
+      return res.redirect(pageFor(key));
     }
 
     if (action === 'add') {
@@ -103,12 +102,14 @@ router.post('/settings/lists/:key', async (req, res, next) => {
         setColor(name, kept);
       }
       await swap(household, key, value, name);
+      follow(household, key, value, name);
       await logActivity(user, { section: SECTION, text: `${user.name} renamed ${value} to ${name}` });
     } else if (action === 'remove') {
       if (list.length === 1) return fail('Keep at least one.');
       list.splice(i, 1);
       if (key === 'eventCats') { const at = colors.findIndex((c) => c.name === value); if (at >= 0) colors.splice(at, 1); }
       await swap(household, key, value, cfg.fallback);
+      follow(household, key, value, null);
       await logActivity(user, { section: SECTION, text: `${user.name} removed ${value} from ${label}` });
     } else if (action === 'up' || action === 'down') {
       const j = action === 'up' ? i - 1 : i + 1;
@@ -121,7 +122,7 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     }
     household[key] = list;
     await household.save();
-    res.redirect(`/settings/lists#${key}`);
+    res.redirect(pageFor(key));
   } catch (err) {
     next(err);
   }

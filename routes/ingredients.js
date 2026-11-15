@@ -12,7 +12,8 @@ const { visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { keyOf, fromCatalog, addToCatalog } = require('../lib/catalog');
 const { combine } = require('../lib/ingredients');
-const { todayIn, addDays, isDate, weekday, shortDay } = require('../lib/dates');
+const { todayIn, addDays, isDate, shortDay } = require('../lib/dates');
+const { weekOfFor } = require('./meals');
 
 const router = express.Router();
 router.use('/s/shopping/ingredients', requireAuth, requireSection('shopping'));
@@ -28,7 +29,7 @@ async function source(req) {
   }
   if (isDate(q.week) && req.household.features.meals !== false) {
     const today = todayIn(req.user.timezone);
-    const start = addDays(q.week, -weekday(q.week));
+    const start = weekOfFor(req.household)(q.week);
     const end = addDays(start, 6);
     const from = today > start && today <= end ? today : start;
     const meals = await Meal.find({ ...visible(req.user), date: { $gte: from, $lte: end }, recipeId: { $ne: null } }).lean();

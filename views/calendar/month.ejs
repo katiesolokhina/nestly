@@ -1,5 +1,6 @@
 <%- include('../partials/top', { title: 'Calendar', scripts: ['chip-scroll'] }) %>
 <main class="stack">
+  <div class="row-h cal-head"><span class="aisle"><%= secName('calendar') %></span><%- include('../partials/gear', { key: 'calendar' }) %></div>
   <div class="chips chips-scroll" role="group" aria-label="Filter by category" data-chip-scroll>
     <% catChips.forEach((c) => { %><a class="chip<%= c.on ? ' on' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= day %><%= c.query %>"<%- c.on ? ' aria-current="true"' : '' %>><% if (c.color) { %><span class="cat-dot" style="background:<%= c.color %>" aria-hidden="true"></span><% } %><%= c.name %></a><% }) %>
   </div>
@@ -10,7 +11,7 @@
       <a class="icon-link" href="/s/calendar?month=<%= next %>&day=<%= day %><%= catQuery %>" aria-label="Next month">›</a>
     </div>
     <div class="cal">
-      <% ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((d) => { %><div class="dow" aria-hidden="true"><%= d %></div><% }) %>
+      <% dows.forEach((d) => { %><div class="dow" aria-hidden="true"><%= d %></div><% }) %>
       <% for (let i = 0; i < blanks; i += 1) { %><div></div><% } %>
       <% cells.forEach((c) => { %><a class="day<%= c.has ? ' has' : '' %><%= c.date === today ? ' now' : '' %><%= c.date === day ? ' sel' : '' %>" href="/s/calendar?month=<%= month %>&day=<%= c.date %><%= catQuery %>" aria-label="<%= c.date %><%= c.has ? ', has plans' : '' %>"<%- c.date === day ? ' aria-current="date"' : '' %>><%= c.num %><span class="dots" aria-hidden="true"><% c.dots.forEach((col) => { %><i<%- col ? ` style="background:${col}"` : '' %>></i><% }) %></span></a><% }) %>
     </div>

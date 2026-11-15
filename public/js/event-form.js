@@ -32,7 +32,7 @@ document.querySelectorAll('form[data-event-form]').forEach((form) => {
       const keep = alert.value;
       const fits = all.filter((o) => o.dataset.kind === 'both' || o.dataset.kind === next);
       alert.replaceChildren(...fits.map((o) => o.cloneNode(true)));
-      const fallback = next === 'allday' ? '0' : '60';
+      const fallback = next === 'allday' ? alert.dataset.defaultAllday || '0' : alert.dataset.defaultTimed || '60';
       // Switching between timed and all day: keep None or Custom, otherwise start from the usual choice.
       alert.value = keep === 'none' || keep === 'custom' ? keep : fallback;
       // On first load, keep the option the server picked for this kind.

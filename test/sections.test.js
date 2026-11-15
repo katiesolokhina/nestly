@@ -314,8 +314,8 @@ test('sections', async (t) => {
     await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'color', value: 'Birthdays', color: '#123456' } });
     assert.match((await sam(`/s/calendar?day=${today}`)).text, /background:#123456/);
     assert.match((await sam('/')).text, /background:#123456/, 'Today shows the color too');
-    assert.equal((await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'color', value: 'Birthdays', color: 'red;}' } })).location, '/settings/lists#eventCats');
-    assert.match((await katie('/settings/lists')).text, /Choose a color/);
+    assert.equal((await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'color', value: 'Birthdays', color: 'red;}' } })).location, '/settings/s/calendar#eventCats');
+    assert.match((await katie('/settings/s/calendar')).text, /Choose a color/);
     assert.equal((await katie('/settings/lists/stores', { method: 'POST', form: { action: 'color', value: 'Kroger', color: '#123456' } })).status, 404);
     await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'rename', value: 'Birthdays', name: 'Bdays' } });
     await katie('/settings/lists/eventCats', { method: 'POST', form: { action: 'up', value: 'Family' } });
@@ -349,11 +349,12 @@ test('sections', async (t) => {
     assert.doesNotMatch(rem.text, /Filter fam|Filter none/);
     assert.match(rem.text, /show=reminders" aria-label="Next month"/);
     assert.match(rem.text, /background:#a77bc9/i, 'default reminder color');
-    await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: '#225588' } });
+    assert.equal((await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: '#225588' } })).status, 404, 'members can’t change household settings');
+    await katie('/settings/lists/reminder-color', { method: 'POST', form: { color: '#225588' } });
     assert.match((await katie(`/s/calendar?day=${today}`)).text, /background:#225588/);
     assert.match((await katie('/')).text, /background:#225588/, 'Today uses the reminder color');
-    await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: 'blue' } });
-    assert.match((await sam('/settings/lists')).text, /Choose a color/);
+    await katie('/settings/lists/reminder-color', { method: 'POST', form: { color: 'blue' } });
+    assert.match((await katie('/settings/s/calendar')).text, /Choose a color/);
     assert.match((await katie('/activity')).text, /changed the color for reminders/);
   });
 
@@ -370,10 +371,10 @@ test('sections', async (t) => {
   });
 
   await t.test('lists: add, rename everywhere, reorder, and remove with a fallback', async () => {
-    await sam('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'Aldi' } });
+    await katie('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'Aldi' } });
     assert.match((await katie('/s/shopping/new')).text, /Aldi/);
-    await sam('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'aldi' } });
-    assert.match((await sam('/settings/lists')).text, /already in stores/);
+    await katie('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'aldi' } });
+    assert.match((await katie('/settings/s/shopping')).text, /already in stores/);
     await katie('/settings/lists/stores', { method: 'POST', form: { action: 'rename', value: 'Costco', name: 'Costco Plano' } });
     assert.equal((await withDb(app.uri, () => ShoppingItem.findOne({ key: 'eggs', bought: false }).lean())).store, 'Costco Plano');
     await katie('/settings/lists/stores', { method: 'POST', form: { action: 'up', value: 'Aldi' } });

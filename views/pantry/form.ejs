@@ -1,7 +1,7 @@
 <%- include('../partials/top', { title: item._id ? 'Edit pantry item' : 'Add to pantry', scripts: ['confirm'] }) %>
 <main class="stack">
   <div class="head"><h1><%= item._id ? 'Edit pantry item' : 'Add to pantry' %></h1><a class="link-btn" href="/s/pantry">Cancel</a></div>
-  <form class="card" method="post" action="/s/pantry<%= item._id ? '/' + item._id : '' %>" novalidate>
+  <form class="card" method="post" action="/s/pantry<%= item._id ? '/' + item._id : '' %>" enctype="multipart/form-data" novalidate>
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="name">Item</label><input id="name" name="name" type="text" maxlength="80" required list="catalog-names" autocomplete="off" value="<%= item.name %>"></div>
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
@@ -13,7 +13,12 @@
       <div class="field"><label for="amount">Amount <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="2 cans, half a bag" value="<%= item.amount %>"></div>
       <div class="field"><label for="expires">Use by <span class="muted">(optional)</span></label><input id="expires" name="expires" type="date" value="<%= item.expires %>"></div>
     </div>
-    <label class="check-row">Add to shopping when it’s low or out<input type="checkbox" name="autoShop"<%= item.autoShop !== false ? ' checked' : '' %>></label>
+    <div class="field">
+      <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>
+      <% if (photo) { %><p class="file-row"><a href="/files/<%= photo._id %>/view?back=/s/pantry/<%= item._id %>/edit"><img class="file-thumb" src="/files/<%= photo._id %>" alt="Current photo"></a><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>
+      <input id="photo" name="photo" type="file" accept="image/*">
+    </div>
+    <label class="check-row">Add to shopping when it’s <%= household.pantryShop === 'out' ? STATUS.out.toLowerCase() : STATUS.low.toLowerCase() + ' or ' + STATUS.out.toLowerCase() %><input type="checkbox" name="autoShop"<%= item.autoShop !== false ? ' checked' : '' %>></label>
     <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Brand we like, top shelf…" value="<%= item.note %>"></div>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>

@@ -1,0 +1,11 @@
+<%- include('../partials/top', { title: 'Appearance' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Appearance', sub: 'Just for you, on every device.' }) %>
+  <form class="card" method="post" action="/settings/appearance">
+    <div class="radio-row">
+      <% [['system', 'Device'], ['light', 'Light'], ['dark', 'Dark']].forEach(([v, label]) => { %><label><input type="radio" name="theme" value="<%= v %>"<%= user.theme === v ? ' checked' : '' %>><%= label %></label><% }) %>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+</main>
+<%- include('../partials/bottom') %>

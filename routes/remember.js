@@ -73,7 +73,7 @@ router.get('/s/remember', async (req, res, next) => {
 
 router.get('/s/remember/new', async (req, res, next) => {
   try {
-    const item = { _id: null, text: '', details: '', date: '', time: '', notify: 'all', notifyTo: [], category: req.household.remCats[0], private: false };
+    const item = { _id: null, text: '', details: '', date: '', time: '', notify: req.household.remNotify || 'all', notifyTo: [], category: req.household.remCats.includes(req.household.remCat) ? req.household.remCat : req.household.remCats[0], private: false };
     res.render('remember/form', await formView(req, item));
   } catch (err) {
     next(err);

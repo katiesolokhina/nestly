@@ -112,7 +112,7 @@ router.post('/households', requireAuth, async (req, res, next) => {
     await switchTo(req, home._id);
     await logActivity({ ...req.user.toObject(), householdId: home._id }, { section: 'Settings', text: `${req.user.name} started ${name}` });
     req.session.flash = `Welcome to ${name}. Invite people from Settings.`;
-    res.redirect('/settings#household');
+    res.redirect('/settings/people');
   } catch (err) {
     next(err);
   }

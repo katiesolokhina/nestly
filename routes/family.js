@@ -54,7 +54,7 @@ router.post('/settings/household/invites', async (req, res, next) => {
     // Shown once on the next page load; only its hash is stored.
     req.session.flashLink = { kind: 'invite', url: linkFor('invite', raw), label, days: `${INVITE_DAYS} days` };
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} created an invite link${label ? ` for ${label}` : ''}` });
-    res.redirect('/settings#household');
+    res.redirect('/settings/people');
   } catch (err) {
     next(err);
   }
@@ -66,7 +66,7 @@ router.post('/settings/household/invites/:id/revoke', async (req, res, next) => 
       const { deletedCount } = await AccessToken.deleteOne({ _id: req.params.id, kind: 'invite', householdId: req.user.householdId, usedAt: null });
       if (deletedCount) await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} canceled an invite` });
     }
-    res.redirect('/settings?saved=revoked#household');
+    res.redirect('/settings/people?saved=revoked');
   } catch (err) {
     next(err);
   }
@@ -92,7 +92,7 @@ router.post('/settings/household/members/:id/role', async (req, res, next) => {
       await t.m.save();
       await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} made ${t.user.name} ${t.m.role === 'admin' ? 'an admin' : 'a member'}` });
     }
-    res.redirect('/settings?saved=role#household');
+    res.redirect('/settings/people?saved=role');
   } catch (err) {
     next(err);
   }
@@ -108,7 +108,7 @@ router.post('/settings/household/members/:id/reset', async (req, res, next) => {
     const { raw } = await AccessToken.issue({ kind: 'reset', householdId: req.user.householdId, createdBy: req.user._id, userId: target._id, days: RESET_DAYS });
     req.session.flashLink = { kind: 'reset', url: linkFor('reset', raw), label: target.name, days: '24 hours' };
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} created a password reset link for ${target.name}` });
-    res.redirect('/settings#household');
+    res.redirect('/settings/people');
   } catch (err) {
     next(err);
   }
@@ -123,7 +123,7 @@ router.post('/settings/household/members/:id/disable', async (req, res, next) =>
     // Out of this household right away; signed out completely if it was their only one.
     await signOutIfNoHomes(t.user._id);
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} turned off ${t.user.name} in this household` });
-    res.redirect('/settings?saved=disabled#household');
+    res.redirect('/settings/people?saved=disabled');
   } catch (err) {
     next(err);
   }
@@ -136,7 +136,7 @@ router.post('/settings/household/members/:id/enable', async (req, res, next) => 
     t.m.disabled = false;
     await t.m.save();
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} turned ${t.user.name} back on in this household` });
-    res.redirect('/settings?saved=enabled#household');
+    res.redirect('/settings/people?saved=enabled');
   } catch (err) {
     next(err);
   }
@@ -170,7 +170,7 @@ router.post('/settings/household/members/:id/delete', async (req, res, next) => 
       await User.deleteOne({ _id: target._id });
     }
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} removed ${target.name} from the household` });
-    res.redirect('/settings?saved=removed#household');
+    res.redirect('/settings/people?saved=removed');
   } catch (err) {
     next(err);
   }

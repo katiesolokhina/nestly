@@ -292,7 +292,7 @@ test('select and delete from shopping, and undo "usually have"', async (t) => {
 
   // ...or from Settings.
   await withDb(app.uri, async () => CatalogItem.updateOne({ key: 'salt' }, { $set: { usuallyHave: true } }));
-  const lists = await katie('/settings/lists');
+  const lists = await katie('/settings/s/shopping');
   assert.match(lists.text, /Usually have/);
   assert.match(lists.text, /name="key" value="salt"/);
   await katie('/settings/lists/usually-have', { method: 'POST', form: { key: 'salt' } });

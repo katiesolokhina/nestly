@@ -98,7 +98,7 @@ router.get('/s/info/new', async (req, res, next) => {
   try {
     const types = req.household.infoTypes;
     if (!types.includes(req.query.type)) return res.render('info/pick', { active: 'info', types });
-    const item = { _id: null, title: '', type: req.query.type, fields: template(req.query.type), notes: '', private: false, fileIds: [] };
+    const item = { _id: null, title: '', type: req.query.type, fields: template(req.query.type, req.household), notes: '', private: false, fileIds: [] };
     if (!item.fields.length) item.fields = [{ label: '', value: '', kind: 'text' }];
     res.render('info/form', await formView(req, item));
   } catch (err) {

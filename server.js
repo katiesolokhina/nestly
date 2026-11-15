@@ -62,6 +62,7 @@ app.use(require('./routes/bills'));
 app.use(require('./routes/pantry'));
 app.use(require('./routes/info'));
 app.use(require('./routes/lists'));
+app.use(require('./routes/section-settings').router);
 app.use(require('./routes/files'));
 app.use(require('./routes/home'));
 app.use(require('./routes/settings'));

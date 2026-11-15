@@ -6,6 +6,7 @@ const AccessToken = require('../models/AccessToken');
 const { SECTIONS, MAX_PINS, enabledSections } = require('../lib/sections');
 const { deleteUserSessions } = require('../lib/sessions');
 const { logActivity } = require('../lib/activity');
+const { sectionName } = require('../lib/prefs');
 const { membersOf } = require('../lib/members');
 
 const router = express.Router();
@@ -25,7 +26,22 @@ const NOTICES = {
   left: 'You left that household.',
 };
 
-router.get('/settings', requireAuth, async (req, res, next) => {
+// The menu: You, Household, and each section's own page.
+router.get('/settings', requireAuth, (req, res) => {
+  res.render('settings', {
+    active: 'settings',
+    notice: NOTICES[req.query.saved] || null,
+    sectionRows: enabledSections(req.household).filter((s) => s.key !== 'chores'),
+  });
+});
+
+const page = (view, extra = {}) => (req, res) => res.render(view, { active: 'settings', notice: NOTICES[req.query.saved] || null, ...extra });
+router.get('/settings/appearance', requireAuth, page('settings/appearance'));
+router.get('/settings/notifications', requireAuth, page('settings/notifications'));
+router.get('/settings/bottom-bar', requireAuth, (req, res) => page('settings/bottom-bar', { pinOptions: enabledSections(req.household).map((s) => ({ ...s, label: sectionName(req.household, s.key) })), maxPins: MAX_PINS })(req, res));
+
+// People: everyone can see who's in the household; admins invite and manage.
+router.get('/settings/people', requireAuth, async (req, res, next) => {
   try {
     const { householdId } = req.user;
     const members = await membersOf(householdId, { fields: { email: 1 }, includeDisabled: true });
@@ -36,19 +52,14 @@ router.get('/settings', requireAuth, async (req, res, next) => {
       link = req.session.flashLink || null;
       delete req.session.flashLink; // a new link is shown exactly once
     }
-    res.render('settings', {
-      active: 'settings',
-      notice: NOTICES[req.query.saved] || null,
-      members,
-      invites,
-      link,
-      sections: SECTIONS,
-      pinOptions: enabledSections(req.household),
-      maxPins: MAX_PINS,
-    });
+    res.render('settings/people', { active: 'settings', notice: NOTICES[req.query.saved] || null, members, invites, link });
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/settings/sections', requireAuth, requireAdmin, (req, res) => {
+  res.render('settings/sections', { active: 'settings', notice: NOTICES[req.query.saved] || null, sections: SECTIONS, nameOf: (k) => sectionName(req.household, k) });
 });
 
 router.post('/settings/appearance', requireAuth, async (req, res, next) => {
@@ -57,7 +68,7 @@ router.post('/settings/appearance', requireAuth, async (req, res, next) => {
       req.user.theme = req.body.theme;
       await req.user.save();
     }
-    res.redirect('/settings?saved=appearance');
+    res.redirect('/settings/appearance?saved=appearance');
   } catch (err) {
     next(err);
   }
@@ -93,7 +104,7 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
       n.billsWeekly = b.billsWeekly === 'on';
     }
     await req.user.save();
-    res.redirect('/settings?saved=notify#notifications');
+    res.redirect('/settings/notifications?saved=notify');
   } catch (err) {
     next(err);
   }
@@ -104,32 +115,43 @@ router.post('/settings/pins', requireAuth, async (req, res, next) => {
     const chosen = [].concat(req.body.pins || []).filter((k) => SECTIONS.some((s) => s.key === k));
     req.member.pins = [...new Set(chosen)].slice(0, MAX_PINS);
     await req.member.save();
-    res.redirect(`/settings?saved=${new Set(chosen).size > MAX_PINS ? 'pinLimit' : 'pins'}`);
+    res.redirect(`/settings/bottom-bar?saved=${new Set(chosen).size > MAX_PINS ? 'pinLimit' : 'pins'}`);
   } catch (err) {
     next(err);
   }
 });
 
-// Admin only: household-wide. Turning a section off keeps its data.
+// Admin only: household-wide. Turning a section off keeps its data. Names are optional.
 router.post('/settings/sections', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const on = new Set([].concat(req.body.sections || []));
     const changes = [];
+    const names = [];
     SECTIONS.forEach((s) => {
       const value = on.has(s.key);
-      if (req.household.features[s.key] !== value) changes.push(`turned ${s.label} ${value ? 'on' : 'off'}`);
+      if (req.household.features[s.key] !== value) changes.push(`turned ${sectionName(req.household, s.key)} ${value ? 'on' : 'off'}`);
       req.household.features[s.key] = value;
+      if (typeof req.body[`name_${s.key}`] === 'string') {
+        const label = req.body[`name_${s.key}`].trim().slice(0, 24);
+        if (label && label !== s.label) names.push({ key: s.key, label });
+      } else {
+        const kept = (req.household.sectionNames || []).find((n) => n.key === s.key);
+        if (kept) names.push({ key: kept.key, label: kept.label });
+      }
     });
+    const before = JSON.stringify((req.household.sectionNames || []).map((n) => [n.key, n.label]));
+    if (JSON.stringify(names.map((n) => [n.key, n.label])) !== before) changes.push('renamed sections');
+    req.household.sectionNames = names;
     await req.household.save();
     if (changes.length) await logActivity(req.user, { section: 'Settings', text: `${req.user.name} ${changes.join(', ')}` });
-    res.redirect('/settings?saved=sections');
+    res.redirect('/settings/sections?saved=sections');
   } catch (err) {
     next(err);
   }
 });
 
 // ---------- Account ----------
-const renderAccount = (res, status, errors = {}) => res.status(status).render('account', { active: 'settings', errors });
+const renderAccount = (res, status, errors = {}) => res.status(status).render('account', { active: 'settings', errors, notice: NOTICES[res.req.query.saved] || null });
 
 router.get('/settings/account', requireAuth, (req, res) => renderAccount(res, 200));
 
@@ -161,7 +183,7 @@ router.post('/settings/password', requireAuth, passwordLimiter, async (req, res,
     req.session.regenerate((err) => {
       if (err) return next(err);
       req.session.userId = req.user._id.toString();
-      req.session.save((err2) => (err2 ? next(err2) : res.redirect('/settings?saved=password')));
+      req.session.save((err2) => (err2 ? next(err2) : res.redirect('/settings/account?saved=password')));
     });
   } catch (err) {
     next(err);

@@ -10,7 +10,7 @@ const shoppingSchema = new mongoose.Schema(
     key: { type: String, required: true },
     qty: { type: String, trim: true, maxlength: 30, default: '1' },
     price: { type: Number, min: 0, default: null },
-    method: { type: String, enum: ['In person', 'Online'], default: 'In person' },
+    method: { type: String, default: 'In person' }, // one of the household's purchase methods
     store: { type: String, default: 'Any store' },
     aisle: { type: String, default: 'Unassigned' },
     tag: { type: String, default: 'Unassigned' },

@@ -1,0 +1,10 @@
+<%- include('../partials/top', { title: 'Bottom bar' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Bottom bar', sub: 'Pin up to ' + maxPins + ' sections. Everything else is under More.' }) %>
+  <form class="card" method="post" action="/settings/pins">
+    <% pinOptions.forEach((s) => { %><label class="check-row"><%= s.label %><input type="checkbox" name="pins" value="<%= s.key %>"<%= member.pins.includes(s.key) ? ' checked' : '' %>></label><% }) %>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <p class="hint">Only changes your view<%= homes.length > 1 ? ', in ' + household.name : '' %>.</p>
+</main>
+<%- include('../partials/bottom') %>
