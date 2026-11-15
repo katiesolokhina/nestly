@@ -1,0 +1,45 @@
+<%- include('../partials/top', { title: item._id ? 'Edit chore' : 'Add chore', scripts: ['chore-form', 'confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit chore' : 'Add chore' %></h1><a class="link-btn" href="/s/chores">Cancel</a></div>
+  <form class="card" method="post" action="/s/chores<%= item._id ? '/' + item._id : '' %>" novalidate data-chore-form>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="title">Chore</label><input id="title" name="title" type="text" maxlength="120" required value="<%= item.title %>" placeholder="Take out the trash"></div>
+    <div class="fields">
+      <div class="field"><label for="room">Room or area</label><select id="room" name="room"><% [...household.choreRooms, 'Anywhere'].forEach((r) => { %><option<%= item.room === r ? ' selected' : '' %>><%= r %></option><% }) %></select></div>
+      <div class="field"><label for="assignee">Who does it</label><select id="assignee" name="assignee"><option value="">Anyone</option><% members.forEach((m) => { %><option value="<%= m._id %>"<%= String(item.assignee) === String(m._id) ? ' selected' : '' %>><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %></option><% }) %></select></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="date" data-date-label><%= item.repeat !== 'none' ? 'First due' : 'Due' %></label><input id="date" name="date" type="date" required value="<%= item.date %>"></div>
+      <div class="field"><label for="time">Remind at <span class="muted">(optional)</span></label><input id="time" name="time" type="time" value="<%= item.time || '' %>"></div>
+    </div>
+    <p class="hint">Whoever it’s for gets a notification on the day: at this time, or their morning time. If it’s still not done, again the next morning.</p>
+    <fieldset class="group">
+      <legend>Repeats</legend>
+      <div class="fields">
+        <div class="field"><label for="repeat">How often</label><select id="repeat" name="repeat" data-repeat>
+          <% [['none', 'Does not repeat'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].forEach(([v, l]) => { %><option value="<%= v %>"<%= item.repeat === v ? ' selected' : '' %>><%= l %></option><% }) %>
+        </select></div>
+        <div class="field" data-repeat-only><label for="interval">Every</label><input id="interval" name="interval" type="number" min="1" max="99" inputmode="numeric" value="<%= item.interval || 1 %>"><span class="hint" data-unit>1 = every time, 2 = every other</span></div>
+      </div>
+      <div class="field" data-weekly-only>
+        <span class="label">On these days</span>
+        <span class="hint">Leave blank to repeat on the same weekday as the first due date.</span>
+        <div class="weekdays">
+          <% dayNames.forEach((n, i) => { %><label class="weekday"><input type="checkbox" name="days" value="<%= i %>"<%= (item.days || []).includes(i) ? ' checked' : '' %>><span><%= n %></span></label><% }) %>
+        </div>
+      </div>
+      <div class="field" data-repeat-only><label for="until">Repeat until <span class="muted">(optional)</span></label><input id="until" name="until" type="date" value="<%= item.until %>"></div>
+    </fieldset>
+    <% if (showPoints) { %><div class="field"><label for="points">Points</label><input id="points" name="points" type="number" min="0" max="1000" inputmode="numeric" value="<%= item.points || 0 %>"><span class="hint">Earned each time it’s done, by the roles chosen in Chores settings.</span></div><% } %>
+    <div class="field"><label for="details">Details <span class="muted">(optional)</span></label><textarea id="details" name="details" maxlength="1000" rows="3" placeholder="How to do it, what counts as done"><%= item.details %></textarea></div>
+    <% if (canEdit('chores')) { %><button class="btn btn-primary btn-block" type="submit">Save</button><% } %>
+  </form>
+  <% if (history.length) { %>
+    <div class="card">
+      <h2>Recently done</h2>
+      <% history.forEach((d) => { %><div class="row"><div class="row-body"><span class="row-title"><%= d.byName %></span><span class="row-meta">For <%= d.day %><%= showPoints && d.points ? ' · +' + d.points + ' points' : '' %></span></div></div><% }) %>
+    </div>
+  <% } %>
+  <% if (item._id && canEdit('chores')) { %><form method="post" action="/s/chores/<%= item._id %>/delete" data-confirm="Delete <%= item.title %><%= item.repeat !== 'none' ? ' and every time it repeats' : '' %>?"><button class="link-btn link-danger" type="submit">Delete chore</button></form><% } %>
+</main>
+<%- include('../partials/bottom') %>

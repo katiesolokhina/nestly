@@ -1,0 +1,43 @@
+<%- include('../partials/top', { title: 'Points and rewards' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Points and rewards</h1><p class="sub"><%= me ? 'You have ' + me.points + ' ' + (me.points === 1 ? 'point' : 'points') + '.' : 'Earned by doing chores.' %></p></div><a class="link-btn" href="/s/chores">Back</a></div>
+  <% if (asked.length) { %>
+    <section class="card">
+      <h2>Waiting for a yes</h2>
+      <% asked.forEach((c) => { %>
+        <div class="row">
+          <div class="row-body"><span class="row-title"><%= c.byName %>: <%= c.name %></span><span class="row-meta"><%= c.cost %> points set aside</span></div>
+          <% if (canDecide) { %>
+            <form method="post" action="/s/chores/claims/<%= c._id %>/decline"><button class="link-btn link-danger" type="submit">No<span class="sr-only"> to <%= c.name %> for <%= c.byName %></span></button></form>
+            <form method="post" action="/s/chores/claims/<%= c._id %>/give"><button class="btn btn-primary" type="submit">Give<span class="sr-only"> <%= c.name %> to <%= c.byName %></span></button></form>
+          <% } %>
+        </div>
+      <% }) %>
+    </section>
+  <% } %>
+  <section class="card">
+    <h2>Points</h2>
+    <% if (!earners.length) { %><p class="muted small">Nobody earns points yet. Choose which roles earn them in Chores settings.</p><% } %>
+    <% earners.forEach((e, i) => { %>
+      <div class="row"><span class="rank" aria-hidden="true"><%= i + 1 %></span><div class="row-body"><span class="row-title"><%= e.name %><%= String(e._id) === user.id ? ' (you)' : '' %></span><span class="row-meta"><%= e.role %> · <%= e.earned %> earned in total</span></div><span class="tag lilac"><%= e.points %> pts</span></div>
+    <% }) %>
+  </section>
+  <section class="card">
+    <h2>Rewards</h2>
+    <% if (!rewards.length) { %><p class="muted small">No rewards yet.<%= canDecide ? ' Add some in Chores settings.' : '' %></p><% } %>
+    <% rewards.forEach((r) => { %>
+      <div class="row">
+        <div class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= r.cost %> points</span></div>
+        <% if (me) { %><form method="post" action="/s/chores/rewards/<%= r._id %>/claim"><button class="btn btn-ghost" type="submit"<%= me.points < r.cost ? ' disabled' : '' %>>Get it<span class="sr-only"> (<%= r.name %>)</span></button></form><% } %>
+      </div>
+    <% }) %>
+    <% if (canDecide) { %><a class="link-btn" href="/settings/s/chores#rewards">Edit rewards and points</a><% } %>
+  </section>
+  <% if (past.length) { %>
+    <section class="card">
+      <h2>Past requests</h2>
+      <% past.forEach((c) => { %><div class="row"><div class="row-body"><span class="row-title"><%= c.byName %>: <%= c.name %></span><span class="row-meta"><%= c.status === 'given' ? 'Given by ' + c.decidedBy : 'Declined by ' + c.decidedBy + ', points returned' %></span></div></div><% }) %>
+    </section>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>

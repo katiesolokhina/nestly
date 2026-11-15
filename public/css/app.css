@@ -339,3 +339,9 @@ input[type="email"].info-value, input[type="tel"] { min-height: 44px; width: 100
 .leaving { overflow: hidden; min-height: 0 !important; opacity: 0; transition: height .2s ease, opacity .2s ease; }
 .undo-bar.float { position: fixed; z-index: 30; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); max-width: 408px; margin: 0 auto; box-shadow: var(--shadow); min-height: 48px; }
 .swipe > .row .star { position: relative; }
+
+/* Chores */
+.chip-gap { width: 8px; flex: none; }
+.aisle.late { color: #8A4A1F; }
+.rank { width: 28px; height: 28px; border-radius: 50%; background: var(--off); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+span.check { cursor: default; }

@@ -48,12 +48,37 @@
       <datalist id="currencies"><% ['$', '€', '£', '¥', '₹', 'C$', 'A$', '₪', 'R$', 'CHF'].forEach((c) => { %><option value="<%= c %>"></option><% }) %></datalist>
       <% sel('billAheadDays', [[7, '1 week'], [14, '2 weeks'], [31, 'About a month'], [60, 'About 2 months']], household.billAheadDays, 'Repeating bills show up') %>
       <p class="hint">How far before they're due.</p>
+    <% } else if (key === 'chores') { %>
+      <label class="check-row">Points and rewards<input type="checkbox" name="chorePoints"<%= household.chorePoints ? ' checked' : '' %>></label>
+      <p class="hint">Each chore can be worth points. The roles below earn them and spend them on rewards that someone who can change settings says yes to.</p>
+      <fieldset class="group">
+        <legend>Who earns points</legend>
+        <% roleChoices.forEach((r) => { %><label class="check-row"><%= r.name %><input type="checkbox" name="choreEarners" value="<%= r.key %>"<%= (household.choreEarners || []).includes(r.key) ? ' checked' : '' %>></label><% }) %>
+      </fieldset>
     <% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
   <% } %>
 
   <% lists.forEach((l) => { %><%- include('../partials/list-editor', { l }) %><% }) %>
+
+  <% if (key === 'chores') { %>
+    <section class="card stack" id="rewards" aria-labelledby="rw">
+      <h2 id="rw">Rewards</h2>
+      <p class="row-meta">What points can be spent on. <%= household.chorePoints ? '' : 'Turn on points above to use them.' %></p>
+      <% (household.rewards || []).forEach((r) => { %>
+        <div class="row">
+          <div class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= r.cost %> points</span></div>
+          <form method="post" action="/settings/s/chores/rewards/<%= r._id %>/delete"><button class="link-btn link-danger" type="submit">Remove<span class="sr-only"> <%= r.name %></span></button></form>
+        </div>
+      <% }) %>
+      <form class="add" method="post" action="/settings/s/chores/rewards">
+        <input type="text" name="name" maxlength="60" aria-label="Reward" placeholder="Pick dinner" required>
+        <input type="number" name="cost" min="1" max="100000" inputmode="numeric" aria-label="Points it costs" placeholder="Points" required style="width:6em">
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+    </section>
+  <% } %>
 
   <% if (key === 'info') { %>
     <section class="card stack" aria-labelledby="tpl">

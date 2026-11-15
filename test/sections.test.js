@@ -363,14 +363,14 @@ test('sections', async (t) => {
 
   await t.test('Today can be reordered and trimmed per person, and resets', async () => {
     const order = (html) => [...html.matchAll(/<h2>(Needs attention today|Coming up)<\/h2>|tile-label">([^<]+)</g)].map((x) => x[1] || x[2]);
-    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry']);
+    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry', 'chores to do today']);
     await sam('/customize', { method: 'POST', form: { k: 'upcoming', action: 'up' } });
     await sam('/customize', { method: 'POST', form: { k: 'remember', action: 'toggle' } });
     await sam('/customize', { method: 'POST', form: { k: 'events', action: 'toggle' } });
-    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'Coming up', 'events, next 7 days', 'bills due this week', 'low or out in the pantry']);
-    assert.deepEqual(order((await mia('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry'], 'only changes your view');
+    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'Coming up', 'events, next 7 days', 'bills due this week', 'low or out in the pantry', 'chores to do today']);
+    assert.deepEqual(order((await mia('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry', 'chores to do today'], 'only changes your view');
     await sam('/customize', { method: 'POST', form: { action: 'reset' } });
-    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry']);
+    assert.deepEqual(order((await sam('/')).text), ['Needs attention today', 'on the shopping list', 'to remember', 'Coming up', 'bills due this week', 'low or out in the pantry', 'chores to do today']);
   });
 
   await t.test('lists: add, rename everywhere, reorder, and remove with a fallback', async () => {
@@ -426,7 +426,4 @@ test('sections', async (t) => {
     assert.equal((await c('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'Aldi' } })).status, 302);
   });
 
-  await t.test('section pages still building say so', async () => {
-    assert.match((await katie('/s/chores')).text, /being built/);
-  });
 });

@@ -7,10 +7,11 @@ const { logActivity } = require('../lib/activity');
 const { sectionName, pantryNames } = require('../lib/prefs');
 const { KINDS, TEMPLATES } = require('../lib/info');
 const alerts = require('../lib/alerts');
+const { rolesOf } = require('../lib/perms');
 
 const router = express.Router();
 router.use('/settings/s', requireAuth, requirePerm('settings'));
-const KEYS = ['shopping', 'remember', 'calendar', 'meals', 'recipes', 'pantry', 'bills', 'info'];
+const KEYS = ['shopping', 'remember', 'calendar', 'meals', 'recipes', 'pantry', 'bills', 'chores', 'info'];
 const listsFor = (key) => Object.keys(LISTS).filter((k) => LISTS[k].feature === key);
 const pick = (v, options, fallback) => (options.map(String).includes(String(v)) ? v : fallback);
 
@@ -20,6 +21,40 @@ const templateOf = (household, type) => {
   if (own) return own.fields.map((f) => ({ label: f.label, kind: f.kind }));
   return (TEMPLATES[type] || []).map(([label, kind]) => ({ label, kind }));
 };
+
+// Chore rewards: add one, or remove one. Requests already made keep their name and cost.
+router.post('/settings/s/chores/rewards', async (req, res, next) => {
+  try {
+    if (req.perms.level('chores') !== 'edit') return res.status(404).send('Not found');
+    const h = req.household;
+    const name = String((req.body || {}).name || '').trim().slice(0, 60);
+    const cost = parseInt((req.body || {}).cost, 10);
+    if (name && cost >= 1 && cost <= 100000 && (h.rewards || []).length < 50) {
+      h.rewards.push({ name, cost });
+      await h.save();
+      await logActivity(req.user, { section: 'Settings', text: `${req.user.name} added the reward ${name} (${cost} points)` });
+    }
+    res.redirect('/settings/s/chores#rewards');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/s/chores/rewards/:rid/delete', async (req, res, next) => {
+  try {
+    if (req.perms.level('chores') !== 'edit') return res.status(404).send('Not found');
+    const h = req.household;
+    const r = (h.rewards || []).find((x) => String(x._id) === req.params.rid);
+    if (r) {
+      h.rewards.pull(r._id);
+      await h.save();
+      await logActivity(req.user, { section: 'Settings', text: `${req.user.name} removed the reward ${r.name}` });
+    }
+    res.redirect('/settings/s/chores#rewards');
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/settings/s/:key', async (req, res, next) => {
   try {
@@ -44,6 +79,7 @@ router.get('/settings/s/:key', async (req, res, next) => {
       alertChoices: alerts.choices(),
       templates: key === 'info' ? h.infoTypes.map((t) => ({ type: t, fields: templateOf(h, t) })) : [],
       KINDS,
+      roleChoices: [{ key: 'admin', name: 'Admin' }, ...rolesOf(h).map((r) => ({ key: r.key, name: r.name }))],
     });
   } catch (err) {
     next(err);
@@ -83,6 +119,10 @@ router.post('/settings/s/:key', async (req, res, next) => {
       h.billSplit = pick(b.billSplit, ['even', 'none'], 'even');
       h.currency = String(b.currency || '').trim().slice(0, 4) || '$';
       h.billAheadDays = Number(pick(b.billAheadDays, [7, 14, 31, 60], 31));
+    } else if (key === 'chores') {
+      h.chorePoints = b.chorePoints === 'on';
+      const keys = ['admin', ...rolesOf(h).map((r) => r.key)];
+      h.choreEarners = [...new Set([].concat(b.choreEarners || []).map(String))].filter((k) => keys.includes(k));
     } else if (key === 'info') {
       // One type's starting fields.
       const type = String(b.type || '');

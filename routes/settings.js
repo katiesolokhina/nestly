@@ -32,7 +32,7 @@ router.get('/settings', requireAuth, (req, res) => {
   res.render('settings', {
     active: 'settings',
     notice: NOTICES[req.query.saved] || null,
-    sectionRows: enabledSections(req.view).filter((s) => s.key !== 'chores' && req.perms.level(s.key) === 'edit'),
+    sectionRows: enabledSections(req.view).filter((s) => req.perms.level(s.key) === 'edit'),
   });
 });
 
@@ -95,6 +95,10 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
       n.pantryExpiry = b.pantryExpiry === 'on';
       const pd = parseInt(b.pantryExpiryDays, 10);
       if ([0, 1, 2, 3, 5, 7].includes(pd)) n.pantryExpiryDays = pd;
+    }
+    if (b.choresForm === '1') {
+      n.chores = b.chores === 'on';
+      n.choresLate = b.choresLate === 'on';
     }
     if (b.billsForm === '1') {
       n.billsBefore = b.billsBefore === 'on';

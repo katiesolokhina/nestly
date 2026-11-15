@@ -15,7 +15,7 @@
           <% attention.forEach((a) => { %>
             <div class="row">
               <% if (a.color) { %><span class="cat-dot" style="background:<%= a.color %>" aria-hidden="true"></span><% } %>
-              <% if (a.checkAction) { %><form method="post" action="<%= a.checkAction %>"><input type="hidden" name="from" value="today"><button class="check" type="submit" aria-label="<%= a.checkLabel %>"><i></i></button></form><% } %>
+              <% if (a.checkAction && (!a.section || canEdit(a.section))) { %><form method="post" action="<%= a.checkAction %>"><input type="hidden" name="from" value="today"><button class="check" type="submit" aria-label="<%= a.checkLabel %>"><i></i></button></form><% } %>
               <a class="row-body row-link" href="<%= a.href %>"><span class="row-title"><%= a.title %></span><span class="row-meta<%= a.late ? ' late' : '' %>"><%= a.meta %></span></a>
               <span class="tag"><%= a.type %></span>
             </div>

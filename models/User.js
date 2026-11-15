@@ -38,6 +38,8 @@ const userSchema = new mongoose.Schema(
       warranty: { type: Boolean, default: true },
       warrantyDays: { type: Number, min: 1, max: 120, default: 30 },
       pantryExpiryDays: { type: Number, min: 0, max: 14, default: 2 },
+      chores: { type: Boolean, default: true }, // a chore of mine (or anyone's) is due today
+      choresLate: { type: Boolean, default: true }, // the next morning, if it still isn't done
     },
     lastTripAlertAt: { type: Date, default: null },
   },

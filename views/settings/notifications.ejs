@@ -53,6 +53,13 @@
           <input id="pantryExpiry" type="checkbox" name="pantryExpiry"<%= pn.pantryExpiry !== false ? ' checked' : '' %>>
         </div>
       <% } %>
+      <% if (household.features.chores !== false) { %>
+        <input type="hidden" name="choresForm" value="1">
+        <h3 class="sub-h"><%= secName('chores') %></h3>
+        <label class="check-row">When a chore of mine is due<input type="checkbox" name="chores"<%= user.notify.chores !== false ? ' checked' : '' %>></label>
+        <label class="check-row">The next morning, if it’s still not done<input type="checkbox" name="choresLate"<%= user.notify.choresLate !== false ? ' checked' : '' %>></label>
+        <p class="hint">Chores for “Anyone” notify everyone who can see Chores.</p>
+      <% } %>
       <% if (household.features.bills !== false) { const n = user.notify; %>
         <input type="hidden" name="billsForm" value="1">
         <h3 class="sub-h"><%= secName('bills') %></h3>
