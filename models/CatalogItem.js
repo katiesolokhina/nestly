@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
-// The household's shared list of things it buys. Shopping and staples use it now; recipes and
-// the pantry will use the same list, so a new ingredient is immediately available everywhere.
+// The household's saved items: every name added to Shopping, a recipe, or the pantry, with its
+// usual details. They're the suggestions when typing, and staples are the one-tap ones.
+// Managed on Shopping → Saved items.
 const catalogSchema = new mongoose.Schema(
   {
     householdId: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true },
@@ -14,6 +15,7 @@ const catalogSchema = new mongoose.Schema(
     method: { type: String, default: 'In person' }, // one of the household's purchase methods
     brand: { type: String, trim: true, maxlength: 80, default: '' },
     staple: { type: Boolean, default: false },
+    stapleOrder: { type: Number, default: 0 }, // where it sits among staples on the Shopping page
     // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).
     usuallyHave: { type: Boolean, default: false },
   },

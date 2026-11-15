@@ -1,0 +1,46 @@
+<%- include('../partials/top', { title: 'Saved items', scripts: ['chip-scroll'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Saved items</h1><p class="sub"><%= total %> saved · suggested as you type</p></div><a class="link-btn" href="/s/shopping">Back</a></div>
+
+  <% if (!q && !show) { %>
+    <section class="card" id="staples" aria-labelledby="st">
+      <h2 id="st">Staples</h2>
+      <p class="row-meta">One-tap buttons on the Shopping page, in this order.</p>
+      <% if (!staples.length) { %><p class="muted small">None yet. Tap ☆ on any item below to make it a staple.</p><% } %>
+      <% staples.forEach((s, i) => { %>
+        <div class="staple-row">
+          <a class="row-title" href="/s/shopping/saved/<%= s._id %>"><%= s.name %></a>
+          <form class="staple-move" method="post" action="/s/shopping/saved/<%= s._id %>/move">
+            <button class="mini" type="submit" name="dir" value="up" aria-label="Move <%= s.name %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button>
+            <button class="mini" type="submit" name="dir" value="down" aria-label="Move <%= s.name %> down"<%= i === staples.length - 1 ? ' disabled' : '' %>>↓</button>
+          </form>
+          <form method="post" action="/s/shopping/saved/<%= s._id %>/staple"><input type="hidden" name="on" value="0"><button class="link-btn" type="submit">Remove<span class="sr-only"> <%= s.name %> from staples</span></button></form>
+        </div>
+      <% }) %>
+    </section>
+  <% } %>
+
+  <form class="add" method="get" action="/s/shopping/saved" role="search">
+    <% if (show) { %><input type="hidden" name="show" value="<%= show %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" maxlength="60" aria-label="Search saved items" placeholder="Search saved items">
+    <button class="btn btn-ghost" type="submit">Search</button>
+  </form>
+  <div class="chips chips-scroll" role="group" aria-label="Filter" data-chip-scroll>
+    <a class="chip<%= !show ? ' on' : '' %>" href="/s/shopping/saved<%= q ? '?q=' + encodeURIComponent(q) : '' %>">All</a>
+    <a class="chip<%= show === 'staples' ? ' on' : '' %>" href="/s/shopping/saved?show=staples">Staples</a>
+    <a class="chip<%= show === 'usual' ? ' on' : '' %>" href="/s/shopping/saved?show=usual">Usually have</a>
+  </div>
+  <div class="card">
+    <% if (!items.length) { %><p class="muted small center"><%= q || show ? 'Nothing matches.' : 'Nothing saved yet. Items are saved as you add them.' %></p><% } %>
+    <% const query = new URLSearchParams(Object.entries({ q, show }).filter(([, v]) => v)).toString(); %>
+    <% items.forEach((i) => { %>
+      <div class="row">
+        <form method="post" action="/s/shopping/saved/<%= i._id %>/staple"><input type="hidden" name="on" value="<%= i.staple ? '0' : '1' %>"><input type="hidden" name="query" value="<%= query %>"><button class="star<%= i.staple ? ' on' : '' %>" type="submit" aria-pressed="<%= i.staple %>" aria-label="<%= i.staple ? 'Remove ' + i.name + ' from staples' : 'Make ' + i.name + ' a staple' %>"><%= i.staple ? '★' : '☆' %></button></form>
+        <a class="row-body row-link" href="/s/shopping/saved/<%= i._id %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= [i.qty !== '1' ? i.qty : '', i.store !== 'Any store' ? i.store : '', i.aisle !== 'Unassigned' ? i.aisle : '', i.brand, i.usuallyHave ? 'Usually have' : ''].filter(Boolean).join(' · ') %></span></a>
+        <span class="chev" aria-hidden="true">›</span>
+      </div>
+    <% }) %>
+  </div>
+  <p class="hint">Saved items fill in the store, aisle, and more when someone adds them. Deleting one only removes the suggestion.</p>
+</main>
+<%- include('../partials/bottom') %>

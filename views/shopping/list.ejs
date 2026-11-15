@@ -37,8 +37,9 @@
       <a class="btn btn-ghost" href="/s/shopping/new">Details</a>
     </form><% } %>
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+    <% if (!staples.length && canEdit('shopping') && catalog.length) { %><a class="link-btn saved-link" href="/s/shopping/saved">Saved items and staples</a><% } %>
     <% if (staples.length) { %>
-      <div><p class="aisle">Staples: tap to add</p><div class="staples"><% staples.forEach((s) => { %><form method="post" action="/s/shopping/quick"><input type="hidden" name="name" value="<%= s.name %>"><input type="hidden" name="query" value="<%= query %>"><button class="staple" type="submit">+ <%= s.name %></button></form><% }) %></div></div>
+      <div><div class="row-h"><p class="aisle">Staples: tap to add</p><% if (canEdit('shopping')) { %><a class="link-btn" href="/s/shopping/saved">Edit</a><% } %></div><div class="staples"><% staples.forEach((s) => { %><form method="post" action="/s/shopping/quick"><input type="hidden" name="name" value="<%= s.name %>"><input type="hidden" name="query" value="<%= query %>"><button class="staple" type="submit">+ <%= s.name %></button></form><% }) %></div></div>
     <% } %>
   <% } %>
   <% if (!selecting) { %>

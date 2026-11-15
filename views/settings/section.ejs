@@ -75,6 +75,9 @@
     </section>
   <% } %>
 
+  <% if (key === 'shopping') { %>
+    <a class="card row menu-row" href="/s/shopping/saved"><span class="row-body"><span class="row-title">Saved items and staples</span><span class="row-meta">Edit the suggestions as you type, their usual details, and the staple buttons</span></span><span class="chev" aria-hidden="true">›</span></a>
+  <% } %>
   <% if (usual) { %>
     <section class="card" id="usual">
       <h2>Usually have</h2>

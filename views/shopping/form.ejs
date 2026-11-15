@@ -33,7 +33,7 @@
     <div class="field"><label for="ref">Reference item</label><input id="ref" name="ref" type="text" maxlength="160" placeholder="Size, model, or what to look for" value="<%= item.ref %>"></div>
     <div class="field"><label for="link">Product link</label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
     <div class="field"><label for="note">Note</label><input id="note" name="note" type="text" maxlength="300" value="<%= item.note %>"></div>
-    <label class="check-row">Save as a staple<input type="checkbox" name="staple"<%= item.staple ? ' checked' : '' %>></label>
+    <input type="hidden" name="stapleShown" value="1"><label class="check-row">Save as a staple<input type="checkbox" name="staple"<%= item.staple ? ' checked' : '' %>></label>
 <% if (perms.private) { %>    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>

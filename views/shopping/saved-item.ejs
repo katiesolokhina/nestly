@@ -1,0 +1,26 @@
+<%- include('../partials/top', { title: item.name, scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= item.name %></h1><p class="sub">Saved item</p></div><a class="link-btn" href="/s/shopping/saved">Cancel</a></div>
+  <form class="card" method="post" action="/s/shopping/saved/<%= item._id %>" novalidate>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" maxlength="80" required value="<%= item.name %>"><span class="hint">Renaming also renames it on the list and in the pantry.</span></div>
+    <p class="row-meta">When someone adds it, it starts with:</p>
+    <div class="fields">
+      <div class="field"><label for="qty">Quantity</label><input id="qty" name="qty" type="text" maxlength="30" value="<%= item.qty %>"></div>
+      <div class="field"><label for="brand">Brand</label><input id="brand" name="brand" type="text" maxlength="80" value="<%= item.brand %>"></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="store">Store</label><select id="store" name="store"><% ['Any store', ...household.stores].forEach((s) => { %><option<%= item.store === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
+      <div class="field"><label for="aisle">Aisle</label><select id="aisle" name="aisle"><% [...household.aisles, 'Unassigned'].forEach((a) => { %><option<%= item.aisle === a ? ' selected' : '' %>><%= a %></option><% }) %></select></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="tag">Tag</label><select id="tag" name="tag"><% [...household.tags, 'Unassigned'].forEach((t) => { %><option<%= item.tag === t ? ' selected' : '' %>><%= t %></option><% }) %></select></div>
+      <div class="field"><label for="method">Buying</label><select id="method" name="method"><% household.methods.forEach((m) => { %><option<%= item.method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>
+    </div>
+    <label class="check-row">Staple (one-tap button on Shopping)<input type="checkbox" name="staple"<%= item.staple ? ' checked' : '' %>></label>
+    <label class="check-row">Usually have (skipped in recipe shopping)<input type="checkbox" name="usuallyHave"<%= item.usuallyHave ? ' checked' : '' %>></label>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <form method="post" action="/s/shopping/saved/<%= item._id %>/delete" data-confirm="Stop suggesting <%= item.name %>? Anything already on the list stays."><button class="link-btn link-danger" type="submit">Delete saved item</button></form>
+</main>
+<%- include('../partials/bottom') %>

@@ -6,7 +6,7 @@ const CatalogItem = require('../models/CatalogItem');
 const Upload = require('../models/Upload');
 const { recordChange, recordDeleteMany, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
-const { keyOf, fromCatalog } = require('../lib/catalog');
+const { keyOf, fromCatalog, setStaple } = require('../lib/catalog');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { dayLabel, todayIn } = require('../lib/dates');
 const User = require('../models/User');
@@ -36,7 +36,8 @@ function remember(user, item) {
   const { qty, store, aisle, tag, method, brand } = item;
   return CatalogItem.updateOne(
     { householdId: user.householdId, key: item.key },
-    { $set: { name: item.name, qty, store, aisle, tag, method, brand } },
+    // The saved name keeps its spelling, so a rename in Saved items sticks.
+    { $set: { qty, store, aisle, tag, method, brand }, $setOnInsert: { name: item.name } },
     { upsert: true }
   );
 }
@@ -60,7 +61,7 @@ router.get('/s/shopping', async (req, res, next) => {
 
     const [items, staples, catalog] = await Promise.all([
       ShoppingItem.find(filter).sort({ createdAt: 1 }).lean(),
-      CatalogItem.find({ householdId: user.householdId, staple: true }).sort({ name: 1 }).lean(),
+      CatalogItem.find({ householdId: user.householdId, staple: true }).sort({ stapleOrder: 1, name: 1 }).lean(),
       CatalogItem.find({ householdId: user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
     ]);
     const active = items.filter((i) => !i.bought);
@@ -216,7 +217,8 @@ function readForm(req) {
   if (!name) error = 'Enter a name for the item.';
   else if (price !== null && (!Number.isFinite(price) || price < 0)) error = 'Enter a price like 4.99.';
   else if (link && !isHttp(link)) error = 'Enter a full product link that starts with https://';
-  return { values, staple: b.staple === 'on', error };
+  // Only the full form has the staple box; anything else leaves it as it was.
+  return { values, staple: b.staple === 'on', stapleShown: b.stapleShown === '1', error };
 }
 
 async function applyFiles(req, item) {
@@ -244,7 +246,7 @@ router.get('/s/shopping/new', async (req, res, next) => {
 
 router.post('/s/shopping', withFiles, async (req, res, next) => {
   try {
-    const { values, staple, error } = readForm(req);
+    const { values, staple, stapleShown, error } = readForm(req);
     if (error) return res.status(422).render('shopping/form', await formData(req, { ...values, _id: null, staple }, error));
     const item = new ShoppingItem({ ...values, householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name });
     try {
@@ -255,7 +257,7 @@ router.post('/s/shopping', withFiles, async (req, res, next) => {
     }
     await item.save();
     await remember(req.user, item);
-    if (!item.private) await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key }, { $set: { staple } });
+    if (!item.private && stapleShown) await setStaple(req.user.householdId, item.key, staple);
     await recordChange(req, { kind: 'create', model: 'ShoppingItem', doc: item, section: SECTION, text: `added ${item.name} to Shopping`, label: item.name });
     res.redirect('/s/shopping');
   } catch (err) {
@@ -280,7 +282,7 @@ router.post('/s/shopping/:id', withFiles, async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    const { values, staple, error } = readForm(req);
+    const { values, staple, stapleShown, error } = readForm(req);
     if (error) return res.status(422).render('shopping/form', await formData(req, { ...item.toObject(), ...values, staple }, error));
     const before = item.toObject();
     const changes = Object.keys(LABELS).filter((k) => String(before[k] ?? '') !== String(values[k] ?? '')).map((k) => `${LABELS[k]} ${before[k] === '' || before[k] == null ? 'blank' : before[k]} → ${values[k] === '' || values[k] == null ? 'blank' : values[k]}`);
@@ -296,7 +298,7 @@ router.post('/s/shopping/:id', withFiles, async (req, res, next) => {
     if (String(before.receiptId) !== String(item.receiptId)) changes.push(item.receiptId ? 'receipt attached' : 'receipt removed');
     await item.save();
     await remember(req.user, item);
-    if (!item.private) await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key }, { $set: { staple } });
+    if (!item.private && stapleShown) await setStaple(req.user.householdId, item.key, staple);
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text: `edited ${item.name}${changes.length ? `: ${changes.slice(0, 2).join(', ')}${changes.length > 2 ? ', and more' : ''}` : ''}`, label: item.name });
     res.redirect('/s/shopping');
   } catch (err) {

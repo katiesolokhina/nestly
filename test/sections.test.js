@@ -80,7 +80,7 @@ test('sections', async (t) => {
   });
 
   await t.test('details save, and the catalog reuses them next time', async () => {
-    const r = await katie(`/s/shopping/${eggsId}`, { method: 'POST', form: { name: 'Eggs', qty: '24', price: '7.49', method: 'In person', store: 'Costco', aisle: 'Dairy & eggs', tag: 'Groceries', brand: 'Vital', staple: 'on' } });
+    const r = await katie(`/s/shopping/${eggsId}`, { method: 'POST', form: { name: 'Eggs', qty: '24', price: '7.49', method: 'In person', store: 'Costco', aisle: 'Dairy & eggs', tag: 'Groceries', brand: 'Vital', staple: 'on', stapleShown: '1' } });
     assert.equal(r.status, 302);
     const page = await katie('/s/shopping');
     assert.match(page.text, /edited Eggs/);
