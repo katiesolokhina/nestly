@@ -13,10 +13,19 @@ const membershipSchema = new mongoose.Schema(
     pins: { type: [String], default: ['shopping', 'calendar'] },
     // This person's Today layout here, in order. Empty means the default.
     dashboard: { type: [{ _id: false, k: String, on: Boolean }], default: [] },
+    // Calendar feed: a private link for Google/Apple Calendar. Only a hash of it is kept.
+    feedHash: { type: String, default: null },
+    feed: {
+      events: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true },
+      bills: { type: Boolean, default: true },
+      chores: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );
 membershipSchema.index({ userId: 1, householdId: 1 }, { unique: true });
 membershipSchema.index({ householdId: 1 });
+membershipSchema.index({ feedHash: 1 }, { sparse: true });
 
 module.exports = mongoose.model('Membership', membershipSchema);

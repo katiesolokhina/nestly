@@ -54,6 +54,22 @@ Restore with `node scripts/restore.js backups/<file>.jsonl.gz` (it asks before r
 
 Admins can also download their household's data as JSON from Settings → Download data.
 
+### Morning email
+
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `MAIL_FROM` in `.env` (see `.env.example`) and each person can get a morning email of what needs them today, across all their households. By default it only goes to people with no device set up for notifications; each person changes that in Settings → Notifications, which also has a button to send a test.
+
+### Calendar feed
+
+Settings → Calendar feed makes a private link per person (only a hash is stored) for Google, Apple, or Outlook calendars: events, reminders, unpaid bills, and their chores, repeating the way they do in Nestly.
+
+### Barcodes
+
+Scanning uses the phone's built-in barcode reader where there is one (Android Chrome) and otherwise `public/js/vendor/zxing.min.js`. Products are looked up in the household's saved items first, then [Open Food Facts](https://world.openfoodfacts.org) (`OFF_URL` to change it). A code someone names is remembered on that saved item. The camera needs HTTPS (or localhost).
+
+### Moving to another cluster
+
+`scripts/move-cluster.js` copies every database on one cluster (Nestly, and anything else on it, like Questly) to another, with their indexes. It only reads the old cluster, refuses to copy into a database that already has data, and compares counts at the end; `--check` compares counts without copying.
+
 ### Speed
 
 Every page sends a `Server-Timing` header (time and database calls), and requests slower than `SLOW_MS` (default 800) are logged: `pm2 logs nestly | grep Slow`. `/health?db=1` times five round trips to the database; under ~20 ms means the database and server are in the same region.

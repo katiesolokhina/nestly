@@ -46,7 +46,7 @@ test('households', async (t) => {
 
   // Start a second household: Katie is its admin and it opens.
   let r = await katie('/households', { method: 'POST', form: { name: 'Lake house' } });
-  assert.equal(r.location, '/settings/people');
+  assert.equal(r.location, '/setup');
   let page = await katie('/settings');
   assert.match(page.text, /Lake house/);
   assert.match((await katie('/settings/people')).text, /Create invite link/);

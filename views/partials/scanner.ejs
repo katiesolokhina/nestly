@@ -1,0 +1,32 @@
+<%# Barcode scanner. mode: 'pantry' (add or restock), 'shopping' (add to the list), 'shop' (tick off while shopping). %>
+<% const action = mode === 'pantry' ? '/s/pantry/scan' : '/s/shopping/scan'; %>
+<dialog class="scanner" data-scanner data-mode="<%= mode %>" aria-labelledby="scan-title">
+  <div class="scan-head"><h2 id="scan-title"><%= mode === 'shop' ? 'Scan to tick off' : mode === 'pantry' ? 'Scan into the pantry' : 'Scan to add' %></h2><button class="link-btn" type="button" data-scan-close>Close</button></div>
+  <div class="scan-view" data-scan-view>
+    <video playsinline muted aria-hidden="true"></video>
+    <div class="scan-frame" aria-hidden="true"></div>
+  </div>
+  <p class="scan-msg" role="status" data-scan-msg>Point the camera at a barcode.</p>
+  <form class="scan-manual" data-scan-manual>
+    <label class="sr-only" for="scan-code">Barcode number</label>
+    <input id="scan-code" type="text" inputmode="numeric" pattern="[0-9]{8,14}" maxlength="14" placeholder="Or type the number under the barcode" autocomplete="off">
+    <button class="btn btn-ghost" type="submit">Look up</button>
+  </form>
+  <form class="scan-result stack" method="post" action="<%= action %>" data-scan-result hidden>
+    <input type="hidden" name="code"><input type="hidden" name="brand"><input type="hidden" name="query" value="<%= typeof query !== 'undefined' ? query : '' %>">
+    <input type="hidden" name="again" value="<%= mode === 'shop' ? '1' : '0' %>">
+    <p class="row-meta" data-scan-found></p>
+    <div class="field"><label for="scan-name">Name</label><input id="scan-name" name="name" type="text" maxlength="80" required></div>
+    <% if (mode === 'pantry') { %>
+      <div class="field" data-scan-spot><label for="scan-spot">Where it’s kept</label><select id="scan-spot" name="spot"><% spots.forEach((s) => { %><option<%= s === spot ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
+      <div class="btn-row"><button class="btn btn-primary" type="submit" data-scan-go>Add to pantry</button><button class="btn btn-ghost" type="submit" data-again>Save, scan next</button></div>
+    <% } else if (mode === 'shopping') { %>
+      <input type="hidden" name="action" value="add">
+      <div class="btn-row"><button class="btn btn-primary" type="submit" data-scan-go>Add to list</button><button class="btn btn-ghost" type="submit" data-again>Add, scan next</button></div>
+    <% } else { %>
+      <input type="hidden" name="action" value="tick">
+      <button class="btn btn-primary btn-block" type="submit" data-scan-go>Tick it off</button>
+    <% } %>
+    <button class="link-btn" type="button" data-scan-retry>Scan a different one</button>
+  </form>
+</dialog>

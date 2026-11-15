@@ -102,7 +102,7 @@ test('chores', async (t) => {
   assert.doesNotMatch((await katie('/s/chores')).text, /Mark Mow done/);
 
   // Edit: rename and history.
-  await katie(`/s/chores/${ids.Dishes}`, { method: 'POST', form: { title: 'Load the dishwasher', room: 'Kitchen', date: addDays(today, -3), repeat: 'weekly', days: ['1', '4'] } });
+  await katie(`/s/chores/${ids.Dishes}`, { method: 'POST', form: [['title', 'Load the dishwasher'], ['room', 'Kitchen'], ['date', addDays(today, -3)], ['repeat', 'weekly'], ['days', '1'], ['days', '4']] });
   page = await katie(`/s/chores/${ids.Dishes}/edit`);
   assert.match(page.text, /value="Load the dishwasher"/);
   assert.match(page.text, /Recently done/);

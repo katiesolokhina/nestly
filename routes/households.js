@@ -107,12 +107,11 @@ router.post('/households', requireAuth, async (req, res, next) => {
       req.session.flash = 'You can be in up to 10 households.';
       return res.redirect('/households');
     }
-    const home = await Household.create({ name });
+    const home = await Household.create({ name, setupStep: 1 });
     await Membership.create({ userId: req.user._id, householdId: home._id, role: 'admin' });
     await switchTo(req, home._id);
     await logActivity({ ...req.user.toObject(), householdId: home._id }, { section: 'Settings', text: `${req.user.name} started ${name}` });
-    req.session.flash = `Welcome to ${name}. Invite people from Settings.`;
-    res.redirect('/settings/people');
+    res.redirect('/setup');
   } catch (err) {
     next(err);
   }

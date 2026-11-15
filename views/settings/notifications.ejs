@@ -75,7 +75,15 @@
         <label class="check-row">Sunday reminder of what I owe<input type="checkbox" name="billsWeekly"<%= n.billsWeekly ? ' checked' : '' %>></label>
         <p class="hint">Due-date notifications only go to the people sharing the bill, at your morning time, and stop once it’s paid.</p>
       <% } %>
+      <h3 class="sub-h" id="email">Morning email</h3>
+      <% if (mailOn) { %>
+        <label class="time-row" for="f-email">Email me<select id="f-email" name="email"><% [['nopush', 'If no device is set up'], ['always', 'Every morning'], ['off', 'Never']].forEach(([v, l]) => { %><option value="<%= v %>"<%= (user.notify.email || 'nopush') === v ? ' selected' : '' %>><%= l %></option><% }) %></select></label>
+        <p class="hint">At your morning time, to <%= user.email %>: what needs you today in every household you’re in. Nothing to say, no email. “If no device is set up” means only when notifications aren’t turned on anywhere.</p>
+      <% } else { %>
+        <p class="hint">Email isn’t set up on this server yet.</p>
+      <% } %>
       <button class="btn btn-primary btn-block" type="submit">Save</button>
     </form>
+    <% if (mailOn) { %><form method="post" action="/settings/notifications/test-email"><button class="link-btn" type="submit">Send me this morning’s email now</button></form><% } %>
 </main>
 <%- include('../partials/bottom') %>

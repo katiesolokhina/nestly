@@ -11,6 +11,7 @@
     people: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M22 21v-1a6 6 0 0 0-4-5.7',
     list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
     download: 'M12 3v12M7 10l5 5 5-5M4 21h16',
+    cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   }; %>
   <% const row = (href, title, meta, ico) => { %>
     <a class="row menu-row" href="<%= href %>"><span class="menu-ico" aria-hidden="true"><% if (ICONS[ico]) { %><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="<%= ICONS[ico] %>"></path></svg><% } else { %><%= ico %><% } %></span><span class="row-body"><span class="row-title"><%= title %></span><% if (meta) { %><span class="row-meta"><%= meta %></span><% } %></span><span class="chev" aria-hidden="true">›</span></a>
@@ -24,6 +25,7 @@
       <% row('/settings/appearance', 'Appearance', { system: 'Matches your device', light: 'Light', dark: 'Dark' }[user.theme || 'system'], 'contrast') %>
       <% row('/settings/bottom-bar', 'Bottom bar', 'Which sections are one tap away', 'bar') %>
       <% row('/customize', 'Today', 'What shows on Today, and in what order', 'sun') %>
+      <% row('/settings/calendar', 'Calendar feed', 'See Nestly in Google or Apple Calendar', 'cal') %>
       <% row('/households', 'Households', homes.length > 1 ? 'You’re in ' + homes.length + ': switch, start, or leave' : 'Start one, or join with an invite', 'house') %>
     </div>
   </section>

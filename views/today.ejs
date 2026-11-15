@@ -4,6 +4,9 @@
     <div><p class="muted small"><%= date %></p><h1><%= greeting %></h1><p class="sub"><%= summary %></p></div>
     <a class="btn btn-ghost" href="/customize">Customize</a>
   </div>
+  <% if (isAdmin && household.setupStep > 0) { %>
+    <a class="card row menu-row setup-card" href="/setup"><span class="row-body"><span class="row-title">Finish setting up <%= household.name %></span><span class="row-meta">Sections, people, staples, and chores. A few minutes.</span></span><span class="chev" aria-hidden="true">›</span></a>
+  <% } %>
   <div class="dash">
     <% widgets.forEach((w) => { %>
       <% if (w.kind === 'Tile') { const t = tiles[w.k]; %>

@@ -16,11 +16,13 @@ const catalogSchema = new mongoose.Schema(
     brand: { type: String, trim: true, maxlength: 80, default: '' },
     staple: { type: Boolean, default: false },
     stapleOrder: { type: Number, default: 0 }, // where it sits among staples on the Shopping page
+    barcodes: { type: [String], default: [] }, // scanned codes that mean this item
     // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).
     usuallyHave: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 catalogSchema.index({ householdId: 1, key: 1 }, { unique: true });
+catalogSchema.index({ householdId: 1, barcodes: 1 });
 
 module.exports = mongoose.model('CatalogItem', catalogSchema);

@@ -1,0 +1,20 @@
+<%- include('partials/top', { title: q ? 'Search: ' + q : 'Search' }) %>
+<main class="stack">
+  <h1>Search</h1>
+  <form class="add" method="get" action="/search" role="search">
+    <input type="search" name="q" value="<%= q %>" maxlength="60" aria-label="Search everything" placeholder="Search everything" autofocus>
+    <button class="btn btn-primary" type="submit">Search</button>
+  </form>
+  <% if (q && q.length < 2) { %><p class="muted small center">Type at least 2 letters.</p><% } %>
+  <% if (q.length >= 2 && !total) { %><p class="muted small center">Nothing matches “<%= q %>”.</p><% } %>
+  <% groups.forEach((g) => { %>
+    <section class="card" aria-label="<%= g.title %>">
+      <h2><%= g.title %></h2>
+      <% g.items.forEach((i) => { %>
+        <a class="row menu-row" href="<%= i.href %>"><span class="row-body"><span class="row-title"><%= i.title %></span><% if (i.meta) { %><span class="row-meta"><%= i.meta %></span><% } %></span><span class="chev" aria-hidden="true">›</span></a>
+      <% }) %>
+    </section>
+  <% }) %>
+  <% if (!q) { %><p class="hint">Finds items, saved items, reminders, events, recipes (and their ingredients), meals, pantry, bills, chores, and Home info. Hidden Home info values aren’t searched.</p><% } %>
+</main>
+<%- include('partials/bottom') %>

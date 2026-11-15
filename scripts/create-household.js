@@ -23,7 +23,7 @@ const arg = (name) => {
   const existing = await User.findOne({ email });
   if (existing) {
     // Already uses Nestly: they become the new household's admin with the same sign-in.
-    const household = await Household.create({ name: householdName });
+    const household = await Household.create({ name: householdName, setupStep: 1 });
     await Membership.create({ userId: existing._id, householdId: household._id, role: 'admin' });
     console.log(`Created "${householdName}". ${email} already had an account and is its admin; they can switch to it from Households.`);
     return;
@@ -37,7 +37,7 @@ const arg = (name) => {
   }
   if (password.length < 8) throw new Error('Use at least 8 characters.');
 
-  const household = await Household.create({ name: householdName });
+  const household = await Household.create({ name: householdName, setupStep: 1 });
   const user = await User.create({ householdId: household._id, email, name, passwordHash: await User.hashPassword(password) });
   await Membership.create({ userId: user._id, householdId: household._id, role: 'admin' });
   console.log(`Created "${householdName}" with admin ${email}.`);

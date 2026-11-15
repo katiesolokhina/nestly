@@ -1,0 +1,40 @@
+<%- include('partials/top', { title: 'Spending' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Spending</h1><p class="sub"><%= label %></p></div></div>
+  <nav class="month-nav" aria-label="Month">
+    <a class="btn btn-ghost" href="/spending?month=<%= prev %>">‹ <span class="sr-only">Previous month</span><%= short(prev) %></a>
+    <% if (next) { %><a class="btn btn-ghost" href="/spending?month=<%= next %>"><%= short(next) %> <span class="sr-only">Next month</span>›</a><% } %>
+  </nav>
+  <section class="card">
+    <div class="spend-total"><span class="tile-num"><%= m(now.total) %></span><span class="row-meta"><%= [shopping ? m(now.shopping) + ' shopping' : '', bills ? m(now.bills) + ' bills' : ''].filter(Boolean).join(' · ') %></span></div>
+    <% if (before.total) { const d = now.total - before.total; %><p class="row-meta"><%= d === 0 ? 'Same as' : (d > 0 ? m(d) + ' more than' : m(-d) + ' less than') %> <%= monthLabel(before.ym) %>.</p><% } %>
+  </section>
+  <section class="card" aria-labelledby="sm">
+    <h2 id="sm">Last 6 months</h2>
+    <% months.forEach((x) => { %>
+      <a class="spend-row<%= x.ym === month ? ' on' : '' %>" href="/spending?month=<%= x.ym %>">
+        <span class="spend-label"><%= short(x.ym) %></span>
+        <span class="spend-bar" aria-hidden="true"><% if (shopping) { %><i class="shop" style="width:<%= x.pctShop %>%"></i><% } %><% if (bills) { %><i class="bills" style="width:<%= x.pctBills %>%"></i><% } %></span>
+        <span class="spend-num"><%= m(x.total) %></span>
+      </a>
+    <% }) %>
+    <% if (shopping && bills) { %><p class="spend-key row-meta"><span><i class="shop"></i>Shopping</span><span><i class="bills"></i>Bills</span></p><% } %>
+  </section>
+  <% const bars = (id, title, rows, empty) => { %>
+    <section class="card" aria-labelledby="<%= id %>">
+      <h2 id="<%= id %>"><%= title %></h2>
+      <% if (!rows.length) { %><p class="muted small"><%= empty %></p><% } %>
+      <% rows.forEach((r) => { %>
+        <div class="spend-row"><span class="spend-label wide"><%= r.name %></span><span class="spend-bar" aria-hidden="true"><i class="<%= id === 'cat' ? 'bills' : 'shop' %>" style="width:<%= r.pct %>%"></i></span><span class="spend-num"><%= m(r.cents) %></span></div>
+      <% }) %>
+    </section>
+  <% }; %>
+  <% if (shopping) { %>
+    <% bars('st', 'Shopping by store', byStore, 'No prices yet this month.') %>
+    <% if (byTag.length > 1) { bars('tg', 'Shopping by tag', byTag, '') } %>
+    <% if (topItems.length) { bars('ti', 'Biggest items', topItems, '') } %>
+  <% } %>
+  <% if (bills) { bars('cat', 'Bills by category', byCategory, 'No bills paid this month.') } %>
+  <% if (shopping) { %><p class="hint">Shopping counts items with a price, in the month they were bought. Add a price when you edit an item.<%= bills ? ' Bills count when they were paid.' : '' %> “Only me” items count only for you.</p><% } %>
+</main>
+<%- include('partials/bottom') %>

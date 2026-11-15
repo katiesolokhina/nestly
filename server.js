@@ -69,6 +69,7 @@ app.use(require('./routes/households'));
 app.use(require('./routes/access'));
 app.use(require('./routes/ingredients')); // before Shopping, whose /s/shopping/:id would catch it
 app.use(require('./routes/saved-items'));
+app.use(require('./routes/scan')); // before Shopping and Pantry, whose /:id routes would catch it
 app.use(require('./routes/shopping'));
 app.use(require('./routes/remember'));
 app.use(require('./routes/calendar'));
@@ -83,6 +84,10 @@ app.use(require('./routes/section-settings').router);
 app.use(require('./routes/files'));
 app.use(require('./routes/home'));
 app.use(require('./routes/export'));
+app.use(require('./routes/feed'));
+app.use(require('./routes/search'));
+app.use(require('./routes/spending'));
+app.use(require('./routes/setup'));
 app.use(require('./routes/settings'));
 app.use(require('./routes/family'));
 app.use(require('./routes/roles'));

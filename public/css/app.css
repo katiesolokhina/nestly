@@ -345,3 +345,41 @@ input[type="email"].info-value, input[type="tel"] { min-height: 44px; width: 100
 .aisle.late { color: #8A4A1F; }
 .rank { width: 28px; height: 28px; border-radius: 50%; background: var(--off); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
 span.check { cursor: default; }
+
+/* Spending */
+.month-nav { display: flex; justify-content: space-between; gap: 8px; }
+.spend-total { display: flex; flex-direction: column; gap: 2px; }
+.spend-row { display: grid; grid-template-columns: 3.2em 1fr auto; align-items: center; gap: 10px; min-height: 36px; color: inherit; text-decoration: none; }
+.spend-row.on .spend-label { font-weight: 700; color: var(--primary); }
+.spend-label { font-size: 14px; }
+.spend-label.wide { grid-column: 1 / -1; font-weight: 600; margin-bottom: -8px; }
+.spend-row:has(.spend-label.wide) { grid-template-columns: 1fr auto; row-gap: 4px; }
+.spend-bar { display: flex; height: 12px; border-radius: 6px; background: var(--off); overflow: hidden; }
+.spend-bar i { display: block; height: 100%; }
+.spend-num { font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; min-width: 5.5em; }
+.shop { background: var(--primary); }
+.bills { background: #3F7D5A; }
+.spend-key { display: flex; gap: 16px; }
+.spend-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+
+/* Barcode scanner */
+.scanner { width: min(100vw - 24px, 480px); max-height: calc(100dvh - 24px); border: 0; border-radius: var(--radius); padding: 16px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.scanner::backdrop { background: rgb(0 0 0 / .6); }
+.scanner[open] { display: flex; flex-direction: column; gap: 12px; }
+.scan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scan-head h2 { margin: 0; }
+.scan-view { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.scan-view[hidden] { display: none; }
+.scan-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-frame { position: absolute; inset: 30% 10%; border: 3px solid rgb(255 255 255 / .9); border-radius: 12px; box-shadow: 0 0 0 999px rgb(0 0 0 / .25); }
+.scan-msg { margin: 0; font-size: 14px; color: var(--muted); min-height: 1.2em; }
+.scan-manual { display: flex; gap: 8px; }
+.scan-manual input { flex: 1; min-width: 0; }
+.scan-btn { align-self: flex-start; }
+.scan-btn svg, .btn svg { vertical-align: -3px; }
+.shop-bar .btn-row { display: flex; align-items: center; gap: 8px; }
+.btn svg { margin-right: 6px; }
+.scan-msg:empty { display: none; }
+.setup-dots { display: flex; gap: 6px; }
+.setup-dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--off); }
+.setup-dots i.on { background: var(--primary); }

@@ -9,6 +9,7 @@ const { logActivity } = require('../lib/activity');
 const { sectionName } = require('../lib/prefs');
 const { rolesOf } = require('../lib/perms');
 const { membersOf } = require('../lib/members');
+const { mailOn } = require('../lib/mail');
 
 const router = express.Router();
 
@@ -38,7 +39,24 @@ router.get('/settings', requireAuth, (req, res) => {
 
 const page = (view, extra = {}) => (req, res) => res.render(view, { active: 'settings', notice: NOTICES[req.query.saved] || null, ...extra });
 router.get('/settings/appearance', requireAuth, page('settings/appearance'));
-router.get('/settings/notifications', requireAuth, page('settings/notifications'));
+router.get('/settings/notifications', requireAuth, (req, res) => page('settings/notifications', { mailOn: mailOn() })(req, res));
+
+// Sends this morning's email now, so people can see what it looks like.
+router.post('/settings/notifications/test-email', requireAuth, async (req, res, next) => {
+  try {
+    if (!mailOn()) return res.redirect('/settings/notifications');
+    try {
+      await require('../lib/digest').digestFor(req.user.toObject(), { force: true });
+      req.session.flash = `Sent to ${req.user.email}. Check your inbox (and spam).`;
+    } catch (err) {
+      console.error('Test email failed:', err.message);
+      req.session.flash = 'The email couldn’t be sent. Check the SMTP settings on the server.';
+    }
+    res.redirect('/settings/notifications#email');
+  } catch (err) {
+    next(err);
+  }
+});
 router.get('/settings/bottom-bar', requireAuth, (req, res) => page('settings/bottom-bar', { pinOptions: enabledSections(req.view).map((s) => ({ ...s, label: sectionName(req.household, s.key) })), maxPins: MAX_PINS })(req, res));
 
 // People: everyone can see who's in the household; admins invite and manage.
@@ -86,6 +104,7 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
     n.reminders = b.reminders === 'on';
     n.events = b.events === 'on';
     n.shopping = b.shopping === 'on';
+    if (['off', 'nopush', 'always'].includes(b.email)) n.email = b.email;
     if (b.infoForm === '1') {
       n.warranty = b.warranty === 'on';
       const wd = parseInt(b.warrantyDays, 10);

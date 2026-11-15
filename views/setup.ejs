@@ -1,0 +1,36 @@
+<%- include('partials/top', { title: 'Set up ' + household.name }) %>
+<main class="stack">
+  <div class="head"><div><p class="muted small">Step <%= n %> of <%= of %></p><h1><%= { sections: 'What will you use?', people: 'Who’s in ' + household.name + '?', staples: 'Things you buy often', chores: 'Chores to start with' }[step] %></h1></div>
+    <form method="post" action="/setup/skip"><button class="link-btn" type="submit">Finish later</button></form></div>
+  <div class="setup-dots" aria-hidden="true"><% for (let i = 1; i <= of; i++) { %><i class="<%= i <= n ? 'on' : '' %>"></i><% } %></div>
+
+  <% if (step === 'sections') { %>
+    <form class="card stack" method="post" action="/setup/sections">
+      <p class="row-meta">Turn off anything your household won’t use. You can change this any time in Settings → Sections.</p>
+      <% SECTIONS.forEach((s) => { %><label class="check-row"><%= s.label %><input type="checkbox" name="sections" value="<%= s.key %>"<%= household.features[s.key] !== false ? ' checked' : '' %>></label><% }) %>
+      <button class="btn btn-primary btn-block" type="submit">Next</button>
+    </form>
+  <% } else if (step === 'people') { %>
+    <section class="card stack">
+      <p>Make an invite link for each person and send it to them. They pick their own password.</p>
+      <p class="row-meta">Each person gets a role: Member, Teen, Child, or Admin. Roles decide which sections they see and can change, and you can adjust them in Settings → People.</p>
+      <a class="btn btn-ghost btn-block" href="/settings/people">Make invite links</a>
+      <form method="post" action="/setup/people"><button class="btn btn-primary btn-block" type="submit">Next</button></form>
+    </section>
+  <% } else if (step === 'staples') { %>
+    <form class="card stack" method="post" action="/setup/staples">
+      <p class="row-meta">These become one-tap buttons on the Shopping page. One per line, or separated by commas.</p>
+      <label class="sr-only" for="staples">Staples</label>
+      <textarea id="staples" name="staples" rows="6" placeholder="Milk&#10;Eggs&#10;Bread&#10;Bananas&#10;Paper towels"></textarea>
+      <button class="btn btn-primary btn-block" type="submit">Next</button>
+      <button class="link-btn" type="submit" name="skip" value="1">Skip</button>
+    </form>
+  <% } else if (step === 'chores') { %>
+    <form class="card stack" method="post" action="/setup/chores">
+      <p class="row-meta">Pick any to add. They start today, for anyone; change who does them and when in Chores.</p>
+      <% STARTER_CHORES.forEach(([t, room, repeat]) => { %><label class="check-row"><span><%= t %> <span class="muted small">· <%= repeat === 'daily' ? 'every day' : 'every week' %></span></span><input type="checkbox" name="chores" value="<%= t %>"></label><% }) %>
+      <button class="btn btn-primary btn-block" type="submit">Finish</button>
+    </form>
+  <% } %>
+</main>
+<%- include('partials/bottom') %>
