@@ -111,8 +111,11 @@ test('sections', async (t) => {
     assert.doesNotMatch((await sam('/activity')).text, /Hiking boots/);
     assert.doesNotMatch((await sam('/')).text, /Hiking boots/);
     assert.equal((await sam(`/s/shopping/${bootsId}/edit`)).status, 404);
-    assert.equal((await sam(`/s/shopping/${bootsId}/toggle`, { method: 'POST', form: {} })).status, 404);
-    assert.equal((await sam(`/s/shopping/${bootsId}/delete`, { method: 'POST', form: {} })).status, 404);
+    // Someone else's private item looks the same as one that's already gone: back to the list.
+    assert.equal((await sam(`/s/shopping/${bootsId}/toggle`, { method: 'POST', form: {} })).location, '/s/shopping');
+    assert.equal((await sam(`/s/shopping/${bootsId}/delete`, { method: 'POST', form: {} })).location, '/s/shopping');
+    assert.equal((await sam(`/s/shopping/${bootsId}/delete`, { method: 'POST', headers: { 'x-requested-with': 'fetch' } })).status, 404);
+    await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(bootsId).lean()).bought, false));
     assert.doesNotMatch((await sam('/s/shopping/new')).text, /Hiking boots/, 'private names stay out of shared suggestions');
     assert.equal((await other('/s/shopping')).text.includes('Eggs'), false, 'other households see nothing');
     assert.equal((await other(`/s/shopping/${eggsId}/edit`)).status, 404);
@@ -154,12 +157,12 @@ test('sections', async (t) => {
     await katie(`/s/shopping/${eggsId}`, { method: 'POST', form: { name: 'Eggs', qty: '24', price: '7.49', method: 'In person', store: 'Costco', aisle: 'Dairy & eggs', tag: 'Groceries' } });
     await sam(`/s/shopping/${eggsId}/toggle`, { method: 'POST', form: {} });
     let page = await katie('/s/shopping');
-    assert.match(page.text, /<h2>Bought<\/h2>/);
+    assert.match(page.text, /id="bought-card">/);
     assert.match(page.text, /Sam · Today/);
     assert.match((await katie('/activity')).text, /Sam bought Eggs at Costco/);
     await katie('/s/shopping/clear', { method: 'POST', form: {} });
     page = await katie('/s/shopping');
-    assert.doesNotMatch(page.text, /<h2>Bought<\/h2>/);
+    assert.match(page.text, /id="bought-card" hidden>/);
     await katie('/s/shopping/quick', { method: 'POST', form: { name: 'Eggs' } });
     const fresh = await withDb(app.uri, () => ShoppingItem.findOne({ key: 'eggs', bought: false }).lean());
     assert.equal(fresh.store, 'Costco', 'catalog remembers the details');

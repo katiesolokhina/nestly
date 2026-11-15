@@ -7,6 +7,8 @@ const CatalogItem = require('../models/CatalogItem');
 const ShoppingItem = require('../models/ShoppingItem');
 const PantryItem = require('../models/PantryItem');
 const { logActivity } = require('../lib/activity');
+const { recordChange } = require('../lib/changes');
+const { isQuick, takeUndo } = require('../lib/quick');
 const { pick } = require('../lib/lists');
 const { keyOf, setStaple } = require('../lib/catalog');
 
@@ -46,7 +48,7 @@ router.post('/s/shopping/saved/:id/move', async (req, res, next) => {
     if (!item || !item.staple) return res.redirect('/s/shopping/saved');
     const staples = await CatalogItem.find({ householdId: req.user.householdId, staple: true }).sort({ stapleOrder: 1, name: 1 });
     const i = staples.findIndex((s) => String(s._id) === String(item._id));
-    const j = req.body.dir === 'up' ? i - 1 : i + 1;
+    const j = (req.body || {}).dir === 'up' ? i - 1 : i + 1;
     if (j >= 0 && j < staples.length) [staples[i], staples[j]] = [staples[j], staples[i]];
     // Renumber all of them, so the order stays clean.
     await CatalogItem.bulkWrite(staples.map((s, n) => ({ updateOne: { filter: { _id: s._id }, update: { $set: { stapleOrder: n + 1 } } } })));
@@ -60,9 +62,10 @@ router.post('/s/shopping/saved/:id/move', async (req, res, next) => {
 router.post('/s/shopping/saved/:id/staple', async (req, res, next) => {
   try {
     const item = await find(req);
-    if (!item) return res.status(404).send('Not found');
-    await setStaple(req.user.householdId, item.key, req.body.on === '1');
-    const back = String(req.body.query || '');
+    if (!item) return isQuick(req) ? res.status(404).json({ ok: false, gone: true }) : res.redirect('/s/shopping/saved');
+    await setStaple(req.user.householdId, item.key, (req.body || {}).on === '1');
+    if (isQuick(req)) return res.json({ ok: true, staple: (req.body || {}).on === '1' });
+    const back = String((req.body || {}).query || '');
     res.redirect(`/s/shopping/saved${/^[\w%+=&.\-]*$/.test(back) && back ? `?${back}` : ''}`);
   } catch (err) {
     next(err);
@@ -126,10 +129,15 @@ router.post('/s/shopping/saved/:id', async (req, res, next) => {
 router.post('/s/shopping/saved/:id/delete', async (req, res, next) => {
   try {
     const item = await find(req);
-    if (!item) return res.status(404).send('Not found');
+    if (!item) {
+      if (isQuick(req)) return res.status(404).json({ ok: false, gone: true });
+      req.session.flash = 'That saved item was already deleted.';
+      return res.redirect('/s/shopping/saved');
+    }
+    const before = item.toObject();
     await item.deleteOne();
-    await logActivity(req.user, { section: SECTION, text: `${req.user.name} deleted the saved item ${item.name}` });
-    req.session.flash = `${item.name} won’t be suggested anymore. It comes back if someone adds it again.`;
+    await recordChange(req, { kind: 'delete', model: 'CatalogItem', doc: item, before, section: SECTION, text: `deleted the saved item ${item.name}`, label: `the saved item ${item.name}` });
+    if (isQuick(req)) return res.json({ ok: true, undo: await takeUndo(req) });
     res.redirect('/s/shopping/saved');
   } catch (err) {
     next(err);

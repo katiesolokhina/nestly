@@ -60,7 +60,7 @@ async function startApp({ name, port, seed, env = {} }) {
 // form: an object, or [[key, value], …] for repeated keys like checkboxes.
 function client(base) {
   let cookie = '';
-  return async (urlPath, { method = 'GET', form, origin = base } = {}) => {
+  return async (urlPath, { method = 'GET', form, origin = base, headers = {} } = {}) => {
     const res = await fetch(base + urlPath, {
       method,
       redirect: 'manual',
@@ -68,6 +68,7 @@ function client(base) {
         cookie,
         origin,
         ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+        ...headers,
       },
       body: form ? new URLSearchParams(form).toString() : undefined,
     });

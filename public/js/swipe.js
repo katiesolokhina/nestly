@@ -1,4 +1,4 @@
-// Swipe a shopping item left to show Delete; swipe far to delete it straight away.
+// Swipe a row left to show Delete; swipe far to delete it straight away.
 // Every delete can be undone from the bar that appears, or from Activity.
 (function () {
   const rows = document.querySelectorAll('[data-swipe]');
@@ -42,7 +42,7 @@
       const width = el.offsetWidth;
       if (-dx > width * 0.55) {
         set(el, -width, true);
-        setTimeout(() => form.submit(), 180);
+        setTimeout(() => (form.requestSubmit ? form.requestSubmit() : form.submit()), 180);
       } else if (-dx > 40) {
         set(el, -OPEN, true);
         open = el;

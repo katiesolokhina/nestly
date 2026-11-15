@@ -92,7 +92,46 @@ test('saved items', async (t) => {
     assert.equal(await CatalogItem.exists({ name: 'Oat milk' }), null);
     assert.ok(await ShoppingItem.exists({ name: 'Oat milk' }));
   });
-  assert.match((await katie('/s/shopping/saved')).text, /won’t be suggested anymore/);
+  assert.match((await katie('/s/shopping/saved')).text, /deleted the saved item Oat milk/, 'Undo bar');
+
+  // In-page taps get JSON back, and a second tap on something already gone isn't an error.
+  const QUICK = { 'x-requested-with': 'fetch' };
+  r = await katie(`/s/shopping/saved/${ids.Eggs}/delete`, { method: 'POST', headers: QUICK });
+  const undo = JSON.parse(r.text).undo;
+  assert.match(undo.text, /deleted the saved item Eggs/);
+  r = await katie(`/s/shopping/saved/${ids.Eggs}/delete`, { method: 'POST', headers: QUICK });
+  assert.equal(r.status, 404);
+  assert.equal(JSON.parse(r.text).gone, true);
+  r = await katie(`/s/shopping/saved/${ids.Eggs}/delete`, { method: 'POST' });
+  assert.equal(r.location, '/s/shopping/saved');
+  // Undo brings it back.
+  await katie(`/activity/${undo.id}/undo`, { method: 'POST', form: { back: '/s/shopping/saved' } });
+  await withDb(app.uri, async () => assert.ok(await CatalogItem.exists({ name: 'Eggs' })));
+  r = await katie(`/s/shopping/saved/${ids.Eggs}/staple`, { method: 'POST', headers: QUICK, form: { on: '1' } });
+  assert.deepEqual(JSON.parse(r.text), { ok: true, staple: true });
+
+  // Staples saved before there was an order (no stapleOrder) don't break starring.
+  await withDb(app.uri, async () => CatalogItem.updateMany({}, { $unset: { stapleOrder: 1 } }));
+  r = await katie(`/s/shopping/saved/${ids.Bread}/staple`, { method: 'POST', form: { on: '0' } });
+  r = await katie(`/s/shopping/saved/${ids.Bread}/staple`, { method: 'POST', form: { on: '1' } });
+  assert.equal(r.status, 302);
+  await withDb(app.uri, async () => assert.ok(Number.isFinite((await CatalogItem.findById(ids.Bread).lean()).stapleOrder)));
+  assert.deepEqual(order((await katie('/s/shopping/saved')).text).slice(-1), ['Bread']);
+
+  // Shopping: delete and tick answer in-page taps, and repeats are harmless.
+  const itemId = await withDb(app.uri, async () => String((await ShoppingItem.findOne({ name: 'Bread' }).lean())._id));
+  r = await katie(`/s/shopping/${itemId}/toggle`, { method: 'POST', headers: QUICK, form: { bought: '1' } });
+  assert.equal(JSON.parse(r.text).bought, true);
+  r = await katie(`/s/shopping/${itemId}/toggle`, { method: 'POST', headers: QUICK, form: { bought: '1' } });
+  assert.equal(JSON.parse(r.text).bought, true, 'a double tap stays ticked');
+  assert.match((await katie('/s/shopping')).text, /id="bought-card">/);
+  r = await katie(`/s/shopping/${itemId}/delete`, { method: 'POST', headers: QUICK });
+  assert.match(JSON.parse(r.text).undo.text, /deleted Bread/);
+  r = await katie(`/s/shopping/${itemId}/delete`, { method: 'POST', form: { query: '' } });
+  assert.equal(r.location, '/s/shopping');
+  assert.match((await katie('/s/shopping')).text, /already taken off the list/);
+  r = await katie(`/s/shopping/${itemId}/toggle`, { method: 'POST' });
+  assert.equal(r.location, '/s/shopping');
 
   // Shopping settings link here.
   assert.match((await katie('/settings/s/shopping')).text, /href="\/s\/shopping\/saved"/);

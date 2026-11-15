@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: 'Shopping', scripts: ['auto-submit', 'select-all', 'swipe'] }) %>
+<%- include('../partials/top', { title: 'Shopping', scripts: ['auto-submit', 'select-all', 'swipe', 'quick'] }) %>
 <main class="stack">
   <% if (selecting) { %>
     <div class="head"><div><h1>Select items</h1><p class="sub">Delete them from the list without marking them bought.</p></div><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Cancel</a></div>
@@ -18,9 +18,9 @@
     </form>
     <% } %>
   <% } else if (shopping) { %>
-    <div class="notice shop-bar"><span><strong>Shopping<%= store ? ' at ' + store : '' %>.</strong> <%= count %> <%= count === 1 ? 'item' : 'items' %> left.</span><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Finish</a></div>
+    <div class="notice shop-bar"><span><strong>Shopping<%= store ? ' at ' + store : '' %>.</strong> <span data-count="<%= count %>" data-one="item" data-many="items"><%= count %> <%= count === 1 ? 'item' : 'items' %></span> left.</span><a class="link-btn" href="/s/shopping<%= query ? '?' + query : '' %>">Finish</a></div>
   <% } else { %>
-    <div class="head"><div><h1 class="title-gear"><%= secName('shopping') %><%- include('../partials/gear', { key: 'shopping' }) %></h1><p class="sub"><%= count %> <%= count === 1 ? 'item' : 'items' %> · About <%= total %></p></div><form method="post" action="/s/shopping/start"><input type="hidden" name="query" value="<%= query %>"><input type="hidden" name="store" value="<%= store %>"><button class="btn btn-ghost" type="submit">Start shopping</button></form></div>
+    <div class="head"><div><h1 class="title-gear"><%= secName('shopping') %><%- include('../partials/gear', { key: 'shopping' }) %></h1><p class="sub"><span data-count="<%= count %>" data-one="item" data-many="items"><%= count %> <%= count === 1 ? 'item' : 'items' %></span> · About <%= total %></p></div><form method="post" action="/s/shopping/start"><input type="hidden" name="query" value="<%= query %>"><input type="hidden" name="store" value="<%= store %>"><button class="btn btn-ghost" type="submit">Start shopping</button></form></div>
     <% if (household.tripAlerts !== false) { %><p class="hint">Start shopping lets everyone else know<%= store ? ' you’re at ' + store : '' %>, so they can add what they need. <a href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Shop without telling anyone</a></p><% } %>
     <form class="stack" method="get" action="/s/shopping" data-auto-submit>
       <div class="fields">
@@ -46,17 +46,17 @@
   <% if (count && !shopping) { %>
     <div class="row-h list-tools"><span class="aisle">On the list</span><a class="link-btn" href="/s/shopping?<%= query ? query + '&' : '' %>select=1">Select to delete</a></div>
   <% } %>
-  <div class="card">
-    <% if (!groups.length) { %><p class="muted small center">Nothing here right now.</p><% } %>
+  <div class="card" data-list>
+    <% if (!groups.length) { %><p class="muted small center empty-note">Nothing here right now.</p><% } %>
     <% groups.forEach((g) => { %>
-      <div>
+      <div data-group>
         <p class="aisle"><%= g.name %></p>
         <% g.items.forEach((i) => { %>
           <% const back = query + (shopping ? (query ? '&' : '') + 'mode=shop' : ''); %>
           <div class="swipe" data-swipe>
-          <form class="swipe-delete" method="post" action="/s/shopping/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= back %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form>
+          <form class="swipe-delete" method="post" action="/s/shopping/<%= i._id %>/delete" data-quick="remove"><input type="hidden" name="query" value="<%= back %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form>
           <div class="row<%= shopping ? ' big' : '' %>">
-            <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %><%= shopping ? (query ? '&' : '') + 'mode=shop' : '' %>"><button class="check" type="submit" aria-label="Mark <%= i.name %> bought"><i></i></button></form>
+            <form method="post" action="/s/shopping/<%= i._id %>/toggle" data-quick="bought"><input type="hidden" name="bought" value="1"><input type="hidden" name="query" value="<%= query %><%= shopping ? (query ? '&' : '') + 'mode=shop' : '' %>"><button class="check" type="submit" aria-label="Mark <%= i.name %> bought"><i></i></button></form>
             <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
             <% if (i.private) { %><span class="tag lilac">Only me</span><% } %>
             <% if (i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Buy<span class="sr-only"> <%= i.name %></span></a><% } %>
@@ -68,18 +68,19 @@
     <% }) %>
   </div>
   <% if (groups.length && !shopping) { %><p class="hint">Swipe an item left to delete it.</p><% } %>
-  <% if (bought.length) { %>
-    <div class="card">
+    <div class="card" id="bought-card"<%= bought.length ? '' : ' hidden' %>>
       <div class="row-h"><h2>Bought</h2><form method="post" action="/s/shopping/clear"><input type="hidden" name="query" value="<%= query %>"><button class="link-btn" type="submit">Clear</button></form></div>
+      <div data-bought-list>
       <% bought.forEach((i) => { %>
         <div class="row done">
-          <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit" aria-label="Move <%= i.name %> back to the list"><i>✓</i></button></form>
+          <form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="bought" value="0"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit" aria-label="Move <%= i.name %> back to the list"><i>✓</i></button></form>
           <a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a>
           <% if (i.receiptId) { %><a class="link-btn" href="/files/<%= i.receiptId %>/view?back=/s/shopping">View receipt<span class="sr-only"> for <%= i.name %></span></a><% } else { %><a class="link-btn" href="/s/shopping/<%= i._id %>/edit#receipt">Add receipt<span class="sr-only"> for <%= i.name %></span></a><% } %>
         </div>
       <% }) %>
+      </div>
     </div>
-  <% } %>
+    <template id="bought-row"><div class="row done"><form method="post" action=""><input type="hidden" name="bought" value="0"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit"><i>✓</i></button></form><a class="row-body row-link" href="" data-edit><span class="row-title"></span><span class="row-meta"></span></a><a class="link-btn" href="" data-receipt>Add receipt</a></div></template>
   <% } %>
 </main>
 <%- include('../partials/bottom') %>

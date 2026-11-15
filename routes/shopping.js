@@ -12,6 +12,7 @@ const { dayLabel, todayIn } = require('../lib/dates');
 const User = require('../models/User');
 const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
+const { isQuick, takeUndo } = require('../lib/quick');
 const { restock } = require('../lib/pantry');
 const { currency } = require('../lib/prefs');
 const { permsFor } = require('../lib/perms');
@@ -99,7 +100,7 @@ async function addByName(req, res, name, back) {
 }
 
 const listBack = (req) => {
-  const q = String(req.body.query || '');
+  const q = String((req.body || {}).query || '');
   return `/s/shopping${/^[\w%+=&.\-]*$/.test(q) && q ? `?${q}` : ''}`;
 };
 
@@ -117,7 +118,7 @@ router.post('/s/shopping/quick', async (req, res, next) => {
 // One alert per person every 30 minutes, so stopping and starting again doesn't spam the house.
 router.post('/s/shopping/start', async (req, res, next) => {
   try {
-    const q = String(req.body.query || '');
+    const q = String((req.body || {}).query || '');
     const query = /^[\w%+=&.\-]*$/.test(q) ? q : '';
     res.redirect(`/s/shopping?${query ? `${query}&` : ''}mode=shop`);
     if (req.household.tripAlerts === false) return; // turned off for this household
@@ -306,13 +307,21 @@ router.post('/s/shopping/:id', withFiles, async (req, res, next) => {
   }
 });
 
+// An item someone already deleted (a second tap, or another phone) isn't an error: back to the list.
+function gone(req, res) {
+  if (isQuick(req)) return res.status(404).json({ ok: false, gone: true });
+  req.session.flash = 'That item was already taken off the list.';
+  return res.redirect(listBack(req));
+}
+
 router.post('/s/shopping/:id/delete', async (req, res, next) => {
   try {
     const item = await find(req);
-    if (!item) return res.status(404).send('Not found');
+    if (!item) return gone(req, res);
     const before = item.toObject();
     await item.deleteOne();
     await recordChange(req, { kind: 'delete', model: 'ShoppingItem', doc: item, before, section: SECTION, text: `deleted ${item.name}`, label: item.name });
+    if (isQuick(req)) return res.json({ ok: true, undo: await takeUndo(req) });
     res.redirect(listBack(req));
   } catch (err) {
     next(err);
@@ -323,15 +332,20 @@ router.post('/s/shopping/:id/delete', async (req, res, next) => {
 router.post('/s/shopping/:id/toggle', async (req, res, next) => {
   try {
     const item = await find(req);
-    if (!item) return res.status(404).send('Not found');
+    if (!item) return gone(req, res);
+    // A double tap shouldn't tick and then untick: "bought" says which way this tap meant.
+    const b = req.body || {};
+    const want = b.bought === '1' ? true : b.bought === '0' ? false : !item.bought;
+    if (item.bought === want) return isQuick(req) ? res.json({ ok: true, bought: want }) : res.redirect(listBack(req));
     const before = item.toObject();
-    item.bought = !item.bought;
+    item.bought = want;
     item.boughtAt = item.bought ? new Date() : null;
     item.boughtByName = item.bought ? req.user.name : '';
     await item.save();
     const text = item.bought ? `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}` : `moved ${item.name} back to Shopping`;
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text, label: item.name });
     if (item.bought && req.household.features.pantry !== false) await restock(req.user, item.key);
+    if (isQuick(req)) return res.json({ ok: true, bought: item.bought, undo: await takeUndo(req) });
     res.redirect(listBack(req));
   } catch (err) {
     next(err);
