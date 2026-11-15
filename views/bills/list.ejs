@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Bills', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('bills') %><%- include('../partials/gear', { key: 'bills' }) %></h1><p class="sub"><% if (tab === 'upcoming') { %><%= dueCount %> due in the next 30 days · <%= dueTotal %><% } else { %>Paid bills<% } %></p></div><a class="btn btn-primary" href="/s/bills/new">Add</a></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('bills') %><%- include('../partials/gear', { key: 'bills' }) %></h1><p class="sub"><% if (tab === 'upcoming') { %><%= dueCount %> due in the next 30 days · <%= dueTotal %><% } else { %>Paid bills<% } %></p></div><% if (canEdit('bills')) { %><a class="btn btn-primary" href="/s/bills/new">Add</a><% } %></div>
 
   <a class="card balance-card" href="/s/bills/balances">
     <span class="row-title">Balances</span>

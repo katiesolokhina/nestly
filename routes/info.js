@@ -64,7 +64,7 @@ function readForm(req) {
     type: pick(req.household, 'infoTypes', b.type),
     fields,
     notes: String(b.notes || '').trim().slice(0, 5000),
-    private: b.private === 'on',
+    private: b.private === 'on' && req.perms.private,
   };
   let error = req.uploadError || null;
   if (!out.title) error = 'Enter a name for this.';

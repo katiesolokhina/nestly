@@ -43,7 +43,7 @@ function readForm(req) {
     steps: String(b.steps || '').replace(/\r/g, '').split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 60).map((s) => s.slice(0, 2000)),
     notes: String(b.notes || '').trim().slice(0, 2000),
     link,
-    private: b.private === 'on',
+    private: b.private === 'on' && req.perms.private,
   };
   let error = req.uploadError || null;
   if (!values.title) error = 'Enter a name for the recipe.';
@@ -177,7 +177,7 @@ router.get('/s/recipes/:id', async (req, res, next) => {
     const photo = item.photoId ? await Upload.findById(item.photoId).lean() : null;
     let source = '';
     try { source = item.link ? new URL(item.link).hostname.replace(/^www\./, '') : ''; } catch { /* shown without a site name */ }
-    res.render('recipes/show', { active: 'recipes', item, photo, source, mealsOn: req.household.features.meals !== false, shoppingOn: req.household.features.shopping !== false });
+    res.render('recipes/show', { active: 'recipes', item, photo, source, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
   } catch (err) {
     next(err);
   }

@@ -1,12 +1,12 @@
 // Stores, aisles, tags, and categories. Admins change them from each section's settings page; every change is logged.
 const express = require('express');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePerm } = require('../middleware/auth');
 const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
 
 const router = express.Router();
-router.use('/settings/lists', requireAuth, requireAdmin);
+router.use('/settings/lists', requireAuth, requirePerm('settings'));
 const SECTION = 'Settings';
 
 const available = (household) => Object.keys(LISTS).filter((k) => household.features[LISTS[k].feature] !== false);
@@ -33,6 +33,7 @@ function follow(household, key, from, to) {
 // "Usually have": things skipped when meal ingredients go to the shopping list.
 router.post('/settings/lists/usually-have', async (req, res, next) => {
   try {
+    if (req.perms.level('shopping') !== 'edit') return res.status(404).send('Not found');
     const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(req.body.key || ''), usuallyHave: true }, { $set: { usuallyHave: false } });
     if (item) await logActivity(req.user, { section: SECTION, text: `${req.user.name} stopped marking ${item.name} as usually have` });
     res.redirect('/settings/s/shopping#usual');
@@ -44,6 +45,7 @@ router.post('/settings/lists/usually-have', async (req, res, next) => {
 // Reminders aren't an event category, so their calendar color is set on its own.
 router.post('/settings/lists/reminder-color', async (req, res, next) => {
   try {
+    if (req.perms.level('calendar') !== 'edit') return res.status(404).send('Not found');
     const color = String(req.body.color || '');
     if (!HEX.test(color)) { req.session.flash = 'Choose a color.'; return res.redirect('/settings/s/calendar#eventCats'); }
     req.household.reminderColor = color.toLowerCase();
@@ -59,7 +61,8 @@ router.post('/settings/lists/:key', async (req, res, next) => {
   try {
     const { household, user } = req;
     const { key } = req.params;
-    if (!available(household).includes(key)) return res.status(404).send('Not found');
+    // Settings permission covers the sections this person can edit.
+    if (!available(household).includes(key) || req.perms.level(LISTS[key].feature) !== 'edit') return res.status(404).send('Not found');
     const list = [...household[key]];
     const cfg = LISTS[key];
     const label = cfg.title.toLowerCase();

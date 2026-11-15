@@ -1,6 +1,6 @@
 // Each section's settings page: its lists and its defaults. Admins only.
 const express = require('express');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePerm } = require('../middleware/auth');
 const CatalogItem = require('../models/CatalogItem');
 const { LISTS, categoryColor, reminderColor } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
@@ -9,7 +9,7 @@ const { KINDS, TEMPLATES } = require('../lib/info');
 const alerts = require('../lib/alerts');
 
 const router = express.Router();
-router.use('/settings/s', requireAuth, requireAdmin);
+router.use('/settings/s', requireAuth, requirePerm('settings'));
 const KEYS = ['shopping', 'remember', 'calendar', 'meals', 'recipes', 'pantry', 'bills', 'info'];
 const listsFor = (key) => Object.keys(LISTS).filter((k) => LISTS[k].feature === key);
 const pick = (v, options, fallback) => (options.map(String).includes(String(v)) ? v : fallback);
@@ -24,7 +24,7 @@ const templateOf = (household, type) => {
 router.get('/settings/s/:key', async (req, res, next) => {
   try {
     const { key } = req.params;
-    if (!KEYS.includes(key) || req.household.features[key] === false) return res.status(404).send('Not found');
+    if (!KEYS.includes(key) || req.perms.level(key) !== 'edit') return res.status(404).send('Not found');
     const h = req.household;
     const usual = key === 'shopping'
       ? await CatalogItem.find({ householdId: req.user.householdId, usuallyHave: true }, { name: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean()
@@ -56,7 +56,7 @@ router.post('/settings/s/:key', async (req, res, next) => {
     const { key } = req.params;
     const h = req.household;
     const b = req.body || {};
-    if (!KEYS.includes(key) || h.features[key] === false) return res.status(404).send('Not found');
+    if (!KEYS.includes(key) || req.perms.level(key) !== 'edit') return res.status(404).send('Not found');
     if (key === 'shopping') {
       h.defaultStore = pick(b.defaultStore, ['Any store', ...h.stores], 'Any store');
       h.tripAlerts = b.tripAlerts === 'on';

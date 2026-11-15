@@ -9,6 +9,7 @@ const { recordChange, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { currency } = require('../lib/prefs');
+const { permsFor } = require('../lib/perms');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { sendToUser } = require('../lib/push');
 const Membership = require('../models/Membership');
@@ -55,7 +56,7 @@ async function readForm(req, { forSeries = true } = {}) {
   const b = req.body || {};
   const members = await membersOf(req);
   const cents = toCents(b.amount);
-  const isPrivate = b.private === 'on';
+  const isPrivate = b.private === 'on' && req.perms.private;
   const repeat = REPEATS.includes(b.repeat) ? b.repeat : 'none';
   let splitMode = MODES.includes(b.splitMode) ? b.splitMode : 'even';
   if (isPrivate) splitMode = 'none'; // only you can see it, so nobody else can share it
@@ -122,10 +123,13 @@ const blank = (req, members) => ({
 
 // When someone pays a bill, the people sharing it hear what their part is.
 async function tellShares(req, bill) {
-  const people = await User.find({ _id: { $in: bill.shares.map((s) => s.userId) }, disabled: { $ne: true } }, { notify: 1 }).lean();
+  const people = await User.find({ _id: { $in: bill.shares.map((s) => s.userId) } }, { notify: 1 }).lean();
+  const roles = await Membership.find({ householdId: req.user.householdId, userId: { $in: bill.shares.map((s) => s.userId) } }, { userId: 1, role: 1 }).lean();
   await Promise.all(bill.shares.filter((s) => !same(s.userId, bill.paidBy) && s.cents && !s.settled).map((s) => {
     const u = people.find((p) => same(p._id, s.userId));
     if (!u || (u.notify && u.notify.billsPaid === false)) return null;
+    const m = roles.find((x) => same(x.userId, s.userId));
+    if (m && permsFor(req.household, m).level('bills') === 'hidden') return null;
     return sendToUser(s.userId, { title: `${bill.paidByName} paid ${bill.name}`, body: `${req.money(bill.cents)} total. Your share: ${req.money(s.cents)}.`, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-paid-${bill._id}` });
   }));
 }

@@ -1,6 +1,6 @@
 // Today, More, Activity, and the section pages.
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePerm } = require('../middleware/auth');
 const mongoose = require('mongoose');
 const { moreLinks, sectionByKey, SECTIONS } = require('../lib/sections');
 const { buildToday, layoutFor } = require('../lib/today');
@@ -14,19 +14,19 @@ const SAFE_BACK = (v) => (typeof v === 'string' && v.startsWith('/') && !v.start
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    res.render('today', { active: 'today', ...(await buildToday(req.user, req.household, req.member)) });
+    res.render('today', { active: 'today', ...(await buildToday(req.user, req.view, req.member)) });
   } catch (err) {
     next(err);
   }
 });
 
 router.get('/customize', requireAuth, (req, res) => {
-  res.render('customize', { active: 'today', rows: layoutFor(req.member, req.household) });
+  res.render('customize', { active: 'today', rows: layoutFor(req.member, req.view) });
 });
 
 router.post('/customize', requireAuth, async (req, res, next) => {
   try {
-    const rows = layoutFor(req.member, req.household);
+    const rows = layoutFor(req.member, req.view);
     const i = rows.findIndex((r) => r.k === req.body.k);
     if (req.body.action === 'reset') req.member.dashboard = [];
     else if (i >= 0) {
@@ -60,20 +60,24 @@ router.post('/activity/:id/undo', requireAuth, async (req, res, next) => {
 });
 
 router.get('/more', requireAuth, (req, res) => {
-  res.render('more', { active: 'more', links: moreLinks(req.member, req.household) });
+  res.render('more', { active: 'more', links: moreLinks(req.member, req.view, req.perms) });
 });
 
 const ACTIVITY_SECTIONS = ['Settings', ...SECTIONS.map((s) => s.label)];
 
-router.get('/activity', requireAuth, async (req, res, next) => {
+router.get('/activity', requireAuth, requirePerm('activity'), async (req, res, next) => {
   try {
-    const section = ACTIVITY_SECTIONS.includes(req.query.section) ? req.query.section : '';
+    // Changes in sections this person's role hides aren't shown either.
+    const hidden = SECTIONS.filter((s) => !req.sees(s.key)).map((s) => s.label);
+    const shown = ACTIVITY_SECTIONS.filter((s) => !hidden.includes(s));
+    const section = shown.includes(req.query.section) ? req.query.section : '';
     const filter = visibleActivity(req.user);
     if (section) filter.section = section;
+    else if (hidden.length) filter.section = { $nin: hidden };
     const entries = await Activity.find(filter).sort({ createdAt: -1 }).limit(200).lean();
     const fmt = new Intl.DateTimeFormat('en-US', { timeZone: req.user.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     const rows = await Promise.all(entries.map(async (e) => ({ ...e, when: fmt.format(e.createdAt), restorable: await canRestore(e) })));
-    res.render('activity', { active: 'activity', section, sections: ACTIVITY_SECTIONS, entries: rows });
+    res.render('activity', { active: 'activity', section, sections: shown, entries: rows });
   } catch (err) {
     next(err);
   }
@@ -82,7 +86,7 @@ router.get('/activity', requireAuth, async (req, res, next) => {
 // A section that's turned off doesn't exist as far as anyone's concerned.
 router.get('/s/:key', requireAuth, (req, res) => {
   const section = sectionByKey(req.params.key);
-  if (!section || req.household.features[section.key] === false) return res.status(404).send('Not found');
+  if (!section || !req.sees(section.key)) return res.status(404).send('Not found');
   res.render('section-soon', { active: section.key, section });
 });
 

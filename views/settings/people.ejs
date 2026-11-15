@@ -5,7 +5,7 @@
     <h2 id="hh">People</h2>
     <% if (link) { %>
       <div class="link-box" role="status">
-        <strong><%= link.kind === 'invite' ? 'Invite link' : 'Password reset link' %><%= link.label ? ' for ' + link.label : '' %></strong>
+        <strong><%= link.kind === 'invite' ? 'Invite link' : 'Password reset link' %><%= link.label ? ' for ' + link.label : '' %><%= link.role ? ' (' + link.role + ')' : '' %></strong>
         <input type="text" readonly value="<%= link.url %>" aria-label="Link" data-link-input>
         <div class="btn-row">
           <button class="btn btn-ghost" type="button" data-share-link="<%= link.url %>">Share</button>
@@ -17,22 +17,26 @@
     <% members.forEach((m) => { %>
       <div class="row">
         <span class="avatar" aria-hidden="true"><%= m.name.charAt(0).toUpperCase() %></span>
-        <div class="row-body"><span class="row-title"><%= m.name %></span><span class="row-meta"><%= m.email %> · <%= m.role === 'admin' ? 'Admin' : 'Member' %><%= m.disabled ? ' · Turned off' : '' %></span></div>
+        <div class="row-body"><span class="row-title"><%= m.name %></span><span class="row-meta"><%= m.email %> · <%= roleNames[m.role] || 'Member' %><%= m.disabled ? ' · Turned off' : '' %></span></div>
         <% if (member.role === 'admin' && String(m._id) !== user.id) { %><a class="link-btn" href="/settings/household/members/<%= m._id %>">Manage<span class="sr-only"> <%= m.name %></span></a><% } %>
       </div>
     <% }) %>
-    <% if (member.role === 'admin') { %>
+    <% if (perms.invite) { %>
       <% invites.forEach((inv) => { %>
         <div class="row">
-          <div class="row-body"><span class="row-title"><%= inv.label || 'Unnamed invite' %></span><span class="row-meta">Waiting to be used</span></div>
+          <div class="row-body"><span class="row-title"><%= inv.label || 'Unnamed invite' %></span><span class="row-meta">Waiting to be used · joins as <%= roleNames[inv.role] || 'Member' %></span></div>
           <form method="post" action="/settings/household/invites/<%= inv._id %>/revoke"><button class="link-btn" type="submit">Cancel<span class="sr-only"> invite<%= inv.label ? ' for ' + inv.label : '' %></span></button></form>
         </div>
       <% }) %>
       <form class="stack" method="post" action="/settings/household/invites">
         <div class="field"><label for="inviteLabel">Who's it for? <span class="muted">(optional)</span></label><input id="inviteLabel" name="label" type="text" maxlength="40" placeholder="e.g. Mom"></div>
+        <% if (perms.admin) { %><div class="field"><label for="inviteRole">Joins as</label><select id="inviteRole" name="role"><% roles.forEach((r) => { %><option value="<%= r.key %>"><%= r.name %></option><% }) %></select><span class="hint">Make someone an admin after they join.</span></div><% } %>
         <button class="btn btn-primary" type="submit">Create invite link</button>
       </form>
     <% } %>
   </section>
+  <% if (perms.admin) { %>
+    <a class="card row menu-row" href="/settings/roles"><span class="row-body"><span class="row-title">Roles and permissions</span><span class="row-meta">What Admin, <%= roles.map((r) => r.name).join(', ') %> can do</span></span><span class="chev" aria-hidden="true">›</span></a>
+  <% } %>
 </main>
 <%- include('../partials/bottom') %>

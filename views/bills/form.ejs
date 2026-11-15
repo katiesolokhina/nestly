@@ -46,7 +46,7 @@
       <% if (receipt) { %><p class="file-row"><a href="/files/<%= receipt._id %>/view?back=/s/bills/<%= item._id %>/edit"><%= receipt.name %></a><label class="inline-check"><input type="checkbox" name="removeReceipt">Remove</label></p><% } %>
       <input id="receipt" name="receipt" type="file" accept="image/*,.pdf">
     </div>
-    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me (not shared or split)<input type="checkbox" name="private" data-private<%= item.private ? ' checked' : '' %>></label><% } %>
+<% if (perms.private) { %>    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me (not shared or split)<input type="checkbox" name="private" data-private<%= item.private ? ' checked' : '' %>></label><% } %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save bill</button>
   </form>
 </main>

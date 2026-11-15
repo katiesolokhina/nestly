@@ -48,7 +48,7 @@ function readForm(req) {
     until,
     category: pick(req.household, 'eventCats', b.category),
     details: String(b.details || '').trim().slice(0, 1000),
-    private: b.private === 'on',
+    private: b.private === 'on' && req.perms.private,
   };
   const chosen = alerts.readAlert(b, !time);
   values.alert = chosen.alert || '60';
@@ -87,7 +87,7 @@ router.get('/s/calendar', async (req, res, next) => {
     const scope = visible(req.user);
     // Filtering by a category shows only those events; reminders have no event category, so they hide.
     // "Reminders" is its own filter, kept apart from event categories so a category can share its name.
-    const remindersOn = req.household.features.remember !== false;
+    const remindersOn = req.sees('remember');
     const cats = ['Uncategorized', ...req.household.eventCats];
     const onlyReminders = remindersOn && req.query.show === 'reminders';
     const cat = !onlyReminders && cats.includes(req.query.cat) ? req.query.cat : '';

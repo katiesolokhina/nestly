@@ -4,6 +4,8 @@ const Activity = require('../models/Activity');
 const Membership = require('../models/Membership');
 const { homesOf } = require('../lib/members');
 const { sectionName } = require('../lib/prefs');
+const { permsFor, roleName } = require('../lib/perms');
+const { SECTIONS } = require('../lib/sections');
 const { bottomBar } = require('../lib/sections');
 
 // Loads the signed-in user and their household, or sends them to /login.
@@ -33,14 +35,27 @@ async function requireAuth(req, res, next) {
     req.user = user;
     req.household = household;
     req.member = member;
+    // What this person's role lets them do here. Pages see the household with sections
+    // they can't see turned off, so menus, Today, and links leave them out.
+    const perms = permsFor(household, member);
+    req.perms = perms;
+    req.sees = (key) => perms.level(key) !== 'hidden';
+    const view = household.toObject();
+    view.features = Object.fromEntries(SECTIONS.map((s) => [s.key, req.sees(s.key)]));
+    req.view = view;
     res.locals.user = user;
     res.locals.member = member;
-    res.locals.household = household;
+    res.locals.household = view;
+    res.locals.perms = perms;
+    res.locals.sees = req.sees;
+    res.locals.canEdit = (key) => perms.level(key) === 'edit';
+    res.locals.roleLabel = roleName(household, member.role);
     res.locals.homes = homes;
     res.locals.secName = (key) => sectionName(household, key);
     res.locals.isAdmin = member.role === 'admin';
+    res.locals.canSettings = perms.settings;
     res.locals.theme = user.theme && user.theme !== 'system' ? user.theme : '';
-    res.locals.nav = (active) => bottomBar(member, household, active);
+    res.locals.nav = (active) => bottomBar(member, view, active);
     res.locals.path = req.originalUrl;
     // One-time messages left by the previous request.
     res.locals.flash = req.session.flash || null;
@@ -62,11 +77,21 @@ function requireAdmin(req, res, next) {
   return res.status(404).send('Not found'); // don't reveal admin pages exist
 }
 
-// Turned-off sections don't exist as far as anyone's concerned.
+// Turned-off sections, and sections someone's role hides, don't exist for them.
+// View-only roles can look but not change anything.
 const requireSection = (key) => (req, res, next) => {
-  if (req.household.features[key] === false) return res.status(404).send('Not found');
+  const level = req.perms ? req.perms.level(key) : req.household.features[key] === false ? 'hidden' : 'edit';
+  if (level === 'hidden') return res.status(404).send('Not found');
+  if (level === 'view' && !['GET', 'HEAD'].includes(req.method)) {
+    if (req.path.startsWith('/api/') || req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'View only' });
+    req.session.flash = `Your role can look at ${sectionName(req.household, key)} but not change it.`;
+    return res.redirect(`/s/${key}`);
+  }
   next();
 };
+
+// A permission from someone's role (Admin has them all): invite, settings, activity, private.
+const requirePerm = (name) => (req, res, next) => (req.perms && req.perms[name] ? next() : res.status(404).send('Not found'));
 
 // CSRF guard: reject state-changing requests sent from another site.
 function sameOrigin(req, res, next) {
@@ -77,4 +102,4 @@ function sameOrigin(req, res, next) {
   return res.status(403).send('Forbidden');
 }
 
-module.exports = { requireAuth, requireAdmin, requireSection, sameOrigin };
+module.exports = { requireAuth, requireAdmin, requireSection, requirePerm, sameOrigin };

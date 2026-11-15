@@ -14,6 +14,7 @@ const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
 const { restock } = require('../lib/pantry');
 const { currency } = require('../lib/prefs');
+const { permsFor } = require('../lib/perms');
 const { membersOf, inHome } = require('../lib/members');
 
 const router = express.Router();
@@ -127,7 +128,8 @@ router.post('/s/shopping/start', async (req, res, next) => {
     if (!claimed.modifiedCount) return;
     const where = store ? `shopping at ${store}` : 'out shopping';
     await logActivity(req.user, { section: SECTION, text: `${req.user.name} started ${where}` });
-    const others = (await membersOf(req.user.householdId, { fields: { notify: 1 } })).filter((u) => String(u._id) !== req.user.id && !(u.notify && u.notify.shopping === false));
+    const others = (await membersOf(req.user.householdId, { fields: { notify: 1 } }))
+      .filter((u) => String(u._id) !== req.user.id && !(u.notify && u.notify.shopping === false) && permsFor(req.household, u).level('shopping') !== 'hidden');
     await Promise.all(others.map((u) => sendToUser(u._id, {
       title: `${req.user.name} is ${where}`,
       body: 'Need anything? Add it to the list now.',
@@ -208,7 +210,7 @@ function readForm(req) {
     ref: String(b.ref || '').trim().slice(0, 160),
     link,
     note: String(b.note || '').trim().slice(0, 300),
-    private: b.private === 'on',
+    private: b.private === 'on' && req.perms.private,
   };
   let error = req.uploadError || null;
   if (!name) error = 'Enter a name for the item.';

@@ -1,0 +1,114 @@
+// Roles and permissions. Admin can do everything; admins set what every other role can do.
+const express = require('express');
+const crypto = require('node:crypto');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+const Membership = require('../models/Membership');
+const { SECTIONS } = require('../lib/sections');
+const { sectionName } = require('../lib/prefs');
+const { LEVELS, EXTRA, rolesOf, roleOf } = require('../lib/perms');
+const { logActivity } = require('../lib/activity');
+
+const router = express.Router();
+router.use('/settings/roles', requireAuth, requireAdmin);
+
+const roleList = (h) => rolesOf(h).map((r) => (typeof r.toObject === 'function' ? r.toObject() : { ...r, sections: { ...r.sections } }));
+
+router.get('/settings/roles', async (req, res, next) => {
+  try {
+    const counts = await Membership.aggregate([{ $match: { householdId: req.household._id } }, { $group: { _id: '$role', n: { $sum: 1 } } }]);
+    const n = (key) => (counts.find((c) => c._id === key) || {}).n || 0;
+    res.render('settings/roles', {
+      active: 'settings',
+      notice: req.session.flash || null,
+      admins: n('admin'),
+      roles: roleList(req.household).map((r) => {
+        const sees = SECTIONS.filter((s) => req.household.features[s.key] !== false);
+        const edit = sees.filter((s) => (r.sections[s.key] || 'edit') === 'edit').map((s) => sectionName(req.household, s.key));
+        const view = sees.filter((s) => r.sections[s.key] === 'view').map((s) => sectionName(req.household, s.key));
+        return { ...r, people: n(r.key), summary: [edit.length ? `Edits ${edit.length === sees.length ? 'everything' : edit.join(', ')}` : '', view.length ? `views ${view.join(', ')}` : ''].filter(Boolean).join('; ') || 'Sees nothing' };
+      }),
+    });
+    delete req.session.flash;
+  } catch (err) {
+    next(err);
+  }
+});
+
+// New role: starts as a copy of the first role, so it's usable right away.
+router.post('/settings/roles', async (req, res, next) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 24);
+    const roles = roleList(req.household);
+    if (!name) { req.session.flash = 'Give the role a name.'; return res.redirect('/settings/roles'); }
+    if (name.toLowerCase() === 'admin' || roles.some((r) => r.name.toLowerCase() === name.toLowerCase())) { req.session.flash = `There’s already a role called ${name}.`; return res.redirect('/settings/roles'); }
+    if (roles.length >= 12) { req.session.flash = 'Up to 12 roles.'; return res.redirect('/settings/roles'); }
+    const base = roles[0] || { sections: {}, invite: false, settings: false, activity: true, private: true };
+    const key = `r${crypto.randomBytes(4).toString('hex')}`;
+    req.household.roles = [...roles, { ...base, key, name, sections: { ...base.sections } }];
+    await req.household.save();
+    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} added the role ${name}` });
+    res.redirect(`/settings/roles/${key}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/settings/roles/:key', (req, res) => {
+  const role = roleOf(req.household, req.params.key);
+  if (!role) return res.status(404).send('Not found');
+  res.render('settings/role', {
+    active: 'settings',
+    role: { ...role, sections: { ...(role.sections || {}) } },
+    sections: SECTIONS.filter((s) => req.household.features[s.key] !== false).map((s) => ({ ...s, label: sectionName(req.household, s.key) })),
+    EXTRA,
+    error: null,
+  });
+});
+
+router.post('/settings/roles/:key', async (req, res, next) => {
+  try {
+    const roles = roleList(req.household);
+    const i = roles.findIndex((r) => r.key === req.params.key);
+    if (i < 0) return res.status(404).send('Not found');
+    const b = req.body || {};
+    const name = String(b.name || '').trim().slice(0, 24) || roles[i].name;
+    if (name.toLowerCase() === 'admin' || roles.some((r, j) => j !== i && r.name.toLowerCase() === name.toLowerCase())) {
+      req.session.flash = `There’s already a role called ${name}.`;
+      return res.redirect(`/settings/roles/${roles[i].key}`);
+    }
+    // Sections that are turned off keep whatever they had, for when they come back on.
+    const sections = { ...roles[i].sections };
+    SECTIONS.forEach((s) => { if (LEVELS.includes(b[`s_${s.key}`])) sections[s.key] = b[`s_${s.key}`]; });
+    roles[i] = { ...roles[i], name, sections, ...Object.fromEntries(Object.keys(EXTRA).map((k) => [k, b[k] === 'on'])) };
+    req.household.roles = roles;
+    await req.household.save();
+    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} changed what ${name} can do` });
+    req.session.flash = `${name} saved.`;
+    res.redirect('/settings/roles');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A role can be deleted once nobody has it (and one role always stays).
+router.post('/settings/roles/:key/delete', async (req, res, next) => {
+  try {
+    const roles = roleList(req.household);
+    const role = roles.find((r) => r.key === req.params.key);
+    if (!role) return res.status(404).send('Not found');
+    const people = await Membership.countDocuments({ householdId: req.household._id, role: role.key });
+    if (people) req.session.flash = `${people} ${people === 1 ? 'person has' : 'people have'} the ${role.name} role. Give them another role first.`;
+    else if (roles.length === 1) req.session.flash = 'Keep at least one role besides Admin.';
+    else {
+      req.household.roles = roles.filter((r) => r.key !== role.key);
+      await req.household.save();
+      await logActivity(req.user, { section: 'Settings', text: `${req.user.name} deleted the role ${role.name}` });
+      req.session.flash = `${role.name} deleted.`;
+    }
+    res.redirect('/settings/roles');
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;

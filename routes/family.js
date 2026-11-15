@@ -1,7 +1,8 @@
 // Admin-only account management, always limited to the admin's own household.
 const express = require('express');
 const mongoose = require('mongoose');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requirePerm } = require('../middleware/auth');
+const { rolesOf, roleName } = require('../lib/perms');
 const User = require('../models/User');
 const Membership = require('../models/Membership');
 const PushSubscription = require('../models/PushSubscription');
@@ -11,7 +12,10 @@ const { logActivity } = require('../lib/activity');
 const { deletePrivateData } = require('../lib/changes');
 
 const router = express.Router();
-router.use('/settings/household', requireAuth, requireAdmin);
+// Invites need the invite permission; managing people is for admins.
+router.use('/settings/household', requireAuth);
+router.use('/settings/household/members', requireAdmin);
+router.use('/settings/household/invites', requirePerm('invite'));
 
 const INVITE_DAYS = 7;
 const RESET_DAYS = 1;
@@ -50,9 +54,12 @@ async function signOutIfNoHomes(userId) {
 router.post('/settings/household/invites', async (req, res, next) => {
   try {
     const label = String(req.body.label || '').trim().slice(0, 40);
-    const { raw } = await AccessToken.issue({ kind: 'invite', householdId: req.user.householdId, createdBy: req.user._id, label, days: INVITE_DAYS });
+    // The role they'll join with. Only admins choose; invites never make someone an admin.
+    const keys = rolesOf(req.household).map((r) => r.key);
+    const role = req.perms.admin && keys.includes(req.body.role) ? req.body.role : keys[0] || 'member';
+    const { raw } = await AccessToken.issue({ kind: 'invite', householdId: req.user.householdId, createdBy: req.user._id, label, role, days: INVITE_DAYS });
     // Shown once on the next page load; only its hash is stored.
-    req.session.flashLink = { kind: 'invite', url: linkFor('invite', raw), label, days: `${INVITE_DAYS} days` };
+    req.session.flashLink = { kind: 'invite', url: linkFor('invite', raw), label, days: `${INVITE_DAYS} days`, role: roleName(req.household, role) };
     await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} created an invite link${label ? ` for ${label}` : ''}` });
     res.redirect('/settings/people');
   } catch (err) {
@@ -77,7 +84,7 @@ router.get('/settings/household/members/:id', async (req, res, next) => {
   try {
     const t = await member(req);
     if (!t) return res.status(404).send('Account not found');
-    res.render('member', { active: 'settings', target: t.view, canReset: await canReset(req, t.user._id) });
+    res.render('member', { active: 'settings', target: t.view, canReset: await canReset(req, t.user._id), roles: rolesOf(req.household) });
   } catch (err) {
     next(err);
   }
@@ -87,10 +94,10 @@ router.post('/settings/household/members/:id/role', async (req, res, next) => {
   try {
     const t = await member(req);
     if (!t) return res.status(404).send('Account not found');
-    if (['admin', 'member'].includes(req.body.role) && t.m.role !== req.body.role) {
+    if (['admin', ...rolesOf(req.household).map((r) => r.key)].includes(req.body.role) && t.m.role !== req.body.role) {
       t.m.role = req.body.role;
       await t.m.save();
-      await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} made ${t.user.name} ${t.m.role === 'admin' ? 'an admin' : 'a member'}` });
+      await logActivity(req.user, { section: SETTINGS_SECTION, text: `${req.user.name} changed ${t.user.name}’s role to ${roleName(req.household, t.m.role)}` });
     }
     res.redirect('/settings/people?saved=role');
   } catch (err) {
@@ -103,7 +110,7 @@ router.post('/settings/household/members/:id/reset', async (req, res, next) => {
     const t = await member(req);
     if (!t) return res.status(404).send('Account not found');
     const target = t.user;
-    if (!(await canReset(req, target._id))) return res.status(403).render('member', { active: 'settings', target: t.view, canReset: false });
+    if (!(await canReset(req, target._id))) return res.status(403).render('member', { active: 'settings', target: t.view, canReset: false, roles: rolesOf(req.household) });
     await AccessToken.deleteMany({ kind: 'reset', userId: target._id, usedAt: null }); // only the newest link works
     const { raw } = await AccessToken.issue({ kind: 'reset', householdId: req.user.householdId, createdBy: req.user._id, userId: target._id, days: RESET_DAYS });
     req.session.flashLink = { kind: 'reset', url: linkFor('reset', raw), label: target.name, days: '24 hours' };

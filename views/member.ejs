@@ -2,8 +2,9 @@
 <main class="stack">
   <div class="head"><div><h1><%= target.name %></h1><p class="sub"><%= target.email %><%= target.disabled ? ' · Turned off here' : '' %></p></div><a class="link-btn" href="/settings/people">Back</a></div>
   <form class="card" method="post" action="/settings/household/members/<%= target._id %>/role">
-    <div class="field"><label for="role">Role in <%= household.name %></label><select id="role" name="role"><option value="member"<%= target.role === 'member' ? ' selected' : '' %>>Member</option><option value="admin"<%= target.role === 'admin' ? ' selected' : '' %>>Admin</option></select></div>
+    <div class="field"><label for="role">Role in <%= household.name %></label><select id="role" name="role"><option value="admin"<%= target.role === 'admin' ? ' selected' : '' %>>Admin (everything)</option><% roles.forEach((r) => { %><option value="<%= r.key %>"<%= target.role === r.key ? ' selected' : '' %>><%= r.name %></option><% }) %></select></div>
     <button class="btn btn-ghost" type="submit">Save role</button>
+    <a class="link-btn" href="/settings/roles">What each role can do</a>
   </form>
   <% if (target.otherHomes) { %><p class="hint"><%= target.name %> is also in <%= target.otherHomes === 1 ? 'another household' : target.otherHomes + ' other households' %>. Changes here only affect <%= household.name %>.</p><% } %>
   <div class="card">

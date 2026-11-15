@@ -22,7 +22,7 @@ async function find(req) {
   return Meal.findOne({ _id: req.params.id, ...visible(req.user) });
 }
 
-const recipesOn = (req) => req.household.features.recipes !== false;
+const recipesOn = (req) => req.sees('recipes');
 
 async function recipesFor(req) {
   if (!recipesOn(req)) return [];
@@ -69,7 +69,7 @@ router.get('/s/meals', async (req, res, next) => {
       next: addDays(start, 7),
       isThisWeek: start === req.weekOf(today),
       lastWeekCount,
-      shoppingOn: req.household.features.shopping !== false,
+      shoppingOn: req.perms.level('shopping') === 'edit',
     });
   } catch (err) {
     next(err);

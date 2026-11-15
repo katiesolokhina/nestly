@@ -1,12 +1,12 @@
 <%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div>
-  <form class="add pantry-add" method="post" action="/s/pantry/quick">
+  <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (canEdit('pantry')) { %><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a><% } %></div>
+  <% if (canEdit('pantry')) { %><form class="add pantry-add" method="post" action="/s/pantry/quick">
     <input type="hidden" name="query" value="<%= query %>">
     <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add to the pantry" placeholder="Add an item" autocomplete="off">
     <select name="spot" aria-label="Where it’s kept"><% household.pantrySpots.forEach((s) => { %><option<%= (spot || defaultSpot) === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
     <button class="btn btn-primary" type="submit">Add</button>
-  </form>
+  </form><% } %>
   <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
   <div class="chips chips-scroll" role="group" aria-label="Filter" data-chip-scroll>
     <a class="chip<%= !show && !spot ? ' on' : '' %>" href="/s/pantry"<%- !show && !spot ? ' aria-current="true"' : '' %>>All</a>

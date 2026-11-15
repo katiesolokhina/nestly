@@ -22,12 +22,12 @@ const list = (v) => [].concat(v == null ? [] : v).map(String);
 // What to shop for: one recipe, or the recipes planned for a week (from today on, for this week).
 async function source(req) {
   const q = { ...req.query, ...req.body };
-  if (q.recipe && mongoose.isValidObjectId(q.recipe) && req.household.features.recipes !== false) {
+  if (q.recipe && mongoose.isValidObjectId(q.recipe) && req.sees('recipes')) {
     const r = await Recipe.findOne({ _id: q.recipe, ...visible(req.user) }).lean();
     if (!r) return null;
     return { kind: 'recipe', title: r.title, back: `/s/recipes/${r._id}`, hidden: { recipe: String(r._id) }, recipes: [r], note: '' };
   }
-  if (isDate(q.week) && req.household.features.meals !== false) {
+  if (isDate(q.week) && req.sees('meals')) {
     const today = todayIn(req.user.timezone);
     const start = weekOfFor(req.household)(q.week);
     const end = addDays(start, 6);
@@ -55,7 +55,7 @@ async function review(req, src) {
   const [onList, usual, pantry] = await Promise.all([
     ShoppingItem.find({ ...visible(req.user), key: { $in: keys }, bought: false, clearedAt: null }, { key: 1 }).lean(),
     CatalogItem.find({ householdId: req.user.householdId, key: { $in: keys }, usuallyHave: true }, { key: 1 }).lean(),
-    req.household.features.pantry !== false ? PantryItem.find({ householdId: req.user.householdId, key: { $in: keys }, status: 'have' }, { key: 1, amount: 1 }).lean() : [],
+    req.sees('pantry') ? PantryItem.find({ householdId: req.user.householdId, key: { $in: keys }, status: 'have' }, { key: 1, amount: 1 }).lean() : [],
   ]);
   const listed = new Set(onList.map((x) => x.key));
   const have = new Set(usual.map((x) => x.key));

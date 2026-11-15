@@ -25,7 +25,7 @@ async function readForm(req) {
   const b = req.body;
   const text = String(b.text || '').trim().slice(0, 160);
   const date = String(b.date || '');
-  const isPrivate = b.private === 'on';
+  const isPrivate = b.private === 'on' && req.perms.private;
   let notify = NOTIFY.includes(b.notify) ? b.notify : 'all';
   const ids = new Set([].concat(b.notifyTo || []).map(String));
   const notifyTo = notify === 'some' ? (await membersOf(req)).filter((m) => ids.has(String(m._id))).map((m) => m._id) : [];

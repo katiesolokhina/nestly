@@ -12,6 +12,7 @@ const accessTokenSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // empty when made by a server script
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // reset: whose password
     label: { type: String, trim: true, maxlength: 40 },             // invite: who it's for
+    role: { type: String, default: 'member' },                      // invite: the role they join with
     expiresAt: { type: Date, required: true },
     usedAt: { type: Date, default: null },
   },
@@ -23,10 +24,10 @@ accessTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const hash = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
 
-accessTokenSchema.statics.issue = async function ({ kind, householdId, createdBy, userId, label, days }) {
+accessTokenSchema.statics.issue = async function ({ kind, householdId, createdBy, userId, label, role, days }) {
   const raw = crypto.randomBytes(32).toString('base64url');
   const doc = await this.create({
-    kind, householdId, createdBy, userId, label,
+    kind, householdId, createdBy, userId, label, role,
     tokenHash: hash(raw),
     expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
   });

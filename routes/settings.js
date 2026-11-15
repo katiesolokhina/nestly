@@ -7,6 +7,7 @@ const { SECTIONS, MAX_PINS, enabledSections } = require('../lib/sections');
 const { deleteUserSessions } = require('../lib/sessions');
 const { logActivity } = require('../lib/activity');
 const { sectionName } = require('../lib/prefs');
+const { rolesOf } = require('../lib/perms');
 const { membersOf } = require('../lib/members');
 
 const router = express.Router();
@@ -31,14 +32,14 @@ router.get('/settings', requireAuth, (req, res) => {
   res.render('settings', {
     active: 'settings',
     notice: NOTICES[req.query.saved] || null,
-    sectionRows: enabledSections(req.household).filter((s) => s.key !== 'chores'),
+    sectionRows: enabledSections(req.view).filter((s) => s.key !== 'chores' && req.perms.level(s.key) === 'edit'),
   });
 });
 
 const page = (view, extra = {}) => (req, res) => res.render(view, { active: 'settings', notice: NOTICES[req.query.saved] || null, ...extra });
 router.get('/settings/appearance', requireAuth, page('settings/appearance'));
 router.get('/settings/notifications', requireAuth, page('settings/notifications'));
-router.get('/settings/bottom-bar', requireAuth, (req, res) => page('settings/bottom-bar', { pinOptions: enabledSections(req.household).map((s) => ({ ...s, label: sectionName(req.household, s.key) })), maxPins: MAX_PINS })(req, res));
+router.get('/settings/bottom-bar', requireAuth, (req, res) => page('settings/bottom-bar', { pinOptions: enabledSections(req.view).map((s) => ({ ...s, label: sectionName(req.household, s.key) })), maxPins: MAX_PINS })(req, res));
 
 // People: everyone can see who's in the household; admins invite and manage.
 router.get('/settings/people', requireAuth, async (req, res, next) => {
@@ -47,12 +48,14 @@ router.get('/settings/people', requireAuth, async (req, res, next) => {
     const members = await membersOf(householdId, { fields: { email: 1 }, includeDisabled: true });
     let invites = [];
     let link = null;
-    if (req.member.role === 'admin') {
+    if (req.perms.invite) {
       invites = await AccessToken.find({ kind: 'invite', householdId, usedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 }).lean();
       link = req.session.flashLink || null;
       delete req.session.flashLink; // a new link is shown exactly once
     }
-    res.render('settings/people', { active: 'settings', notice: NOTICES[req.query.saved] || null, members, invites, link });
+    const roles = rolesOf(req.household);
+    const roleNames = { admin: 'Admin', ...Object.fromEntries(roles.map((r) => [r.key, r.name])) };
+    res.render('settings/people', { active: 'settings', notice: NOTICES[req.query.saved] || null, members, invites, link, roles, roleNames });
   } catch (err) {
     next(err);
   }

@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Home info', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('info') %><%- include('../partials/gear', { key: 'info' }) %></h1><p class="sub">Wi-Fi, codes, contacts, appliances, and how-tos</p></div><a class="btn btn-primary" href="/s/info/new<%= type ? '?type=' + encodeURIComponent(type) : '' %>">Add</a></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('info') %><%- include('../partials/gear', { key: 'info' }) %></h1><p class="sub">Wi-Fi, codes, contacts, appliances, and how-tos</p></div><% if (canEdit('info')) { %><a class="btn btn-primary" href="/s/info/new<%= type ? '?type=' + encodeURIComponent(type) : '' %>">Add</a><% } %></div>
   <form class="add" method="get" action="/s/info" role="search">
     <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
     <input type="search" name="q" value="<%= q %>" maxlength="60" aria-label="Search home info" placeholder="Search">

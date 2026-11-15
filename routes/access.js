@@ -76,7 +76,7 @@ router.post('/invite/:token/join', linkLimiter, async (req, res, next) => {
     }
     const invite = await AccessToken.claim('invite', req.params.token);
     if (!invite) return res.status(410).render('link-invalid', { reason: INVALID });
-    await Membership.create({ userId: me._id, householdId: invite.householdId, role: 'member', invitedBy: invite.createdBy });
+    await Membership.create({ userId: me._id, householdId: invite.householdId, role: invite.role || 'member', invitedBy: invite.createdBy });
     req.session.householdId = String(invite.householdId);
     await logActivity({ ...me.toObject(), householdId: invite.householdId }, { section: 'Settings', text: `${me.name} joined the household` });
     res.redirect('/');
@@ -116,7 +116,7 @@ router.post('/invite/:token', linkLimiter, async (req, res, next) => {
         email, name, timezone, householdId: invite.householdId, invitedBy: invite.createdBy,
         passwordHash: await User.hashPassword(password),
       });
-      await Membership.create({ userId: user._id, householdId: invite.householdId, role: 'member', invitedBy: invite.createdBy });
+      await Membership.create({ userId: user._id, householdId: invite.householdId, role: invite.role || 'member', invitedBy: invite.createdBy });
     } catch (err) {
       await AccessToken.updateOne({ _id: invite._id }, { $set: { usedAt: null } }); // give the link back
       if (err.code === 11000) {

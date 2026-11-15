@@ -1,0 +1,25 @@
+<%- include('../partials/top', { title: 'Roles and permissions', scripts: ['confirm'] }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Roles and permissions', sub: household.name, back: '/settings/people' }) %>
+  <div class="card">
+    <div class="row">
+      <span class="menu-ico" aria-hidden="true">A</span>
+      <div class="row-body"><span class="row-title">Admin</span><span class="row-meta">Can do everything, including people, roles, and sections · <%= admins %> <%= admins === 1 ? 'person' : 'people' %></span></div>
+    </div>
+    <% roles.forEach((r) => { %>
+      <a class="row menu-row" href="/settings/roles/<%= r.key %>">
+        <span class="menu-ico" aria-hidden="true"><%= r.name.charAt(0).toUpperCase() %></span>
+        <span class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= r.summary %> · <%= r.people %> <%= r.people === 1 ? 'person' : 'people' %></span></span>
+        <span class="chev" aria-hidden="true">›</span>
+      </a>
+    <% }) %>
+  </div>
+  <form class="card stack" method="post" action="/settings/roles">
+    <h2>Add a role</h2>
+    <div class="field"><label for="roleName">Name</label><input id="roleName" name="name" type="text" maxlength="24" placeholder="Grandparent, Babysitter, Roommate…" required></div>
+    <button class="btn btn-primary btn-block" type="submit">Add role</button>
+    <p class="hint">It starts with the same permissions as <%= roles[0] ? roles[0].name : 'Member' %>, and you can change them next.</p>
+  </form>
+  <p class="hint">Give someone a role from People, then Manage. Invites can also choose the role someone joins with.</p>
+</main>
+<%- include('../partials/bottom') %>

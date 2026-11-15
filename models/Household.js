@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { SECTIONS } = require('../lib/sections');
+const { STARTER_ROLES } = require('../lib/perms');
 
 // Everything shared belongs to a household, so one person's data can never reach another home.
 const featureDefaults = Object.fromEntries(SECTIONS.map((s) => [s.key, { type: Boolean, default: true }]));
@@ -23,6 +24,21 @@ const householdSchema = new mongoose.Schema(
     // Colors for event categories. Categories without one get a color from the palette.
     reminderColor: { type: String, default: '#A77BC9' },
     eventColors: { type: [{ _id: false, name: String, color: String }], default: [] },
+
+    // Roles besides Admin, and what each can do. See lib/perms.js.
+    roles: {
+      type: [{
+        _id: false,
+        key: { type: String, required: true },
+        name: { type: String, trim: true, maxlength: 24, required: true },
+        sections: Object.fromEntries(SECTIONS.map((s) => [s.key, { type: String, enum: ['hidden', 'view', 'edit'], default: 'edit' }])),
+        invite: { type: Boolean, default: false },
+        settings: { type: Boolean, default: false },
+        activity: { type: Boolean, default: true },
+        private: { type: Boolean, default: true },
+      }],
+      default: () => STARTER_ROLES.map((r) => ({ ...r, sections: { ...r.sections } })),
+    },
 
     // ---------- Household settings (admins change these in Settings) ----------
     // Section names as the household calls them ("Remember" -> "Reminders"). Missing means the default.

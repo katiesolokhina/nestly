@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Meals' }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('meals') %><%- include('../partials/gear', { key: 'meals' }) %></h1><p class="sub"><%= count %> planned · <%= range %></p></div><a class="btn btn-primary" href="/s/meals/new?date=<%= isThisWeek ? '' : start %>">Add</a></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('meals') %><%- include('../partials/gear', { key: 'meals' }) %></h1><p class="sub"><%= count %> planned · <%= range %></p></div><% if (canEdit('meals')) { %><a class="btn btn-primary" href="/s/meals/new?date=<%= isThisWeek ? '' : start %>">Add</a><% } %></div>
   <div class="card">
     <div class="row-h">
       <a class="icon-link" href="/s/meals?week=<%= prev %>" aria-label="Previous week">‹</a>

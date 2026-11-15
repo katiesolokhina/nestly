@@ -67,6 +67,7 @@ app.use(require('./routes/files'));
 app.use(require('./routes/home'));
 app.use(require('./routes/settings'));
 app.use(require('./routes/family'));
+app.use(require('./routes/roles'));
 
 app.use((req, res) => res.status(404).send('Not found'));
 app.use((err, req, res, next) => {

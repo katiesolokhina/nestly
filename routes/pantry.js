@@ -60,7 +60,7 @@ router.get('/s/pantry', async (req, res, next) => {
     const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
     res.render('pantry/list', {
       active: 'pantry', groups, catalog, show, spot, query, total: items.length,
-      lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.household.features.shopping !== false && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
+      lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {
     next(err);

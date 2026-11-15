@@ -6,7 +6,7 @@ const membershipSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     householdId: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true },
-    role: { type: String, enum: ['admin', 'member'], default: 'member' },
+    role: { type: String, default: 'member' }, // 'admin', or the key of one of the household's roles
     disabled: { type: Boolean, default: false }, // turned off by an admin of this household
     invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     // Sections pinned to this person's bottom bar here (up to 3).

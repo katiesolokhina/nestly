@@ -30,12 +30,12 @@
       </div>
       <button class="btn btn-ghost" type="submit">Filter</button>
     </form>
-    <form class="add" method="post" action="/s/shopping/quick">
+    <% if (canEdit('shopping')) { %><form class="add" method="post" action="/s/shopping/quick">
       <input type="hidden" name="query" value="<%= query %>">
       <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add an item" placeholder="Add an item" autocomplete="off">
       <button class="btn btn-primary" type="submit">Add</button>
       <a class="btn btn-ghost" href="/s/shopping/new">Details</a>
-    </form>
+    </form><% } %>
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
     <% if (staples.length) { %>
       <div><p class="aisle">Staples: tap to add</p><div class="staples"><% staples.forEach((s) => { %><form method="post" action="/s/shopping/quick"><input type="hidden" name="name" value="<%= s.name %>"><input type="hidden" name="query" value="<%= query %>"><button class="staple" type="submit">+ <%= s.name %></button></form><% }) %></div></div>
