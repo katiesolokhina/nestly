@@ -142,12 +142,33 @@ test('households', async (t) => {
     assert.deepEqual((await Membership.findOne({ userId: app.seeded.katieId, householdId: lakeId }).lean()).pins, ['shopping', 'calendar']);
   });
 
+  // Deleting: blocked while others are in it, and for members; works once you're alone.
+  // Someone still in it, even turned off, blocks it.
+  await withDb(app.uri, async () => Membership.create({ userId: samId, householdId: lakeId, disabled: true }));
+  page = await katie(`/households/${lakeId}/delete`);
+  assert.match(page.text, /1 other person is still in Lake house/);
+  assert.equal((await katie(`/households/${lakeId}/delete`, { method: 'POST', form: { confirmName: 'Lake house' } })).status, 409);
+  await withDb(app.uri, async () => Membership.deleteMany({ householdId: lakeId, userId: { $ne: app.seeded.katieId } }));
+  r = await katie(`/households/${lakeId}/delete`, { method: 'POST', form: { confirmName: 'lake house' } });
+  assert.equal(r.status, 422);
+  r = await katie(`/households/${lakeId}/delete`, { method: 'POST', form: { confirmName: 'Lake house' } });
+  assert.equal(r.location, '/households');
+  await withDb(app.uri, async () => {
+    assert.equal(await Household.countDocuments({ _id: lakeId }), 0);
+    assert.equal(await ShoppingItem.countDocuments({ householdId: lakeId }), 0);
+    assert.equal(await Membership.countDocuments({ householdId: lakeId }), 0);
+  });
+  assert.equal((await katie('/')).status, 200); // landed in Home
+  // Your only household can't be deleted.
+  assert.match((await sam(`/households/${homeId}/delete`)).text, /Only an admin|only household|still in/);
+  r = await katie(`/households/${homeId}/delete`, { method: 'POST', form: { confirmName: 'Home' } });
+  assert.equal(r.status, 409);
+
   // The server script adds an existing account as admin of a new household.
   const { spawnSync } = require('node:child_process');
   const made = spawnSync(process.execPath, ['scripts/create-household.js', '--household=Office', '--name=Sam', '--email=sam@test.dev'], { cwd: require('node:path').join(__dirname, '..'), env: { ...process.env, MONGODB_URI: app.uri }, encoding: 'utf8' });
   assert.equal(made.status, 0, made.stderr);
   assert.match((await sam('/households')).text, /Office/);
-  void ShoppingItem;
 });
 
 test('notifications from every household', async (t) => {

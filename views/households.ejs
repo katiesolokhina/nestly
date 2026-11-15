@@ -20,11 +20,15 @@
   </form>
   <% const leavable = rows.filter((h) => h.canLeave); if (rows.length > 1) { %>
     <section class="card">
-      <h2>Leave a household</h2>
+      <h2>Leave or delete a household</h2>
       <% if (!leavable.length) { %><p class="row-meta">To leave a household, someone else has to be there, and another admin if you’re its admin.</p><% } %>
       <% leavable.forEach((h) => { %>
         <form method="post" action="/households/<%= h.householdId %>/leave" data-confirm="Leave <%= h.name %>? Your private items there are deleted. Shared items stay."><button class="link-btn link-danger" type="submit">Leave <%= h.name %></button></form>
       <% }) %>
+      <% rows.filter((h) => h.canDelete).forEach((h) => { %>
+        <a class="link-btn link-danger" href="/households/<%= h.householdId %>/delete">Delete <%= h.name %></a>
+      <% }) %>
+      <p class="hint">A household can be deleted by its admin once everyone else has been removed.</p>
     </section>
   <% } %>
 </main>

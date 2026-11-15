@@ -1,0 +1,16 @@
+<%- include('partials/top', { title: 'Delete household' }) %>
+<main class="stack">
+  <div class="head"><h1>Delete <%= home.name %>?</h1><a class="link-btn" href="/households">Cancel</a></div>
+  <% if (reason) { %>
+    <div class="card"><p><%= reason %></p><a class="btn btn-ghost btn-block" href="/households">Back to households</a></div>
+  <% } else { %>
+    <form class="card" method="post" action="/households/<%= home._id %>/delete" novalidate>
+      <p>This permanently deletes <strong><%= home.name %></strong> and everything in it: shopping, reminders, calendar, recipes, meals, bills, pantry, home info, files, and history. It can’t be undone.</p>
+      <p class="hint">Want a copy first? Run a backup on the server before deleting.</p>
+      <div class="field"><label for="confirmName">Type <strong><%= home.name %></strong> to confirm</label><input id="confirmName" name="confirmName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+        <% if (error) { %><span class="field-error" role="alert"><%= error %></span><% } %></div>
+      <button class="btn btn-danger btn-block" type="submit">Delete household permanently</button>
+    </form>
+  <% } %>
+</main>
+<%- include('partials/bottom') %>

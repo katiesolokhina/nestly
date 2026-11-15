@@ -52,6 +52,7 @@ One sign-in can belong to several households. Each person's role (admin or membe
 - **Join** another household by opening its invite link while signed in.
 - Notifications come from every household, titled with the household's name, and open it.
 - An admin can make a password reset link only if they're an admin in all of that person's households.
+- An admin can delete a household once everyone else has been removed (not your only one); it deletes all its data and files.
 - `scripts/create-household.js` with an email that already has an account makes them the new household's admin.
 
 Accounts from before this change get their membership automatically when the server starts.

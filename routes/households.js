@@ -7,6 +7,32 @@ const Membership = require('../models/Membership');
 const User = require('../models/User');
 const { logActivity } = require('../lib/activity');
 const { deletePrivateData } = require('../lib/changes');
+const { deleteUploads } = require('../lib/uploads');
+const AccessToken = require('../models/AccessToken');
+const Activity = require('../models/Activity');
+
+// Everything that belongs to a household, for deleting one.
+const HOUSEHOLD_DATA = ['ShoppingItem', 'CatalogItem', 'Reminder', 'Event', 'Recipe', 'Meal', 'Bill', 'BillSeries', 'PantryItem', 'InfoItem']
+  .map((name) => require(`../models/${name}`));
+
+// Deleting needs: admin there, nobody else in it (even turned off), and another household to go to.
+async function deleteCheck(req, householdId) {
+  if (!mongoose.isValidObjectId(householdId)) return { status: 404 };
+  const [m, home] = await Promise.all([
+    Membership.findOne({ userId: req.user._id, householdId }).lean(),
+    Household.findById(householdId).lean(),
+  ]);
+  if (!m || !home) return { status: 404 };
+  const [others, mine] = await Promise.all([
+    Membership.countDocuments({ householdId, userId: { $ne: req.user._id } }),
+    Membership.countDocuments({ userId: req.user._id, disabled: false, householdId: { $ne: home._id } }),
+  ]);
+  let reason = '';
+  if (m.role !== 'admin') reason = 'Only an admin can delete a household.';
+  else if (others) reason = `${others} other ${others === 1 ? 'person is' : 'people are'} still in ${home.name}. Remove them in Settings first.`;
+  else if (!mine) reason = 'This is your only household, so it can’t be deleted.';
+  return { home, reason };
+}
 
 const router = express.Router();
 
@@ -42,6 +68,7 @@ router.get('/households', requireAuth, async (req, res, next) => {
         people: n(counts, h.householdId),
         // Leaving is blocked when you're the only person, or the only admin with others still there.
         canLeave: res.locals.homes.length > 1 && n(counts, h.householdId) > 1 && !(h.role === 'admin' && n(admins, h.householdId) === 1),
+        canDelete: res.locals.homes.length > 1 && h.role === 'admin',
       })),
     });
   } catch (err) {
@@ -86,6 +113,41 @@ router.post('/households', requireAuth, async (req, res, next) => {
     await logActivity({ ...req.user.toObject(), householdId: home._id }, { section: 'Settings', text: `${req.user.name} started ${name}` });
     req.session.flash = `Welcome to ${name}. Invite people from Settings.`;
     res.redirect('/settings#household');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/households/:id/delete', requireAuth, async (req, res, next) => {
+  try {
+    const { status, home, reason } = await deleteCheck(req, req.params.id);
+    if (status) return res.status(status).send('Not found');
+    res.render('household-delete', { active: 'settings', home, reason, error: null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/households/:id/delete', requireAuth, async (req, res, next) => {
+  try {
+    const { status, home, reason } = await deleteCheck(req, req.params.id);
+    if (status) return res.status(status).send('Not found');
+    if (reason) return res.status(409).render('household-delete', { active: 'settings', home, reason, error: null });
+    if (String(req.body.confirmName || '').trim() !== home.name) {
+      return res.status(422).render('household-delete', { active: 'settings', home, reason: '', error: `Type ${home.name} exactly to confirm.` });
+    }
+    const filter = { householdId: home._id };
+    await Promise.all([
+      ...HOUSEHOLD_DATA.map((M) => M.deleteMany(filter)),
+      deleteUploads(filter), // the files themselves too
+      Activity.deleteMany(filter),
+      AccessToken.deleteMany(filter),
+      Membership.deleteMany(filter),
+    ]);
+    await Household.deleteOne({ _id: home._id });
+    if (String(req.session.householdId) === String(home._id)) delete req.session.householdId;
+    req.session.flash = `${home.name} was deleted.`;
+    res.redirect('/households');
   } catch (err) {
     next(err);
   }
