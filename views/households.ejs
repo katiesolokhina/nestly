@@ -1,0 +1,31 @@
+<%- include('partials/top', { title: 'Households', scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><div><h1>Households</h1><p class="sub">One sign-in for every household you’re in.</p></div><a class="link-btn" href="/settings">Back</a></div>
+  <div class="card">
+    <% rows.forEach((h) => { %>
+      <div class="row">
+        <span class="avatar" aria-hidden="true"><%= h.name.charAt(0).toUpperCase() %></span>
+        <div class="row-body"><span class="row-title"><%= h.name %></span><span class="row-meta"><%= h.people %> <%= h.people === 1 ? 'person' : 'people' %> · <%= h.role === 'admin' ? 'Admin' : 'Member' %></span></div>
+        <% if (h.current) { %><span class="tag lilac">Open</span><% } else { %>
+          <form method="post" action="/households/switch"><input type="hidden" name="id" value="<%= h.householdId %>"><button class="btn btn-ghost btn-sm" type="submit">Switch<span class="sr-only"> to <%= h.name %></span></button></form>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+  <form class="card" method="post" action="/households">
+    <h2>Start a new household</h2>
+    <p class="row-meta">You’ll be its admin, and can invite people from Settings. Each household has its own lists, bills, and sections.</p>
+    <div class="field"><label for="hname">Name</label><input id="hname" name="name" type="text" maxlength="60" placeholder="Mom’s house, Lake cabin…" required></div>
+    <button class="btn btn-primary btn-block" type="submit">Start household</button>
+  </form>
+  <% const leavable = rows.filter((h) => h.canLeave); if (rows.length > 1) { %>
+    <section class="card">
+      <h2>Leave a household</h2>
+      <% if (!leavable.length) { %><p class="row-meta">To leave a household, someone else has to be there, and another admin if you’re its admin.</p><% } %>
+      <% leavable.forEach((h) => { %>
+        <form method="post" action="/households/<%= h.householdId %>/leave" data-confirm="Leave <%= h.name %>? Your private items there are deleted. Shared items stay."><button class="link-btn link-danger" type="submit">Leave <%= h.name %></button></form>
+      <% }) %>
+    </section>
+  <% } %>
+</main>
+<%- include('partials/bottom') %>

@@ -12,8 +12,9 @@
     <div class="field"><label for="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required>
       <% if (errors.confirmPassword) { %><span class="field-error"><%= errors.confirmPassword %></span><% } %></div>
     <button class="btn btn-primary btn-block" type="submit">Change password</button>
-    <p class="row-meta"><%= user.role === 'admin' ? 'Forgot it? Another admin can create a reset link for you.' : 'Forgot it? Ask your household admin for a reset link.' %></p>
+    <p class="row-meta"><%= member.role === 'admin' ? 'Forgot it? Another admin can create a reset link for you.' : 'Forgot it? Ask your household admin for a reset link.' %></p>
   </form>
+  <a class="card row bill-row" href="/households"><span class="row-body"><span class="row-title">Households</span><span class="row-meta"><%= homes.length === 1 ? 'Start a new one, or join another with an invite link' : 'You’re in ' + homes.length + '. Switch, start, or leave one' %></span></span><span aria-hidden="true">›</span></a>
   <div class="card">
     <h2>Signed-in devices</h2>
     <form method="post" action="/logout"><button class="btn btn-ghost btn-block" type="submit">Sign out</button></form>

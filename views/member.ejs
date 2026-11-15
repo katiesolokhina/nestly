@@ -1,20 +1,25 @@
 <%- include('partials/top', { title: target.name, scripts: ['confirm'] }) %>
 <main class="stack">
-  <div class="head"><div><h1><%= target.name %></h1><p class="sub"><%= target.email %><%= target.disabled ? ' · Turned off' : '' %></p></div><a class="link-btn" href="/settings#household">Back</a></div>
+  <div class="head"><div><h1><%= target.name %></h1><p class="sub"><%= target.email %><%= target.disabled ? ' · Turned off here' : '' %></p></div><a class="link-btn" href="/settings#household">Back</a></div>
   <form class="card" method="post" action="/settings/household/members/<%= target._id %>/role">
-    <div class="field"><label for="role">Role</label><select id="role" name="role"><option value="member"<%= target.role === 'member' ? ' selected' : '' %>>Member</option><option value="admin"<%= target.role === 'admin' ? ' selected' : '' %>>Admin</option></select></div>
+    <div class="field"><label for="role">Role in <%= household.name %></label><select id="role" name="role"><option value="member"<%= target.role === 'member' ? ' selected' : '' %>>Member</option><option value="admin"<%= target.role === 'admin' ? ' selected' : '' %>>Admin</option></select></div>
     <button class="btn btn-ghost" type="submit">Save role</button>
   </form>
+  <% if (target.otherHomes) { %><p class="hint"><%= target.name %> is also in <%= target.otherHomes === 1 ? 'another household' : target.otherHomes + ' other households' %>. Changes here only affect <%= household.name %>.</p><% } %>
   <div class="card">
-    <h2>Sign-in</h2>
+    <h2>Access</h2>
     <% if (!target.disabled) { %>
-      <p class="row-meta">Forgot their password? Create a one-time link and send it to them. Admins never see passwords.</p>
-      <form method="post" action="/settings/household/members/<%= target._id %>/reset"><button class="btn btn-ghost btn-block" type="submit">Create a one-time reset link</button></form>
-      <form method="post" action="/settings/household/members/<%= target._id %>/disable" data-confirm="Turn off <%= target.name %>'s account? They'll be signed out and can't sign in until you turn it back on."><button class="btn btn-ghost btn-block" type="submit">Turn off sign-in</button></form>
+      <% if (canReset) { %>
+        <p class="row-meta">Forgot their password? Create a one-time link and send it to them. Admins never see passwords.</p>
+        <form method="post" action="/settings/household/members/<%= target._id %>/reset"><button class="btn btn-ghost btn-block" type="submit">Create a one-time reset link</button></form>
+      <% } else { %>
+        <p class="row-meta">Because <%= target.name %> is in another household you don’t run, only they can change their password (Account, then Change password).</p>
+      <% } %>
+      <form method="post" action="/settings/household/members/<%= target._id %>/disable" data-confirm="Turn off <%= target.name %> in <%= household.name %>? They won't see this household until you turn them back on."><button class="btn btn-ghost btn-block" type="submit">Turn off in this household</button></form>
     <% } else { %>
-      <form method="post" action="/settings/household/members/<%= target._id %>/enable"><button class="btn btn-ghost btn-block" type="submit">Turn sign-in back on</button></form>
+      <form method="post" action="/settings/household/members/<%= target._id %>/enable"><button class="btn btn-ghost btn-block" type="submit">Turn back on</button></form>
     <% } %>
-    <a class="link-btn link-danger" href="/settings/household/members/<%= target._id %>/delete">Delete account</a>
+    <a class="link-btn link-danger" href="/settings/household/members/<%= target._id %>/delete">Remove from household</a>
   </div>
 </main>
 <%- include('partials/bottom') %>

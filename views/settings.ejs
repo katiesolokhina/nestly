@@ -79,7 +79,7 @@
   </section>
 
   <section class="card" id="household" aria-labelledby="hh">
-    <h2 id="hh">Household</h2>
+    <div class="row-h"><h2 id="hh"><%= household.name %></h2><a class="link-btn" href="/households"><%= homes.length > 1 ? 'Switch households' : 'Households' %></a></div>
     <% if (link) { %>
       <div class="link-box" role="status">
         <strong><%= link.kind === 'invite' ? 'Invite link' : 'Password reset link' %><%= link.label ? ' for ' + link.label : '' %></strong>
@@ -95,10 +95,10 @@
       <div class="row">
         <span class="avatar" aria-hidden="true"><%= m.name.charAt(0).toUpperCase() %></span>
         <div class="row-body"><span class="row-title"><%= m.name %></span><span class="row-meta"><%= m.email %> · <%= m.role === 'admin' ? 'Admin' : 'Member' %><%= m.disabled ? ' · Turned off' : '' %></span></div>
-        <% if (user.role === 'admin' && String(m._id) !== user.id) { %><a class="link-btn" href="/settings/household/members/<%= m._id %>">Manage<span class="sr-only"> <%= m.name %></span></a><% } %>
+        <% if (member.role === 'admin' && String(m._id) !== user.id) { %><a class="link-btn" href="/settings/household/members/<%= m._id %>">Manage<span class="sr-only"> <%= m.name %></span></a><% } %>
       </div>
     <% }) %>
-    <% if (user.role === 'admin') { %>
+    <% if (member.role === 'admin') { %>
       <% invites.forEach((inv) => { %>
         <div class="row">
           <div class="row-body"><span class="row-title"><%= inv.label || 'Unnamed invite' %></span><span class="row-meta">Waiting to be used</span></div>
@@ -112,7 +112,7 @@
     <% } %>
   </section>
 
-  <% if (user.role === 'admin') { %>
+  <% if (member.role === 'admin') { %>
     <form class="card" method="post" action="/settings/sections">
       <h2>Sections</h2>
       <p class="row-meta">Turning a section off hides it for the household and keeps its data.</p>
@@ -130,7 +130,7 @@
   <form class="card" method="post" action="/settings/pins">
     <h2>Bottom bar</h2>
     <p class="row-meta">Pin up to <%= maxPins %> sections. Everything else stays under More. This only changes your view.</p>
-    <% pinOptions.forEach((s) => { %><label class="check-row"><%= s.label %><input type="checkbox" name="pins" value="<%= s.key %>"<%= user.pins.includes(s.key) ? ' checked' : '' %>></label><% }) %>
+    <% pinOptions.forEach((s) => { %><label class="check-row"><%= s.label %><input type="checkbox" name="pins" value="<%= s.key %>"<%= member.pins.includes(s.key) ? ' checked' : '' %>></label><% }) %>
     <button class="btn btn-ghost" type="submit">Save bottom bar</button>
   </form>
 

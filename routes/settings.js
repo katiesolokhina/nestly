@@ -6,6 +6,7 @@ const AccessToken = require('../models/AccessToken');
 const { SECTIONS, MAX_PINS, enabledSections } = require('../lib/sections');
 const { deleteUserSessions } = require('../lib/sessions');
 const { logActivity } = require('../lib/activity');
+const { membersOf } = require('../lib/members');
 
 const router = express.Router();
 
@@ -17,19 +18,20 @@ const NOTICES = {
   pinLimit: `The bottom bar holds ${MAX_PINS} sections, so only the first ${MAX_PINS} were saved.`,
   sections: 'Sections saved.',
   revoked: 'Invite canceled.',
-  disabled: 'Account turned off. They were signed out everywhere.',
+  disabled: 'Turned off. They can’t use this household until it’s turned back on.',
   enabled: 'Account turned back on.',
   role: 'Role saved.',
-  removed: 'Account deleted.',
+  removed: 'Removed from the household.',
+  left: 'You left that household.',
 };
 
 router.get('/settings', requireAuth, async (req, res, next) => {
   try {
     const { householdId } = req.user;
-    const members = await User.find({ householdId }, { name: 1, email: 1, role: 1, disabled: 1 }).sort({ createdAt: 1 }).lean();
+    const members = await membersOf(householdId, { fields: { email: 1 }, includeDisabled: true });
     let invites = [];
     let link = null;
-    if (req.user.role === 'admin') {
+    if (req.member.role === 'admin') {
       invites = await AccessToken.find({ kind: 'invite', householdId, usedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 }).lean();
       link = req.session.flashLink || null;
       delete req.session.flashLink; // a new link is shown exactly once
@@ -100,8 +102,8 @@ router.post('/settings/notifications', requireAuth, async (req, res, next) => {
 router.post('/settings/pins', requireAuth, async (req, res, next) => {
   try {
     const chosen = [].concat(req.body.pins || []).filter((k) => SECTIONS.some((s) => s.key === k));
-    req.user.pins = [...new Set(chosen)].slice(0, MAX_PINS);
-    await req.user.save();
+    req.member.pins = [...new Set(chosen)].slice(0, MAX_PINS);
+    await req.member.save();
     res.redirect(`/settings?saved=${new Set(chosen).size > MAX_PINS ? 'pinLimit' : 'pins'}`);
   } catch (err) {
     next(err);

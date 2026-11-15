@@ -294,3 +294,7 @@ input[type="email"].info-value, input[type="tel"] { min-height: 44px; width: 100
 .notice.warn { background: #FBEBDD; color: #7A3E12; }
 :root[data-theme="dark"] .notice.warn { background: #3A2618; color: #F2C29C; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .notice.warn { background: #3A2618; color: #F2C29C; } }
+
+/* Households */
+.brand-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.home-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 46vw; min-height: 32px; padding: 0 10px; border-radius: 16px; background: var(--lilac-tint); color: var(--lilac-ink); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

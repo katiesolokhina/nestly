@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const { connectDB } = require('../config/db');
 const Household = require('../models/Household');
 const User = require('../models/User');
+const Membership = require('../models/Membership');
 
 const arg = (name) => {
   const found = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -18,6 +19,16 @@ const arg = (name) => {
   const householdName = arg('household') || 'Our home';
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Pass --name=Katie --email=you@example.com');
 
+  await connectDB(process.env.MONGODB_URI);
+  const existing = await User.findOne({ email });
+  if (existing) {
+    // Already uses Nestly: they become the new household's admin with the same sign-in.
+    const household = await Household.create({ name: householdName });
+    await Membership.create({ userId: existing._id, householdId: household._id, role: 'admin' });
+    console.log(`Created "${householdName}". ${email} already had an account and is its admin; they can switch to it from Households.`);
+    return;
+  }
+
   let password = process.env.NESTLY_ADMIN_PASSWORD || '';
   if (!password) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -26,10 +37,9 @@ const arg = (name) => {
   }
   if (password.length < 8) throw new Error('Use at least 8 characters.');
 
-  await connectDB(process.env.MONGODB_URI);
-  if (await User.exists({ email })) throw new Error('That email already has an account.');
   const household = await Household.create({ name: householdName });
-  await User.create({ householdId: household._id, email, name, role: 'admin', passwordHash: await User.hashPassword(password) });
+  const user = await User.create({ householdId: household._id, email, name, passwordHash: await User.hashPassword(password) });
+  await Membership.create({ userId: user._id, householdId: household._id, role: 'admin' });
   console.log(`Created "${householdName}" with admin ${email}.`);
 })()
   .catch((err) => { console.error(err.message); process.exitCode = 1; })

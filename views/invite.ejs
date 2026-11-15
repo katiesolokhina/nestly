@@ -9,9 +9,23 @@
   <main class="auth">
     <%- include('partials/auth-brand') %>
 
+    <% if (me) { %>
+      <div class="card stack">
+        <h2 class="auth-heading">Join <%= home %></h2>
+        <% if (already) { %>
+          <p class="muted">You’re already in <%= home %>.</p>
+          <a class="btn btn-primary btn-block" href="/">Open Nestly</a>
+        <% } else { %>
+          <p class="muted">You’re signed in as <%= me.name %> (<%= me.email %>). Join with this account? You’ll be able to switch between your households.</p>
+          <form method="post" action="/invite/<%= token %>/join"><button class="btn btn-primary btn-block" type="submit">Join <%= home %></button></form>
+          <form method="post" action="/logout"><button class="link-btn" type="submit">Not you? Sign out</button></form>
+        <% } %>
+      </div>
+    <% } else { %>
     <form class="card" method="post" action="/invite/<%= token %>" novalidate>
-      <h2 class="auth-heading">Join your household</h2>
-      <p class="muted">Set up your account for this household. This link works once.</p>
+      <h2 class="auth-heading">Join <%= home %></h2>
+      <p class="muted">Set up your account. This link works once.</p>
+      <p class="small">Already use Nestly? <a href="/invite/<%= token %>/signin">Sign in to join with your account</a></p>
       <input type="hidden" name="timezone" value="America/Chicago">
 
       <div class="field">
@@ -41,6 +55,7 @@
       </div>
       <button class="btn btn-primary btn-block" type="submit">Create my account</button>
     </form>
+    <% } %>
   </main>
 </body>
 </html>

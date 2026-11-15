@@ -117,7 +117,9 @@ test('notify tick', async (t) => {
   assert.deepEqual(to('Trash day'), [katie.id, sam.id].sort());
   assert.deepEqual(to('Dentist'), [katie.id, sam.id].sort());
   assert.equal(sent.find((s) => s.title === 'Dentist').body, 'Today at 10:00 AM · Main St');
-  assert.equal(sent.find((s) => s.title === 'Dentist').url, `/s/calendar/${dentist._id}?day=2026-11-14`);
+  const link = new URL(sent.find((s) => s.title === 'Dentist').url, 'http://x');
+  assert.equal(link.pathname, `/h/${home._id}`); // opens the right household first
+  assert.equal(link.searchParams.get('next'), `/s/calendar/${dentist._id}?day=2026-11-14`);
 
   // Ticking again sends nothing new.
   const before = sent.length;

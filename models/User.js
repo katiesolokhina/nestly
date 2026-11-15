@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
+    // The household this person last used. Which households they're in, and their role in each,
+    // live in Membership.
     householdId: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true, index: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     name: { type: String, required: true, trim: true, maxlength: 40 },
@@ -11,13 +13,12 @@ const userSchema = new mongoose.Schema(
     timezone: { type: String, default: 'America/Chicago' },
     // Appearance: 'system' follows the device; 'light'/'dark' override it everywhere.
     theme: { type: String, enum: ['system', 'light', 'dark'], default: 'system' },
+    // Before households could be shared these lived here. Now they're per household, in Membership;
+    // these are only read once, to set up memberships for older accounts.
     role: { type: String, enum: ['admin', 'member'], default: 'member' },
-    // Disabled accounts can't sign in; their data is kept until deleted.
     disabled: { type: Boolean, default: false },
     invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    // Sections pinned to this person's bottom bar (up to 3).
     pins: { type: [String], default: ['shopping', 'calendar'] },
-    // This person's Today layout, in order. Empty means the default.
     dashboard: { type: [{ _id: false, k: String, on: Boolean }], default: [] },
     // What this person gets notified about. Turning notifications on happens per device.
     notify: {

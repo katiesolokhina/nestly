@@ -13,6 +13,7 @@ const User = require('../models/User');
 const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
 const { restock } = require('../lib/pantry');
+const { membersOf, inHome } = require('../lib/members');
 
 const router = express.Router();
 router.use('/s/shopping', requireAuth, requireSection('shopping'));
@@ -123,11 +124,11 @@ router.post('/s/shopping/start', async (req, res, next) => {
     if (!claimed.modifiedCount) return;
     const where = store ? `shopping at ${store}` : 'out shopping';
     await logActivity(req.user, { section: SECTION, text: `${req.user.name} started ${where}` });
-    const others = await User.find({ householdId: req.user.householdId, _id: { $ne: req.user._id }, disabled: { $ne: true }, 'notify.shopping': { $ne: false } }, { _id: 1 }).lean();
+    const others = (await membersOf(req.user.householdId, { fields: { notify: 1 } })).filter((u) => String(u._id) !== req.user.id && !(u.notify && u.notify.shopping === false));
     await Promise.all(others.map((u) => sendToUser(u._id, {
       title: `${req.user.name} is ${where}`,
       body: 'Need anything? Add it to the list now.',
-      url: '/s/shopping',
+      url: inHome(req.user.householdId, '/s/shopping'),
       tag: `trip-${req.user._id}`,
     })));
   } catch (err) {

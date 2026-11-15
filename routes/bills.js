@@ -10,6 +10,8 @@ const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { sendToUser } = require('../lib/push');
+const Membership = require('../models/Membership');
+const { membersOf: householdMembers, inHome } = require('../lib/members');
 const { todayIn, addDays, isDate, dayLabel, shortDay } = require('../lib/dates');
 const { money, toCents, centsInput, buildShares, nextDue, ensureUpcoming, balances } = require('../lib/bills');
 
@@ -28,7 +30,7 @@ async function find(req) {
   return Bill.findOne({ _id: req.params.id, ...visible(req.user) });
 }
 
-const membersOf = (req) => User.find({ householdId: req.user.householdId, disabled: { $ne: true } }, { name: 1, notify: 1 }).sort({ createdAt: 1 }).lean();
+const membersOf = (req) => householdMembers(req.user.householdId, { fields: { notify: 1 } });
 
 // "Due today", "Due tomorrow", "Overdue since Mon, Nov 9", "Paid Nov 2 by Sam".
 function status(b, today) {
@@ -118,7 +120,7 @@ async function tellShares(req, bill) {
   await Promise.all(bill.shares.filter((s) => !same(s.userId, bill.paidBy) && s.cents && !s.settled).map((s) => {
     const u = people.find((p) => same(p._id, s.userId));
     if (!u || (u.notify && u.notify.billsPaid === false)) return null;
-    return sendToUser(s.userId, { title: `${bill.paidByName} paid ${bill.name}`, body: `${money(bill.cents)} total. Your share: ${money(s.cents)}.`, url: `/s/bills/${bill._id}`, tag: `bill-paid-${bill._id}` });
+    return sendToUser(s.userId, { title: `${bill.paidByName} paid ${bill.name}`, body: `${money(bill.cents)} total. Your share: ${money(s.cents)}.`, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-paid-${bill._id}` });
   }));
 }
 
@@ -161,7 +163,7 @@ router.get('/s/bills/balances', async (req, res, next) => {
         ...p,
         text: p.from.id === me ? `You owe ${p.to.name}` : p.to.id === me ? `${p.from.name} owes you` : `${p.from.name} owes ${p.to.name}`,
         other: p.from.id === me ? p.to : p.from.id === me || p.to.id === me ? p.from : null,
-        canSettle: p.from.id === me || p.to.id === me || req.user.role === 'admin',
+        canSettle: p.from.id === me || p.to.id === me || req.member.role === 'admin',
         bills: p.bills.map((b) => ({ ...b, line: `${b.name}, ${shortDay(b.dueDate).replace(/, \d{4}$/, '')}`, dir: b.from === p.from.id ? 'owes' : 'credit' })),
       })).sort((a, b) => (b.canSettle - a.canSettle) || b.cents - a.cents),
       today,
@@ -177,8 +179,8 @@ router.post('/s/bills/settle', async (req, res, next) => {
     const a = String(req.body.from || '');
     const c = String(req.body.to || '');
     if (!mongoose.isValidObjectId(a) || !mongoose.isValidObjectId(c)) return res.redirect('/s/bills/balances');
-    if (![a, c].includes(req.user.id) && req.user.role !== 'admin') return res.status(404).send('Not found');
-    if ((await User.countDocuments({ _id: { $in: [a, c] }, householdId: req.user.householdId })) !== 2) return res.status(404).send('Not found');
+    if (![a, c].includes(req.user.id) && req.member.role !== 'admin') return res.status(404).send('Not found');
+    if ((await Membership.countDocuments({ userId: { $in: [a, c] }, householdId: req.user.householdId })) !== 2) return res.status(404).send('Not found');
     const bills = await Bill.find({ ...visible(req.user), paid: true, 'shares.settled': false, paidBy: { $in: [a, c] } });
     let cents = 0;
     let count = 0;
@@ -198,7 +200,7 @@ router.post('/s/bills/settle', async (req, res, next) => {
       const other = payer === req.user.id ? payee : payer;
       const u = await User.findById(other, { notify: 1 }).lean();
       if (u && other !== req.user.id && !(u.notify && u.notify.billsPaidBack === false)) {
-        await sendToUser(other, { title: 'Settled up', body: `${req.user.name} marked it settled: ${names[payer]} paid ${names[payee]} back ${money(Math.abs(cents))}.`, url: '/s/bills/balances', tag: 'bills-settled' });
+        await sendToUser(other, { title: 'Settled up', body: `${req.user.name} marked it settled: ${names[payer]} paid ${names[payee]} back ${money(Math.abs(cents))}.`, url: inHome(req.user.householdId, '/s/bills/balances'), tag: 'bills-settled' });
       }
       req.session.flash = `Settled up: ${money(Math.abs(cents))}.`;
     }
@@ -409,7 +411,7 @@ router.post('/s/bills/:id/share', async (req, res, next) => {
       const u = other ? await User.findById(other, { notify: 1 }).lean() : null;
       if (u && !(u.notify && u.notify.billsPaidBack === false)) {
         const body = same(other, bill.paidBy) ? `${share.name} paid you back ${money(share.cents)} for ${bill.name}.` : `${req.user.name} marked your ${money(share.cents)} for ${bill.name} as paid back.`;
-        await sendToUser(other, { title: 'Paid back', body, url: `/s/bills/${bill._id}`, tag: `bill-back-${bill._id}` });
+        await sendToUser(other, { title: 'Paid back', body, url: inHome(req.user.householdId, `/s/bills/${bill._id}`), tag: `bill-back-${bill._id}` });
       }
     }
     res.redirect(`/s/bills/${bill._id}`);

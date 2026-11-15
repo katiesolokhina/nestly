@@ -43,6 +43,19 @@ Point Nginx at the port, add a certificate for `nestly.trisolocreations.com` wit
 
 Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `UPLOAD_DIR`), outside `public/`, and need their own backup: `tar czf` or `rsync` that folder nightly.
 
+## Households
+
+One sign-in can belong to several households. Each person's role (admin or member), whether they're turned off, their bottom bar, and their Today layout are set per household (the `memberships` collection). Notification settings and appearance belong to the person.
+
+- **Switch** from the household name next to the logo, or Account → Households. Each device remembers its own.
+- **Start** a household from Households; you're its admin.
+- **Join** another household by opening its invite link while signed in.
+- Notifications come from every household, titled with the household's name, and open it.
+- An admin can make a password reset link only if they're an admin in all of that person's households.
+- `scripts/create-household.js` with an email that already has an account makes them the new household's admin.
+
+Accounts from before this change get their membership automatically when the server starts.
+
 ## Recipe import
 
 Importing from a link makes the server fetch that page, so it only fetches http(s) on ports 80 and 443, refuses private and local addresses (checked on every connection), and limits size, time, and redirects. It reads the recipe data most sites publish (schema.org Recipe). Sites that block apps get a message suggesting pasting the text instead.

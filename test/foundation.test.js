@@ -163,7 +163,7 @@ test('foundation', async (t) => {
 
   await t.test('turning someone off signs them out, and role changes stick', async () => {
     await admin(`/settings/household/members/${samId}/role`, { method: 'POST', form: { role: 'admin' } });
-    assert.equal((await withDb(app.uri, () => User.findById(samId).lean())).role, 'admin');
+    assert.equal((await withDb(app.uri, () => require('../models/Membership').findOne({ userId: samId }).lean())).role, 'admin');
     await admin(`/settings/household/members/${samId}/role`, { method: 'POST', form: { role: 'member' } });
     await admin(`/settings/household/members/${samId}/disable`, { method: 'POST', form: {} });
     assert.equal((await sam('/')).location, '/login');
@@ -181,7 +181,8 @@ test('foundation', async (t) => {
     assert.equal((await sam('/')).location, '/login');
     const page = await admin('/activity');
     assert.match(page.text, /Sam joined the household/);
-    assert.match(page.text, /deleted Sam&#39;s account/);
+    assert.match(page.text, /removed Sam from the household/);
+    assert.equal(await withDb(app.uri, () => User.countDocuments({ email: 'sam@test.dev' })), 0, 'only household, so the account is gone');
   });
 
   await t.test('sign out and sign out of all devices', async () => {
@@ -206,6 +207,6 @@ test('foundation', async (t) => {
     const r = await ana(resetUrl.pathname, { method: 'POST', form: { password: 'second admin pass', confirmPassword: 'second admin pass' } });
     assert.equal(r.location, '/');
     assert.equal((await ana('/')).status, 200, 'the reset link signed her in');
-    assert.equal((await withDb(app.uri, () => User.findOne({ email: 'ana@test.dev' }).lean())).role, 'admin');
+    assert.equal((await withDb(app.uri, async () => require('../models/Membership').findOne({ userId: (await User.findOne({ email: 'ana@test.dev' }).lean())._id }).lean())).role, 'admin');
   });
 });

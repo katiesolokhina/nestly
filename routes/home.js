@@ -14,31 +14,31 @@ const SAFE_BACK = (v) => (typeof v === 'string' && v.startsWith('/') && !v.start
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    res.render('today', { active: 'today', ...(await buildToday(req.user, req.household)) });
+    res.render('today', { active: 'today', ...(await buildToday(req.user, req.household, req.member)) });
   } catch (err) {
     next(err);
   }
 });
 
 router.get('/customize', requireAuth, (req, res) => {
-  res.render('customize', { active: 'today', rows: layoutFor(req.user, req.household) });
+  res.render('customize', { active: 'today', rows: layoutFor(req.member, req.household) });
 });
 
 router.post('/customize', requireAuth, async (req, res, next) => {
   try {
-    const rows = layoutFor(req.user, req.household);
+    const rows = layoutFor(req.member, req.household);
     const i = rows.findIndex((r) => r.k === req.body.k);
-    if (req.body.action === 'reset') req.user.dashboard = [];
+    if (req.body.action === 'reset') req.member.dashboard = [];
     else if (i >= 0) {
       if (req.body.action === 'toggle') rows[i].on = !rows[i].on;
       const j = req.body.action === 'up' ? i - 1 : req.body.action === 'down' ? i + 1 : -1;
       if (j >= 0 && j < rows.length) [rows[i], rows[j]] = [rows[j], rows[i]];
       // Keep hidden sections' widgets so they return where they were.
       const shown = new Set(rows.map((r) => r.k));
-      const kept = (req.user.dashboard || []).filter((d) => !shown.has(d.k)).map((d) => ({ k: d.k, on: d.on }));
-      req.user.dashboard = [...rows.map((r) => ({ k: r.k, on: r.on })), ...kept];
+      const kept = (req.member.dashboard || []).filter((d) => !shown.has(d.k)).map((d) => ({ k: d.k, on: d.on }));
+      req.member.dashboard = [...rows.map((r) => ({ k: r.k, on: r.on })), ...kept];
     }
-    await req.user.save();
+    await req.member.save();
     res.redirect('/customize');
   } catch (err) {
     next(err);
@@ -60,7 +60,7 @@ router.post('/activity/:id/undo', requireAuth, async (req, res, next) => {
 });
 
 router.get('/more', requireAuth, (req, res) => {
-  res.render('more', { active: 'more', links: moreLinks(req.user, req.household) });
+  res.render('more', { active: 'more', links: moreLinks(req.member, req.household) });
 });
 
 const ACTIVITY_SECTIONS = ['Settings', ...SECTIONS.map((s) => s.label)];

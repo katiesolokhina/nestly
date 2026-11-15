@@ -4,7 +4,7 @@ const { requireAuth, requireSection } = require('../middleware/auth');
 const Reminder = require('../models/Reminder');
 const { recordChange, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
-const User = require('../models/User');
+const { membersOf: householdMembers, isMember } = require('../lib/members');
 const { todayIn, dayLabel, longDay, isDate, time12, addDays, zonedDate, clockIn } = require('../lib/dates');
 
 const router = express.Router();
@@ -19,7 +19,7 @@ async function find(req) {
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const NOTIFY = ['all', 'me', 'some', 'none'];
 
-const membersOf = (req) => User.find({ householdId: req.user.householdId, disabled: { $ne: true } }, { name: 1 }).sort({ createdAt: 1 }).lean();
+const membersOf = (req) => householdMembers(req.user.householdId);
 
 async function readForm(req) {
   const b = req.body;
@@ -171,6 +171,11 @@ router.post('/s/remember/:id/snooze', async (req, res, next) => {
 router.use('/api/remember', requireAuth, requireSection('remember'));
 router.post('/api/remember/:id/:action', async (req, res, next) => {
   try {
+    // The notification may be from another of this person's households.
+    if (mongoose.isValidObjectId(req.params.id)) {
+      const r = await Reminder.findById(req.params.id, { householdId: 1 }).lean();
+      if (r && String(r.householdId) !== String(req.user.householdId) && (await isMember(req.user._id, r.householdId))) req.user.householdId = r.householdId;
+    }
     const item = await find(req);
     if (!item) return res.status(404).json({ error: 'Not found' });
     if (req.params.action === 'done') await markDone(req, item);

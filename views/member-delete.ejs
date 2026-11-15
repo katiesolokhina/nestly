@@ -1,12 +1,16 @@
-<%- include('partials/top', { title: 'Delete account' }) %>
+<%- include('partials/top', { title: 'Remove from household' }) %>
 <main class="stack">
-  <div class="head"><h1>Delete <%= target.name %>'s account?</h1><a class="link-btn" href="/settings/household/members/<%= target._id %>">Cancel</a></div>
+  <div class="head"><h1>Remove <%= target.name %>?</h1><a class="link-btn" href="/settings/household/members/<%= target._id %>">Cancel</a></div>
   <form class="card" method="post" action="/settings/household/members/<%= target._id %>/delete" novalidate>
-    <p>This permanently deletes <strong><%= target.email %></strong> and their private items. Shared items stay with the household. It can't be undone.</p>
-    <p class="hint">To keep the account, use <strong>Turn off sign-in</strong> instead.</p>
+    <% if (target.otherHomes) { %>
+      <p>This removes <strong><%= target.email %></strong> from <%= household.name %>, along with their private items here. Shared items stay. Their account and other households aren’t affected.</p>
+    <% } else { %>
+      <p>This removes <strong><%= target.email %></strong> from <%= household.name %> and, since it’s their only household, permanently deletes their account and private items. Shared items stay. It can't be undone.</p>
+    <% } %>
+    <p class="hint">To keep them, use <strong>Turn off in this household</strong> instead.</p>
     <div class="field"><label for="confirmEmail">Type <strong><%= target.email %></strong> to confirm</label><input id="confirmEmail" name="confirmEmail" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
       <% if (error) { %><span class="field-error" role="alert"><%= error %></span><% } %></div>
-    <button class="btn btn-danger btn-block" type="submit">Delete account permanently</button>
+    <button class="btn btn-danger btn-block" type="submit"><%= target.otherHomes ? 'Remove from household' : 'Remove and delete account' %></button>
   </form>
 </main>
 <%- include('partials/bottom') %>

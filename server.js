@@ -5,6 +5,7 @@ const session = require('express-session');
 const { MongoStore } = require('connect-mongo');
 const path = require('path');
 const { connectDB } = require('./config/db');
+const { ensureMemberships } = require('./lib/members');
 const { sameOrigin } = require('./middleware/auth');
 const { configurePush } = require('./lib/push');
 const { startNotifications } = require('./lib/notify');
@@ -49,6 +50,7 @@ app.use(sameOrigin);
 app.get('/health', (req, res) => res.json({ ok: true }));
 app.use(require('./routes/auth'));
 app.use(require('./routes/push'));
+app.use(require('./routes/households'));
 app.use(require('./routes/access'));
 app.use(require('./routes/ingredients')); // before Shopping, whose /s/shopping/:id would catch it
 app.use(require('./routes/shopping'));
@@ -72,6 +74,11 @@ app.use((err, req, res, next) => {
 });
 
 connectDB(process.env.MONGODB_URI)
+  .then(async () => {
+    // Accounts from before households could be shared get their membership (once).
+    const moved = await ensureMemberships();
+    if (moved) console.log(`Set up household memberships for ${moved} ${moved === 1 ? 'account' : 'accounts'}.`);
+  })
   .then(() => {
     app.listen(PORT, () => console.log(`Nestly on http://localhost:${PORT}`));
     if (configurePush()) startNotifications();

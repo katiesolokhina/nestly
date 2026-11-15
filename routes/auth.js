@@ -1,6 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
+const { homesOf } = require('../lib/members');
 
 const router = express.Router();
 
@@ -29,12 +30,13 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     // Same message either way, so the form doesn't reveal which emails exist.
     if (!ok) return res.status(401).render('login', { error: 'Email or password is incorrect.', email });
     // Only revealed after a correct password, so it can't be used to probe accounts.
-    if (user.disabled) {
+    if (!(await homesOf(user._id)).length) {
       return res.status(403).render('login', { error: 'This account is turned off. Ask your household admin.', email });
     }
 
     // New session ID on login prevents session fixation.
-    const back = typeof req.session.returnTo === 'string' && req.session.returnTo.startsWith('/share?') ? req.session.returnTo : '/';
+    const r = req.session.returnTo;
+    const back = typeof r === 'string' && (r.startsWith('/share?') || /^\/h\/[a-f0-9]{24}(\?|$)/.test(r) || /^\/invite\/[\w-]+$/.test(r)) ? r : '/';
     req.session.regenerate((err) => {
       if (err) return next(err);
       req.session.userId = user._id.toString();
