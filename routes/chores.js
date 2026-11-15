@@ -40,8 +40,13 @@ router.get('/s/chores', async (req, res, next) => {
     const who = req.query.who === 'me' ? 'me' : 'all';
     const room = [...h.choreRooms, 'Anywhere'].includes(req.query.room) ? req.query.room : '';
     const group = req.query.group === 'room' ? 'room' : 'day';
-    const members = await doers(req);
-    let chores = (await choresWithDue(req.user.householdId, room ? { room } : {})).filter((c) => c.due);
+    const [members, withDue, recent] = await Promise.all([
+      doers(req),
+      choresWithDue(req.user.householdId, room ? { room } : {}),
+      // Done in the last week, newest first.
+      ChoreDone.find({ householdId: req.user.householdId, createdAt: { $gte: new Date(Date.now() - 7 * 86400000) } }).sort({ createdAt: -1 }).limit(15).lean(),
+    ]);
+    let chores = withDue.filter((c) => c.due);
     if (who === 'me') chores = chores.filter((c) => isFor(c, req.user._id, members));
     chores.sort((a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title));
     const showPoints = pointsOn(h);
@@ -67,8 +72,6 @@ router.get('/s/chores', async (req, res, next) => {
       ];
     }
     groups = groups.filter((g) => g.items.length);
-    // Done in the last week, newest first.
-    const recent = await ChoreDone.find({ householdId: req.user.householdId, createdAt: { $gte: new Date(Date.now() - 7 * 86400000) } }).sort({ createdAt: -1 }).limit(15).lean();
     const query = new URLSearchParams(Object.entries({ who: who === 'me' ? 'me' : '', room, group: group === 'room' ? 'room' : '' }).filter(([, v]) => v)).toString();
     res.render('chores/list', {
       active: 'chores', groups, who, room, group, query, showPoints,

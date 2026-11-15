@@ -1,4 +1,6 @@
 require('dotenv').config({ quiet: true });
+// First, so its database-call counter is added to every model as it's defined.
+const { timing, pingMs } = require('./lib/timing');
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
@@ -22,6 +24,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
+app.use(timing);
 app.use(helmet({ referrerPolicy: { policy: 'same-origin' } }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
@@ -34,7 +37,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     rolling: true, // every visit pushes expiry out another 30 days
-    store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI, ttl: 60 * 60 * 24 * 30 }),
+    // touchAfter: the 30 days are pushed out at most twice a day, not with a database write on every tap.
+    store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI, ttl: 60 * 60 * 24 * 30, touchAfter: 60 * 60 * 12 }),
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
@@ -47,7 +51,18 @@ app.use(
 app.use((req, res, next) => { res.locals.theme = ''; next(); });
 app.use(sameOrigin);
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', async (req, res) => {
+  // /health?db=1 times a few round trips to the database. Under ~20 ms is the same region;
+  // 50 ms or more each usually means the database is far from this server.
+  if (req.query.db !== '1') return res.json({ ok: true });
+  try {
+    const tries = [];
+    for (let i = 0; i < 5; i += 1) tries.push(await pingMs());
+    res.json({ ok: true, databaseMs: { fastest: Math.min(...tries), all: tries } });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Database not reachable' });
+  }
+});
 app.use(require('./routes/auth'));
 app.use(require('./routes/push'));
 app.use(require('./routes/households'));
@@ -67,6 +82,7 @@ app.use(require('./routes/lists'));
 app.use(require('./routes/section-settings').router);
 app.use(require('./routes/files'));
 app.use(require('./routes/home'));
+app.use(require('./routes/export'));
 app.use(require('./routes/settings'));
 app.use(require('./routes/family'));
 app.use(require('./routes/roles'));

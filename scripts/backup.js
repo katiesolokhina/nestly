@@ -1,4 +1,5 @@
-// Nightly backup: every collection (except sessions) → one gzipped file, keeping the newest N.
+// Nightly backup: every collection (except sessions) → one gzipped file, and the uploaded
+// receipts and photos → a .tar.gz next to it, keeping the newest N of each.
 //
 //   node scripts/backup.js
 //
@@ -11,6 +12,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { pipeline } = require('node:stream/promises');
 const { Readable } = require('node:stream');
+const { execFileSync } = require('node:child_process');
 const mongoose = require('mongoose');
 
 const { EJSON } = mongoose.mongo.BSON;
@@ -53,9 +55,22 @@ async function main() {
   const old = fs.readdirSync(DIR).filter((f) => f.startsWith(prefix) && f.endsWith('.jsonl.gz')).sort().reverse().slice(KEEP);
   for (const f of old) fs.unlinkSync(path.join(DIR, f));
 
+  // Uploaded files (receipts, photos): one archive per backup, rotated the same way.
+  const uploads = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads'));
+  let filesNote = '';
+  if (fs.existsSync(uploads) && fs.readdirSync(uploads).some((f) => f !== '.gitkeep')) {
+    const archive = path.join(DIR, `uploads_${stamp}.tar.gz`);
+    execFileSync('tar', ['czf', `${archive}.partial`, '-C', path.dirname(uploads), path.basename(uploads)]);
+    fs.renameSync(`${archive}.partial`, archive);
+    fs.chmodSync(archive, 0o600);
+    const oldFiles = fs.readdirSync(DIR).filter((f) => f.startsWith('uploads_') && f.endsWith('.tar.gz')).sort().reverse().slice(KEEP);
+    for (const f of oldFiles) fs.unlinkSync(path.join(DIR, f));
+    filesNote = `, files ${(fs.statSync(archive).size / 1024).toFixed(1)} KB`;
+  }
+
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const kb = (fs.statSync(file).size / 1024).toFixed(1);
-  console.log(`${new Date().toISOString()} backup ok: ${path.basename(file)} (${total} docs, ${kb} KB)` +
+  console.log(`${new Date().toISOString()} backup ok: ${path.basename(file)} (${total} docs, ${kb} KB${filesNote})` +
     `${old.length ? `, removed ${old.length} old` : ''}`);
 }
 

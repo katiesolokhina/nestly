@@ -1,0 +1,12 @@
+<%- include('../partials/top', { title: 'Download data' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Download data', sub: 'Everything in ' + household.name + ', in one file.', back: '/settings' }) %>
+  <section class="card stack">
+    <p>The file has every list, item, event, bill, recipe, chore, and setting in <%= household.name %>, plus who’s in it and recent Activity. Your own “Only me” items are included; other people’s aren’t.</p>
+    <p class="row-meta">It’s a JSON file: any text editor opens it, and it’s easy to load into a spreadsheet or another app. Receipts and photos aren’t in it, just their names.</p>
+    <p class="alert">It includes hidden Home info fields, like door codes and Wi-Fi passwords. Keep it somewhere private.</p>
+    <a class="btn btn-primary btn-block" href="/settings/export/download">Download</a>
+  </section>
+  <p class="hint">The server also keeps its own nightly backups. This is a copy for you.</p>
+</main>
+<%- include('../partials/bottom') %>

@@ -17,15 +17,22 @@ async function requireAuth(req, res, next) {
     return res.redirect('/login');
   }
   try {
-    const user = await User.findById(req.session.userId);
-    const homes = user ? await homesOf(user._id) : [];
+    // Three trips to the database at most: the person and their memberships together, then their households.
+    const [user, memberships] = await Promise.all([
+      User.findById(req.session.userId),
+      Membership.find({ userId: req.session.userId, disabled: false }).sort({ createdAt: 1 }).lean(),
+    ]);
+    const full = user ? await homesOf(user._id, { full: true, memberships: memberships.length ? memberships : null }) : [];
+    const homes = full.map(({ doc, ...h }) => h);
     // Deleted, or turned off in every household, while signed in: end the session.
     if (!user || !homes.length) return req.session.destroy(() => res.redirect('/login'));
     // The household this device is using: the one picked here, else the last one used, else the first.
     const pick = (id) => id && homes.find((h) => String(h.householdId) === String(id));
     const home = pick(req.session.householdId) || pick(user.householdId) || homes[0];
-    const [household, member] = await Promise.all([Household.findById(home.householdId), Membership.findById(home._id)]);
-    if (!household || !member) return req.session.destroy(() => res.redirect('/login'));
+    const chosen = full.find((h) => String(h._id) === String(home._id));
+    // Real documents (not plain objects), so settings pages can change and save them.
+    const household = Household.hydrate(chosen.doc);
+    const member = Membership.hydrate(Object.fromEntries(Object.entries(chosen).filter(([k]) => !['doc', 'name'].includes(k))));
     req.session.householdId = String(household._id);
     // Everything else scopes by req.user.householdId, so it's set to this one for the request.
     if (String(user.householdId) !== String(household._id)) {

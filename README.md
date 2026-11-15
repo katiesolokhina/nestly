@@ -41,7 +41,22 @@ pm2 start server.js --name nestly && pm2 save
 
 Point Nginx at the port, add a certificate for `nestly.trisolocreations.com` with Certbot, and set `client_max_body_size 11m;` so receipt uploads get through. Nginx must send `X-Forwarded-Proto`, or the session cookie won't be marked secure. `APP_ORIGIN` must exactly match the public URL.
 
-Nightly backups use `scripts/backup.js`. Uploaded files live in `uploads/` (or `UPLOAD_DIR`), outside `public/`, and need their own backup: `tar czf` or `rsync` that folder nightly.
+### Backups
+
+`scripts/backup.js` saves the whole database to `backups/` as one gzipped file, plus the uploaded receipts and photos (`uploads/`, or `UPLOAD_DIR`) as a `.tar.gz`, and keeps the newest 14 of each (`BACKUP_KEEP`). Run it nightly with pm2:
+
+```bash
+pm2 start scripts/backup.js --name nestly-backup --cron "30 3 * * *" --no-autorestart && pm2 save
+pm2 logs nestly-backup --lines 5     # "backup ok: …"
+```
+
+Restore with `node scripts/restore.js backups/<file>.jsonl.gz` (it asks before replacing anything). Now and then, copy `backups/` off the server (for example `scp -r` to your computer), so a lost server doesn't take the backups with it.
+
+Admins can also download their household's data as JSON from Settings → Download data.
+
+### Speed
+
+Every page sends a `Server-Timing` header (time and database calls), and requests slower than `SLOW_MS` (default 800) are logged: `pm2 logs nestly | grep Slow`. `/health?db=1` times five round trips to the database; under ~20 ms means the database and server are in the same region.
 
 ## Settings
 
