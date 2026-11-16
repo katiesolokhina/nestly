@@ -1,0 +1,14 @@
+<%- include('../partials/top', { title: 'Used one' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Used one <%= item.name %></h1><p class="sub"><%= item.count %> left. Which one did you use?</p></div><a class="link-btn" href="/s/pantry">Cancel</a></div>
+  <section class="card">
+    <% batches.forEach((b) => { %>
+      <form class="row" method="post" action="/s/pantry/<%= item._id %>/use">
+        <input type="hidden" name="batch" value="<%= b.i %>"><input type="hidden" name="query" value="<%= query %>">
+        <div class="row-body"><span class="row-title"><%= b.label %></span><span class="row-meta"><%= b.count %> <%= b.count === 1 ? 'left' : 'of these' %></span></div>
+        <button class="btn btn-primary" type="submit">Used one<span class="sr-only"> (<%= b.label %>)</span></button>
+      </form>
+    <% }) %>
+  </section>
+</main>
+<%- include('../partials/bottom') %>

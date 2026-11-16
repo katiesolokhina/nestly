@@ -399,3 +399,8 @@ span.check { cursor: default; }
 .choice { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
 .choice input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
 .use-one { font-variant-numeric: tabular-nums; }
+.batch-row { display: grid; grid-template-columns: 4.5em auto minmax(0, 1fr) 4.8em; gap: 8px; align-items: center; }
+.batch-row > * { min-width: 0; }
+.batch-x { color: var(--muted); }
+.date-clear { display: flex; gap: 8px; align-items: center; }
+.date-clear input { flex: 1; min-width: 0; }

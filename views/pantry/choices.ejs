@@ -1,13 +1,12 @@
 <%# How to add something that's already in the pantry. existing: items with the same name. %>
 <fieldset class="group choices" aria-describedby="choices-hint">
   <legend><%= existing[0].name %> is already in the pantry</legend>
-  <p class="hint" id="choices-hint">Add these to what’s there, replace it with these, or keep them as a separate item with their own date.</p>
+  <p class="hint" id="choices-hint">Add these to what’s there (each date is kept), or replace it with these.</p>
   <% existing.forEach((p, i) => { %>
     <div class="choice-item">
       <p class="choice-label"><%= p.label %></p>
-      <label class="choice"><input type="radio" name="choice" value="add:<%= p._id %>"<%= i === 0 ? ' checked' : '' %>> Add to its count</label>
-      <label class="choice"><input type="radio" name="choice" value="replace:<%= p._id %>"> Replace it (new date and count)</label>
+      <label class="choice"><input type="radio" name="choice" value="add:<%= p._id %>"<%= i === 0 ? ' checked' : '' %>> Add these to it</label>
+      <label class="choice"><input type="radio" name="choice" value="replace:<%= p._id %>"> Replace it (the old ones are gone)</label>
     </div>
   <% }) %>
-  <label class="choice"><input type="radio" name="choice" value="new"> Keep separate (its own item and date)</label>
 </fieldset>

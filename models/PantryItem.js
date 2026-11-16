@@ -11,6 +11,9 @@ const pantrySchema = new mongoose.Schema(
     key: { type: String, required: true }, // same as the shopping list's, so the two stay linked
     status: { type: String, enum: ['have', 'low', 'out'], default: 'have' },
     spot: { type: String, default: 'Other' }, // Pantry, Fridge, Freezer...
+    // How many there are, by use-by date: [{ count: 2, expires: '2026-11-25' }, { count: 1, expires: '' }].
+    // count and expires below follow from these (total, and the soonest date), for lists and alerts.
+    batches: { type: [{ count: { type: Number, min: 1, max: 999 }, expires: { type: String, default: '' } }], default: undefined },
     count: { type: Number, min: 0, max: 999, default: 1 }, // how many (2 milks); −1 as they're used
     amount: { type: String, trim: true, maxlength: 40, default: '' }, // each one: "1 gallon"
     expires: { type: String, default: '' }, // YYYY-MM-DD use-by date, optional
@@ -22,6 +25,19 @@ const pantrySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+// Keeps count and expires in step with the batches, and turns older items (just a count and a
+// date) into one batch the first time they're saved.
+pantrySchema.methods.syncBatches = function syncBatches() {
+  if (!this.batches) this.batches = this.status !== 'out' && this.count > 0 ? [{ count: this.count, expires: this.expires || '' }] : [];
+  this.batches = this.batches.filter((b) => b.count > 0);
+  this.count = this.batches.reduce((n, b) => n + b.count, 0);
+  const dates = this.batches.map((b) => b.expires).filter(Boolean).sort();
+  this.expires = dates[0] || '';
+  if (this.count === 0) this.status = 'out';
+  else if (this.status === 'out') this.status = 'have';
+};
+pantrySchema.pre('validate', function () { this.syncBatches(); });
+
 // Not unique: the same thing can be kept as separate items (two milks with different dates).
 pantrySchema.index({ householdId: 1, key: 1 });
 

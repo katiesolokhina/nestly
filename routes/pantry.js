@@ -8,6 +8,9 @@ const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { keyOf, addToCatalog } = require('../lib/catalog');
 const { addToShopping, expiryText, stockIn, countOf } = require('../lib/pantry');
+
+// An item's batches, also for older items saved before there were any.
+const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '' }] : []);
 const ShoppingItem = require('../models/ShoppingItem');
 const { remember, CODE } = require('../lib/barcode');
 const { pantryNames } = require('../lib/prefs');
@@ -56,7 +59,8 @@ router.get('/s/pantry', async (req, res, next) => {
     ]);
     const rows = items.map((i) => {
       const exp = expiryText(i.expires, today, SOON_DAYS);
-      return { ...i, exp, meta: [i.count > 1 ? `${i.count} of them` : '', i.amount, exp.text, i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · ') };
+      const dated = batchesOf(i).filter((b) => b.expires).length;
+      return { ...i, exp, meta: [i.count > 1 ? `${i.count} of them` : '', i.amount, exp.text + (dated > 1 ? ` (+${dated - 1} later)` : ''), i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · ') };
     });
     const order = [...spots, 'Other'];
     const groups = order
@@ -79,9 +83,9 @@ router.post('/s/pantry/:id/status', async (req, res, next) => {
     if (!item) return res.status(404).send('Not found');
     const status = STATUS_KEYS.includes(req.body.status) ? req.body.status : item.status;
     if (status !== item.status) {
+      if (status === 'out') item.batches = []; // none left
+      else if (!batchesOf(item).length) item.batches = [{ count: 1, expires: '' }]; // Have or Low means at least one
       item.set({ status, statusBy: req.user.name, statusAt: new Date() });
-      if (status === 'out') item.count = 0;
-      else if (!item.count) item.count = 1;
       await item.save();
       const added = await addToShopping(req.user, req.household, item);
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} marked ${item.name} ${pantryNames(req.household)[status]}${added ? ' and added it to Shopping' : ''}` });
@@ -100,19 +104,24 @@ function readForm(req) {
     spot: pick(req.household, 'pantrySpots', b.spot),
     status: STATUS_KEYS.includes(b.status) ? b.status : 'have',
     amount: String(b.amount || '').trim().slice(0, 40),
-    count: Math.min(999, Math.max(0, parseInt(b.count, 10) || 0)),
-    expires: isDate(b.expires) ? b.expires : '',
     autoShop: b.autoShop === 'on',
     note: String(b.note || '').trim().slice(0, 300),
   };
   values.key = keyOf(values.name);
-  if (values.status === 'have' && !values.count) values.count = 1; // Have means at least one
-  if (values.status === 'out') values.count = 0;
+  // How many, by use-by date: one row each. A row with no count is left out.
+  const counts = [].concat(b.bCount == null ? [] : b.bCount);
+  const dates = [].concat(b.bExpires == null ? [] : b.bExpires);
+  values.batches = counts
+    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '' }))
+    .filter((x) => x.count > 0)
+    .slice(0, 30);
+  if (values.status === 'out') values.batches = [];
+  else if (!values.batches.length) values.batches = [{ count: 1, expires: '' }]; // Have or Low means at least one
   return { values, error: values.name ? null : 'Enter the item’s name.' };
 }
 
 // "Milk · Fridge · 2 · use by Nov 20": how one existing item is described when choosing.
-const describe = (p, STATUS) => [p.name, p.spot, p.count > 1 ? `${p.count} of them` : '', p.status !== 'have' ? STATUS[p.status] : '', p.expires ? `use by ${shortDay(p.expires)}` : ''].filter(Boolean).join(' · ');
+const describe = (p, STATUS) => [p.name, p.spot, p.count > 1 ? `${p.count} of them` : '', p.status !== 'have' ? STATUS[p.status] : '', p.expires ? `soonest use by ${shortDay(p.expires)}` : ''].filter(Boolean).join(' · ');
 const sameAs = async (req, key) => (await PantryItem.find({ ...visible(req.user), key }).sort({ createdAt: 1 }).lean()).map((p) => ({ ...p, label: describe(p, pantryNames(req.household)) }));
 
 // choice: "new", or "add:<id>" / "replace:<id>" for one of `existing`.
@@ -124,7 +133,7 @@ async function readChoice(req, existing) {
 }
 
 const formView = async (req, item, error, existing = []) => ({
-  active: 'pantry', item, error: error || null, STATUS: pantryNames(req.household), existing,
+  active: 'pantry', item: { ...item, batches: item.batches && item.batches.length ? item.batches : batchesOf(item) }, error: error || null, STATUS: pantryNames(req.household), existing,
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
   photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
 });
@@ -154,7 +163,7 @@ router.get('/s/pantry/add', async (req, res, next) => {
       item: {
         name: c ? c.name : name,
         spot: h.pantrySpots.includes(q.spot) ? q.spot : existing[0] ? existing[0].spot : defaultSpot,
-        expires: '', amount: '', count: from ? countOf(from.qty) : 1,
+        expires: '', amount: '', count: from ? countOf(from.qty) : 1, // one batch: this date, this many
       },
       existing,
       from: from ? String(from._id) : '',
@@ -183,9 +192,8 @@ router.post('/s/pantry/add', async (req, res, next) => {
     const { item, text } = await stockIn(req.user, {
       name: c ? c.name : name, key, choice, target,
       spot: pick(req.household, 'pantrySpots', b.spot),
-      expires: isDate(b.expires) ? b.expires : '',
       amount: String(b.amount || '').trim().slice(0, 40),
-      count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)),
+      batches: [{ count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)), expires: isDate(b.expires) ? b.expires : '' }],
     });
     if (choice === 'new') await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text, label: item.name });
     else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
@@ -216,18 +224,39 @@ router.post('/s/pantry/putaway/:id/skip', async (req, res, next) => {
   }
 });
 
-// One used up: the count goes down; at none left it's Out (and onto Shopping if that's on).
-router.post('/s/pantry/:id/use', async (req, res, next) => {
+// One used up. With more than one date, it asks which one; at none left it's Out (and onto
+// Shopping if that's on).
+router.get('/s/pantry/:id/use', async (req, res, next) => {
   try {
     const item = await find(req);
-    if (!item) return res.redirect(backTo((req.body || {}).query));
+    if (!item) return res.redirect('/s/pantry');
+    const today = todayIn(req.user.timezone);
+    res.render('pantry/use', {
+      active: 'pantry', item, query: String(req.query.query || ''),
+      batches: batchesOf(item).map((x, i) => ({ i, count: x.count, label: x.expires ? expiryText(x.expires, today, req.household.pantrySoonDays || 3).text : 'No date' })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/s/pantry/:id/use', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const item = await find(req);
+    if (!item) return res.redirect(backTo(b.query));
+    const batches = batchesOf(item).map((x) => ({ count: x.count, expires: x.expires || '' }));
+    const i = parseInt(b.batch, 10);
+    if (batches.length > 1 && !(i >= 0 && i < batches.length)) return res.redirect(`/s/pantry/${item._id}/use?${new URLSearchParams({ query: String(b.query || '') })}`);
     const before = item.toObject();
-    item.count = Math.max(0, (item.count || 1) - 1);
-    if (item.count === 0) item.set({ status: 'out', statusBy: req.user.name, statusAt: new Date() });
+    const at = batches.length > 1 ? i : 0;
+    if (batches[at]) batches[at].count -= 1;
+    item.batches = batches.filter((x) => x.count > 0);
+    if (!item.batches.length) item.set({ statusBy: req.user.name, statusAt: new Date() });
     await item.save();
     await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: item.count ? `used one ${item.name} (${item.count} left)` : `used the last ${item.name}`, label: item.name });
     if (item.count === 0 && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
-    res.redirect(`${backTo((req.body || {}).query)}#p-${item._id}`);
+    res.redirect(`${backTo(b.query)}#p-${item._id}`);
   } catch (err) {
     next(err);
   }
@@ -252,7 +281,7 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
     if (existing.length && !(req.body || {}).choice) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, null, existing));
     const { choice, target } = await readChoice(req, existing);
     if (target) {
-      const { item, text } = await stockIn(req.user, { ...values, count: values.count || 1, choice, target });
+      const { item, text } = await stockIn(req.user, { ...values, choice, target });
       try { await applyPhoto(req, item); await item.save(); } catch (e) { if (!e.userFacing) throw e; }
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
       return res.redirect(`/s/pantry#p-${item._id}`);

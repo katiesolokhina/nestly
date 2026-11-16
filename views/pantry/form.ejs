@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: item._id ? 'Edit pantry item' : 'Add to pantry', scripts: ['confirm'] }) %>
+<%- include('../partials/top', { title: item._id ? 'Edit pantry item' : 'Add to pantry', scripts: ['confirm', 'pantry-dates'] }) %>
 <main class="stack">
   <div class="head"><h1><%= item._id ? 'Edit pantry item' : 'Add to pantry' %></h1><a class="link-btn" href="/s/pantry">Cancel</a></div>
   <form class="card" method="post" action="/s/pantry<%= item._id ? '/' + item._id : '' %>" enctype="multipart/form-data" novalidate>
@@ -10,10 +10,22 @@
       <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
       <div class="field"><label for="status">Status</label><select id="status" name="status"><% Object.entries(STATUS).forEach(([v, l]) => { %><option value="<%= v %>"<%= item.status === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
     </div>
-    <div class="fields">
-      <div class="field"><label for="expires">Use by <span class="muted">(optional)</span></label><input id="expires" name="expires" type="date" value="<%= item.expires %>"></div>
-      <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="0" max="999" inputmode="numeric" value="<%= item.count == null ? 1 : item.count %>"></div>
-    </div>
+    <fieldset class="group" data-batches>
+      <legend>How many, by use-by date</legend>
+      <p class="hint">One line per date. Leave the date blank for things that don’t expire.</p>
+      <% const rows = item.status === 'out' ? [] : item.batches; %>
+      <% [...rows, { count: '', expires: '' }].forEach((b, i) => { %>
+        <div class="batch-row" data-batch-row>
+          <label class="sr-only" for="bc-<%= i %>">How many</label>
+          <input id="bc-<%= i %>" class="batch-count" name="bCount" type="number" min="0" max="999" inputmode="numeric" placeholder="#" value="<%= b.count %>">
+          <span class="batch-x" aria-hidden="true">×</span>
+          <label class="sr-only" for="be-<%= i %>">Use by</label>
+          <input id="be-<%= i %>" name="bExpires" type="date" value="<%= b.expires %>">
+          <button class="link-btn batch-clear" type="button" data-clear-date hidden>No date</button>
+        </div>
+      <% }) %>
+      <p class="hint">The empty line adds more with another date. Set a count to 0 to remove that line.</p>
+    </fieldset>
     <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
     <div class="field">
       <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>

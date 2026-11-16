@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: 'Add to pantry' }) %>
+<%- include('../partials/top', { title: 'Add to pantry', scripts: ['pantry-dates'] }) %>
 <main class="stack">
   <div class="head"><div><h1><%= from ? 'Put away' : 'Add to pantry' %></h1><% if (fromText || found) { %><p class="sub"><%= fromText || found %></p><% } %></div><a class="link-btn" href="/s/pantry">Cancel</a></div>
   <form class="card" method="post" action="/s/pantry/add" novalidate>
@@ -8,7 +8,7 @@
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
     <% if (existing.length) { %><%- include('choices', { existing }) %><% } %>
     <div class="fields">
-      <div class="field"><label for="expires">Use by</label><input id="expires" name="expires" type="date" value="<%= item.expires %>"<%= item.name ? ' autofocus' : '' %>></div>
+      <div class="field"><label for="expires">Use by</label><span class="date-clear"><input id="expires" name="expires" type="date" value="<%= item.expires %>"<%= item.name ? ' autofocus' : '' %>><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>
       <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="1" max="99" inputmode="numeric" value="<%= item.count %>"></div>
     </div>
     <div class="fields">
@@ -20,6 +20,6 @@
       <% if (code || again) { %><button class="btn btn-ghost" type="submit" name="again" value="1">Save, scan next</button><% } %>
     </div>
   </form>
-  <p class="hint">The use-by date can be left blank. Notes and a photo are on the item’s page after it’s saved.</p>
+  <p class="hint">Leave the use-by date blank for things that don’t expire. Adding to an item keeps each date separately, and its page shows how many of each.</p>
 </main>
 <%- include('../partials/bottom') %>

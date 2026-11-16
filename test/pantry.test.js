@@ -64,13 +64,37 @@ test('pantry', async (t) => {
   await withDb(app.uri, async () => {
     const m = await PantryItem.findById(ids.Milk).lean();
     assert.equal(m.count, 3);
-    assert.equal(m.expires, addDays(today, 9), 'the earlier date is kept');
+    assert.equal(m.expires, addDays(today, 9), 'the list shows the soonest date');
+    assert.deepEqual(m.batches.map((b) => [b.count, b.expires]), [[1, addDays(today, 9)], [2, addDays(today, 12)]], 'each date is kept');
     assert.equal(await PantryItem.countDocuments({ key: 'milk' }), 1);
   });
-  assert.match((await katie('/s/pantry')).text, /3 of them/);
-  // −1 as they're used.
+  page = await katie('/s/pantry');
+  assert.match(page.text, /3 of them/);
+  assert.match(page.text, /\(\+1 later\)/);
+  // The item page lists each date, with a line for more.
+  page = await katie(`/s/pantry/${ids.Milk}/edit`);
+  assert.match(page.text, new RegExp(`name="bExpires" type="date" value="${addDays(today, 12)}"`));
+  assert.match(page.text, /No date/);
+  // −1 with more than one date asks which one.
+  let r0 = await katie(`/s/pantry/${ids.Milk}/use`, { method: 'POST', form: { query: '' } });
+  assert.match(r0.location, new RegExp(`^/s/pantry/${ids.Milk}/use`));
+  assert.match((await katie(r0.location)).text, /Which one did you use/);
+  await katie(`/s/pantry/${ids.Milk}/use`, { method: 'POST', form: { query: '', batch: '0' } });
+  await withDb(app.uri, async () => {
+    const m = await PantryItem.findById(ids.Milk).lean();
+    assert.deepEqual([m.count, m.expires], [2, addDays(today, 12)]);
+  });
+  // Edit: a date can be cleared (things that don't expire), and lines added.
+  await katie(`/s/pantry/${ids.Milk}`, { method: 'POST', form: [['name', 'Milk'], ['spot', 'Fridge'], ['status', 'have'], ['autoShop', 'on'], ['bCount', '2'], ['bExpires', ''], ['bCount', '1'], ['bExpires', addDays(today, 30)]] });
+  await withDb(app.uri, async () => {
+    const m = await PantryItem.findById(ids.Milk).lean();
+    assert.deepEqual([m.count, m.expires, m.batches.length], [3, addDays(today, 30), 2]);
+  });
+  await katie(`/s/pantry/${ids.Milk}`, { method: 'POST', form: [['name', 'Milk'], ['spot', 'Fridge'], ['status', 'have'], ['autoShop', 'on'], ['bCount', '2'], ['bExpires', '']] });
+  await withDb(app.uri, async () => assert.equal((await PantryItem.findById(ids.Milk).lean()).expires, ''));
+  // −1 with one line just takes one.
   await katie(`/s/pantry/${ids.Milk}/use`, { method: 'POST', form: { query: '' } });
-  await withDb(app.uri, async () => assert.equal((await PantryItem.findById(ids.Milk).lean()).count, 2));
+  await withDb(app.uri, async () => assert.equal((await PantryItem.findById(ids.Milk).lean()).count, 1));
   // The Details page asks too.
   page = await katie('/s/pantry', { method: 'POST', form: { name: 'Rice', spot: 'Pantry', status: 'have', count: '1', autoShop: 'on' } });
   assert.equal(page.status, 422);
@@ -130,7 +154,7 @@ test('pantry', async (t) => {
   await withDb(app.uri, async () => {
     assert.equal(await PantryItem.countDocuments({ key: 'milk' }), 2);
     assert.equal(await ShoppingItem.countDocuments({ key: 'milk' }), 0);
-    await PantryItem.updateOne({ _id: ids.Milk }, { $set: { status: 'have', count: 2 } });
+    await PantryItem.updateOne({ _id: ids.Milk }, { $set: { status: 'have', count: 2, batches: [{ count: 2, expires: '' }] } });
   });
   // Skip: bought, but not for the pantry.
   await withDb(app.uri, async () => ShoppingItem.create({ householdId: (await Household.findOne({ name: 'Home' }))._id, createdBy: null, byName: 'Sam', name: 'Rice', key: 'rice', bought: true, boughtAt: new Date(), boughtByName: 'Sam', putAway: 'pending' }));
@@ -145,7 +169,7 @@ test('pantry', async (t) => {
   assert.match(rev.text, /value="spaghetti" checked/);
 
   // Expiry: shown, filtered, and on Today.
-  await katie('/s/pantry', { method: 'POST', form: { name: 'Yogurt', spot: 'Fridge', status: 'have', expires: addDays(today, 1), autoShop: 'on' } });
+  await katie('/s/pantry', { method: 'POST', form: { name: 'Yogurt', spot: 'Fridge', status: 'have', bCount: '1', bExpires: addDays(today, 1), autoShop: 'on' } });
   page = await katie('/s/pantry?show=soon');
   assert.match(page.text, /Yogurt/);
   assert.match(page.text, /Expires tomorrow/);
