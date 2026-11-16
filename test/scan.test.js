@@ -52,25 +52,33 @@ test('barcode scanning', async (t) => {
   assert.equal((await api('abc', 'pantry')).status, 400);
   assert.equal((await api('1234', 'pantry')).status, 400);
 
-  // Pantry: add, and the code is remembered.
-  let r = await katie('/s/pantry/scan', { method: 'POST', form: { code: '012345678905', name: 'Spaghetti', brand: 'Barilla', spot: 'Pantry' } });
+  // Pantry: a scan opens the add page (date, how many), and the code is remembered.
+  let r = await katie('/s/pantry/add?name=Spaghetti&code=0012345678905&brand=Barilla&found=Found%3A%20Barilla');
+  assert.match(r.text, /name="code" value="0012345678905"/);
+  assert.match(r.text, /Save, scan next/);
+  r = await katie('/s/pantry/add', { method: 'POST', form: { code: '012345678905', name: 'Spaghetti', brand: 'Barilla', spot: 'Pantry', expires: '2027-05-01' } });
   assert.match(r.location, /^\/s\/pantry#p-/);
   const before = calls;
   d = await api('0012345678905', 'pantry');
   assert.equal(d.source, 'saved');
   assert.equal(calls, before, 'saved codes don’t go to the database');
-  assert.equal(d.pantry.status, 'have');
+  assert.equal(d.pantry[0].status, 'have');
   await withDb(app.uri, async () => {
     const c = await CatalogItem.findOne({ key: 'spaghetti' }).lean();
     assert.deepEqual(c.barcodes, ['0012345678905']);
     assert.equal(c.brand, 'Barilla');
     await PantryItem.updateOne({ key: 'spaghetti' }, { $set: { status: 'low' } });
   });
-  // Restock by scanning again, and ask to scan the next one.
-  r = await katie('/s/pantry/scan', { method: 'POST', form: { code: '0012345678905', name: 'Spaghetti', again: '1' } });
-  assert.match(r.location, /^\/s\/pantry\?scan=1#p-/);
-  await withDb(app.uri, async () => assert.equal((await PantryItem.findOne({ key: 'spaghetti' }).lean()).status, 'have'));
-  assert.match((await katie('/s/pantry')).text, /marked Have/);
+  // Scanning one that's there: replace it (restocked), and scan the next one.
+  const pid = await withDb(app.uri, async () => String((await PantryItem.findOne({ key: 'spaghetti' }).lean())._id));
+  assert.match((await katie('/s/pantry/add?name=Spaghetti&code=0012345678905')).text, /Spaghetti is already in the pantry/);
+  r = await katie('/s/pantry/add', { method: 'POST', form: { code: '0012345678905', name: 'Spaghetti', choice: `replace:${pid}`, again: '1', expires: '2027-06-01' } });
+  assert.equal(r.location, '/s/pantry?scan=1');
+  await withDb(app.uri, async () => {
+    const p = await PantryItem.findOne({ key: 'spaghetti' }).lean();
+    assert.deepEqual([p.status, p.expires], ['have', '2027-06-01']);
+  });
+  assert.match((await katie('/s/pantry')).text, /Spaghetti: restocked/);
 
   // Unknown code: named once, then remembered.
   d = await api('4006381333931', 'shopping');
@@ -88,12 +96,11 @@ test('barcode scanning', async (t) => {
   r = await katie('/s/shopping/scan', { method: 'POST', form: { code: '4006381333931', name: 'Highlighters', action: 'tick', again: '1' } });
   assert.equal(r.location, '/s/shopping?mode=shop&scan=1');
   await withDb(app.uri, async () => assert.equal((await ShoppingItem.findOne({ key: 'highlighters' }).lean()).bought, true));
-  // Not on the list: added as bought, and the pantry restocks.
-  await withDb(app.uri, async () => PantryItem.updateOne({ key: 'spaghetti' }, { $set: { status: 'out' } }));
+  // Not on the list: added as bought, and it waits to be put away in the pantry.
   await katie('/s/shopping/scan', { method: 'POST', form: { code: '0012345678905', name: 'Spaghetti', action: 'bought', again: '1' } });
   await withDb(app.uri, async () => {
-    assert.equal((await ShoppingItem.findOne({ key: 'spaghetti' }).lean()).bought, true);
-    assert.equal((await PantryItem.findOne({ key: 'spaghetti' }).lean()).status, 'have');
+    const s = await ShoppingItem.findOne({ key: 'spaghetti' }).lean();
+    assert.deepEqual([s.bought, s.putAway], [true, 'pending']);
   });
   // A code moves to whichever item it was last saved as.
   await katie('/s/shopping/scan', { method: 'POST', form: { code: '4006381333931', name: 'Markers', action: 'add' } });

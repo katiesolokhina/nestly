@@ -1,22 +1,29 @@
 <%- include('../partials/top', { title: 'Recipes', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('recipes') %><%- include('../partials/gear', { key: 'recipes' }) %></h1><p class="sub"><%= items.length %> <%= items.length === 1 ? 'recipe' : 'recipes' %><%= q || category ? ' found' : '' %></p></div><% if (canEdit('recipes')) { %><a class="btn btn-primary" href="/s/recipes/new">Add</a><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('recipes') %><%- include('../partials/gear', { key: 'recipes' }) %></h1><p class="sub"><%= items.length %> <%= items.length === 1 ? 'recipe' : 'recipes' %><%= q || category || tag ? ' found' : '' %></p></div><% if (canEdit('recipes')) { %><a class="btn btn-primary" href="/s/recipes/new">Add</a><% } %></div>
   <% if (canEdit('recipes')) { %><a class="btn btn-ghost btn-block" href="/s/recipes/import">Import from a link or text</a><% } %>
   <form class="add" method="get" action="/s/recipes" role="search">
-    <% if (category) { %><input type="hidden" name="category" value="<%= category %>"><% } %>
+    <% if (category) { %><input type="hidden" name="category" value="<%= category %>"><% } %><% if (tag) { %><input type="hidden" name="tag" value="<%= tag %>"><% } %>
     <input type="search" name="q" value="<%= q %>" maxlength="60" aria-label="Search recipes" placeholder="Search by name or ingredient">
     <button class="btn btn-ghost" type="submit">Search</button>
   </form>
   <div class="chips chips-scroll" role="group" aria-label="Filter by category" data-chip-scroll>
     <a class="chip<%= !category ? ' on' : '' %>" href="/s/recipes<%= q ? '?q=' + encodeURIComponent(q) : '' %>"<%- !category ? ' aria-current="true"' : '' %>>All</a>
-    <% [...household.recipeCats, 'Uncategorized'].forEach((c) => { %><a class="chip<%= category === c ? ' on' : '' %>" href="/s/recipes?category=<%= encodeURIComponent(c) %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- category === c ? ' aria-current="true"' : '' %>><%= c %></a><% }) %>
+    <% [...household.recipeCats, 'Uncategorized'].forEach((c) => { %><a class="chip<%= category === c ? ' on' : '' %>" href="/s/recipes?category=<%= encodeURIComponent(c) %><%= tag ? '&tag=' + encodeURIComponent(tag) : '' %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- category === c ? ' aria-current="true"' : '' %>><%= c %></a><% }) %>
   </div>
+  <% if (household.recipeTags.length) { %>
+    <div class="chips chips-scroll" role="group" aria-label="Filter by tag" data-chip-scroll>
+      <% const tagLink = (t) => '/s/recipes?' + new URLSearchParams(Object.entries({ category, tag: t, q }).filter(([, v]) => v)).toString(); %>
+      <a class="chip<%= !tag ? ' on' : '' %>" href="<%= tagLink('') %>">Any tag</a>
+      <% household.recipeTags.forEach((t) => { %><a class="chip<%= tag === t ? ' on' : '' %>" href="<%= tagLink(t) %>"<%- tag === t ? ' aria-current="true"' : '' %>><%= t %></a><% }) %>
+    </div>
+  <% } %>
   <div class="card">
-    <% if (!items.length) { %><p class="muted small center"><%= q || category ? 'No recipes match.' : 'No recipes yet. Add one, or import one from a link.' %></p><% } %>
+    <% if (!items.length) { %><p class="muted small center"><%= q || category || tag ? 'No recipes match.' : 'No recipes yet. Add one, or import one from a link.' %></p><% } %>
     <% items.forEach((r) => { %>
       <a class="row recipe-row" href="/s/recipes/<%= r._id %>">
         <% if (r.photoId) { %><img class="file-thumb" src="/files/<%= r.photoId %>" alt="" loading="lazy"><% } else { %><span class="recipe-ph" aria-hidden="true"><%= r.title.charAt(0).toUpperCase() %></span><% } %>
-        <span class="row-body"><span class="row-title"><%= r.title %></span><span class="row-meta"><%= [r.category === 'Uncategorized' ? '' : r.category, r.time, r.servings].filter(Boolean).join(' · ') %></span></span>
+        <span class="row-body"><span class="row-title"><%= r.title %></span><span class="row-meta"><%= [r.category === 'Uncategorized' ? '' : r.category, ...(r.tags || []), r.time, r.servings].filter(Boolean).join(' · ') %></span></span>
         <% if (r.private) { %><span class="tag lilac">Only me</span><% } %>
       </a>
     <% }) %>

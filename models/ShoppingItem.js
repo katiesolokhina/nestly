@@ -21,6 +21,8 @@ const shoppingSchema = new mongoose.Schema(
     receiptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null },
     photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null },
     bought: { type: Boolean, default: false },
+    // Bought, and something like it is in the pantry: waits on the Pantry page to be put away.
+    putAway: { type: String, enum: ['', 'pending', 'done'], default: '' },
     boughtAt: { type: Date, default: null },
     boughtByName: { type: String, default: '' },
     // Cleared items leave the list but stay as price history.

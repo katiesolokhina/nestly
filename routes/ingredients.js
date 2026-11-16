@@ -11,7 +11,7 @@ const PantryItem = require('../models/PantryItem');
 const { visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { keyOf, fromCatalog, addToCatalog } = require('../lib/catalog');
-const { combine } = require('../lib/ingredients');
+const { combine, itemName } = require('../lib/ingredients');
 const { todayIn, addDays, isDate, shortDay } = require('../lib/dates');
 const { weekOfFor } = require('./meals');
 
@@ -50,7 +50,7 @@ async function source(req) {
 }
 
 async function review(req, src) {
-  const rows = combine(src.recipes.flatMap((r) => r.ingredients.map((i) => ({ qty: i.qty, name: i.name, from: r.title }))));
+  const rows = combine(src.recipes.flatMap((r) => r.ingredients.map((i) => ({ qty: i.qty, name: itemName(i), from: r.title }))));
   const keys = rows.map((r) => r.key);
   const [onList, usual, pantry] = await Promise.all([
     ShoppingItem.find({ ...visible(req.user), key: { $in: keys }, bought: false, clearedAt: null }, { key: 1 }).lean(),

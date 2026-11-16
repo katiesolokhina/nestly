@@ -6,6 +6,12 @@
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="title">Recipe name</label><input id="title" name="title" type="text" maxlength="120" required value="<%= item.title %>"></div>
     <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.recipeCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
+    <% if (household.recipeTags.length) { %>
+      <fieldset class="group">
+        <legend>Tags</legend>
+        <div class="tag-picks"><% household.recipeTags.forEach((t, i) => { %><label class="tag-pick"><input type="checkbox" name="tags" value="<%= t %>"<%= (item.tags || []).includes(t) ? ' checked' : '' %>><span><%= t %></span></label><% }) %></div>
+      </fieldset>
+    <% } %>
     <div class="fields">
       <div class="field"><label for="servings">Serves</label><input id="servings" name="servings" type="text" maxlength="40" placeholder="4" value="<%= item.servings %>"></div>
       <div class="field"><label for="time">Time</label><input id="time" name="time" type="text" maxlength="40" placeholder="45 min" value="<%= item.time %>"></div>
@@ -13,18 +19,25 @@
 
     <fieldset class="group">
       <legend>Ingredients</legend>
-      <p class="hint">Start typing to pick from your household's items, or type a new one. Notes after a comma (“onion, diced”) stay off the shopping list.</p>
+      <p class="hint">Type is the kind (red, thigh) and goes on the shopping list with the item: “red bell pepper”. Prep (diced) stays in the recipe.</p>
       <div class="ing-rows" data-ing-rows>
-        <% const rows = item.ingredients.length ? item.ingredients : [{ qty: '', name: '' }, { qty: '', name: '' }, { qty: '', name: '' }]; %>
+        <% const empty = { qty: '', type: '', name: '', prep: '' }; const rows = item.ingredients.length ? item.ingredients : [empty, empty, empty]; %>
         <% rows.forEach((ing, i) => { %>
           <div class="ing-row" data-ing-row>
             <input class="ing-qty" name="ingQty" type="text" maxlength="40" placeholder="Amount" aria-label="Amount" value="<%= ing.qty %>">
             <input class="ing-name" name="ingName" type="text" maxlength="120" placeholder="Ingredient" aria-label="Ingredient" list="catalog-names" autocomplete="off" value="<%= ing.name %>">
-            <button class="mini" type="button" data-ing-remove aria-label="Remove this ingredient">×</button>
+            <button class="mini ing-x" type="button" data-ing-remove aria-label="Remove this ingredient">×</button>
+            <input class="ing-type" name="ingType" type="text" maxlength="40" placeholder="Type" aria-label="Type" list="ing-types" autocomplete="off" value="<%= ing.type || '' %>">
+            <select class="ing-prep" name="ingPrep" aria-label="Prep">
+              <option value="">No prep</option>
+              <% const preps = household.prepStyles.includes(ing.prep || '') || !ing.prep ? household.prepStyles : [ing.prep, ...household.prepStyles]; %>
+              <% preps.forEach((p) => { %><option<%= ing.prep === p ? ' selected' : '' %>><%= p %></option><% }) %>
+            </select>
           </div>
         <% }) %>
       </div>
       <button class="btn btn-ghost" type="button" data-ing-add>Add ingredient</button>
+      <datalist id="ing-types"><% types.forEach((t) => { %><option value="<%= t %>"></option><% }) %></datalist>
       <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
     </fieldset>
 

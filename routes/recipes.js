@@ -8,7 +8,7 @@ const { recordChange, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { addToCatalog } = require('../lib/catalog');
-const { shoppingName } = require('../lib/ingredients');
+const { itemName, ingredientText, splitIngredient, BEFORE } = require('../lib/ingredients');
 const { importFromLink, fetchPhoto, parsePasted, socialOf } = require('../lib/recipe-import');
 
 const router = express.Router();
@@ -24,19 +24,22 @@ async function find(req) {
   return Recipe.findOne({ _id: req.params.id, ...visible(req.user) });
 }
 
-const blank = (req) => ({ _id: null, title: '', category: 'Uncategorized', servings: '', time: '', ingredients: [], steps: [], notes: '', link: '', photoId: null, photoUrl: '', private: false });
+const blank = (req) => ({ _id: null, title: '', category: 'Uncategorized', tags: [], servings: '', time: '', ingredients: [], steps: [], notes: '', link: '', photoId: null, photoUrl: '', private: false });
 
 function readForm(req) {
   const b = req.body || {};
   const qtys = list(b.ingQty);
+  const types = list(b.ingType);
+  const preps = list(b.ingPrep);
   const ingredients = list(b.ingName)
-    .map((name, i) => ({ qty: String(qtys[i] || '').trim().slice(0, 40), name: name.trim().slice(0, 120) }))
+    .map((name, i) => ({ qty: String(qtys[i] || '').trim().slice(0, 40), type: String(types[i] || '').trim().slice(0, 40), name: name.trim().slice(0, 120), prep: String(preps[i] || '').trim().slice(0, 60) }))
     .filter((x) => x.name)
     .slice(0, 80);
   const link = String(b.link || '').trim().slice(0, 1000);
   const values = {
     title: String(b.title || '').trim().slice(0, 120),
     category: pick(req.household, 'recipeCats', b.category),
+    tags: [...new Set(list(b.tags))].filter((t) => req.household.recipeTags.includes(t)),
     servings: String(b.servings || '').trim().slice(0, 40),
     time: String(b.time || '').trim().slice(0, 40),
     ingredients,
@@ -52,12 +55,16 @@ function readForm(req) {
   return { values, error, photoUrl };
 }
 
+// Types this household has used ("red", "thigh"), for suggestions and for splitting imports.
+const usedTypes = (req) => Recipe.distinct('ingredients.type', { householdId: req.user.householdId }).then((t) => t.filter(Boolean).sort((a, b) => a.localeCompare(b)));
+
 async function formView(req, item, error, extra = {}) {
-  const [photo, catalog] = await Promise.all([
+  const [photo, catalog, types] = await Promise.all([
     item.photoId ? Upload.findById(item.photoId).lean() : null,
     CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
+    usedTypes(req),
   ]);
-  return { active: 'recipes', item, error: error || null, photo, catalog, imported: false, ...extra };
+  return { active: 'recipes', item, error: error || null, photo, catalog, types: [...new Set([...types, ...BEFORE])].sort((a, b) => a.localeCompare(b)), imported: false, ...extra };
 }
 
 // Uploaded photo, removed photo, or the photo from an imported page.
@@ -84,11 +91,13 @@ router.get('/s/recipes', async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim().slice(0, 60);
     const category = req.household.recipeCats.includes(req.query.category) || req.query.category === 'Uncategorized' ? req.query.category : '';
+    const tag = req.household.recipeTags.includes(req.query.tag) ? req.query.tag : '';
     const filter = { ...visible(req.user) };
     if (category) filter.category = category;
-    if (q) filter.$and = [{ $or: [{ title: new RegExp(escapeRe(q), 'i') }, { 'ingredients.name': new RegExp(escapeRe(q), 'i') }] }];
-    const items = await Recipe.find(filter, { title: 1, category: 1, time: 1, servings: 1, photoId: 1, private: 1 }).collation({ locale: 'en' }).sort({ title: 1 }).lean();
-    res.render('recipes/list', { active: 'recipes', items, q, category });
+    if (tag) filter.tags = tag;
+    if (q) filter.$and = [{ $or: [{ title: new RegExp(escapeRe(q), 'i') }, { 'ingredients.name': new RegExp(escapeRe(q), 'i') }, { 'ingredients.type': new RegExp(escapeRe(q), 'i') }, { tags: new RegExp(escapeRe(q), 'i') }] }];
+    const items = await Recipe.find(filter, { title: 1, category: 1, tags: 1, time: 1, servings: 1, photoId: 1, private: 1 }).collation({ locale: 'en' }).sort({ title: 1 }).lean();
+    res.render('recipes/list', { active: 'recipes', items, q, category, tag });
   } catch (err) {
     next(err);
   }
@@ -142,6 +151,9 @@ router.post('/s/recipes/import', async (req, res, next) => {
       found = await importFromLink(link);
     }
     const { photoUrl, ...rest } = found;
+    // Best guess at each ingredient's type and prep, to check on the form.
+    const types = await usedTypes(req);
+    rest.ingredients = (rest.ingredients || []).map((i) => splitIngredient(i, { preps: req.household.prepStyles, types }));
     res.render('recipes/form', await formView(req, { ...blank(req), ...rest, photoUrl }, null, { imported: true }));
   } catch (err) {
     if (!err.userFacing) return next(err);
@@ -161,7 +173,7 @@ router.post('/s/recipes', withPhoto, async (req, res, next) => {
       return res.status(422).render('recipes/form', await formView(req, { ...blank(req), ...values, photoUrl }, e.message));
     }
     await item.save();
-    if (!item.private) await addToCatalog(req.user, req.household, item.ingredients.map((i) => shoppingName(i.name)));
+    if (!item.private) await addToCatalog(req.user, req.household, item.ingredients.map((i) => itemName(i)));
     await recordChange(req, { kind: 'create', model: 'Recipe', doc: item, section: SECTION, text: `added the recipe ${item.title}`, label: item.title });
     res.redirect(`/s/recipes/${item._id}`);
   } catch (err) {
@@ -177,7 +189,7 @@ router.get('/s/recipes/:id', async (req, res, next) => {
     const photo = item.photoId ? await Upload.findById(item.photoId).lean() : null;
     let source = '';
     try { source = item.link ? new URL(item.link).hostname.replace(/^www\./, '') : ''; } catch { /* shown without a site name */ }
-    res.render('recipes/show', { active: 'recipes', item, photo, source, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
+    res.render('recipes/show', { active: 'recipes', item, photo, source, ingredientText, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
   } catch (err) {
     next(err);
   }
@@ -209,7 +221,7 @@ router.post('/s/recipes/:id', withPhoto, async (req, res, next) => {
       return res.status(422).render('recipes/form', await formView(req, { ...before, ...values, photoUrl: '' }, e.message));
     }
     await item.save();
-    if (!item.private) await addToCatalog(req.user, req.household, item.ingredients.map((i) => shoppingName(i.name)));
+    if (!item.private) await addToCatalog(req.user, req.household, item.ingredients.map((i) => itemName(i)));
     await recordChange(req, { kind: 'update', model: 'Recipe', doc: item, before, section: SECTION, text: `edited the recipe ${item.title}`, label: item.title });
     res.redirect(`/s/recipes/${item._id}`);
   } catch (err) {

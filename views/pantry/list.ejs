@@ -1,12 +1,24 @@
 <%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan'] }) %>
 <main class="stack">
   <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (canEdit('pantry')) { %><div class="btn-row"><button class="btn btn-ghost" type="button" data-scan-open hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg> Scan</button><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div><% } %></div>
-  <% if (canEdit('pantry')) { %><form class="add pantry-add" method="post" action="/s/pantry/quick">
-    <input type="hidden" name="query" value="<%= query %>">
+  <% if (canEdit('pantry')) { %><form class="add pantry-add" method="get" action="/s/pantry/add">
     <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add to the pantry" placeholder="Add an item" autocomplete="off">
     <select name="spot" aria-label="Where it’s kept"><% household.pantrySpots.forEach((s) => { %><option<%= (spot || defaultSpot) === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
     <button class="btn btn-primary" type="submit">Add</button>
   </form><% } %>
+  <% if (putAway.length) { %>
+    <section class="card" id="putaway" aria-labelledby="pa">
+      <h2 id="pa">Put away</h2>
+      <p class="row-meta">Bought on Shopping. Add each to the pantry with its date, or skip it.</p>
+      <% putAway.forEach((s) => { %>
+        <div class="row">
+          <div class="row-body"><span class="row-title"><%= s.name %></span><span class="row-meta"><%= s.meta %></span></div>
+          <form method="post" action="/s/pantry/putaway/<%= s._id %>/skip"><button class="link-btn" type="submit">Skip<span class="sr-only"> <%= s.name %></span></button></form>
+          <a class="btn btn-primary" href="/s/pantry/add?from=<%= s._id %>">Put away<span class="sr-only"> <%= s.name %></span></a>
+        </div>
+      <% }) %>
+    </section>
+  <% } %>
   <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
   <div class="chips chips-scroll" role="group" aria-label="Filter" data-chip-scroll>
     <a class="chip<%= !show && !spot ? ' on' : '' %>" href="/s/pantry"<%- !show && !spot ? ' aria-current="true"' : '' %>>All</a>
@@ -25,6 +37,7 @@
             <div class="row pantry-row status-<%= i.status %>">
               <% if (i.photoId) { %><a class="pantry-thumb" href="/files/<%= i.photoId %>/view?back=/s/pantry"><img src="/files/<%= i.photoId %>" alt="Photo of <%= i.name %>" loading="lazy"></a><% } %>
               <a class="row-body row-link" href="/s/pantry/<%= i._id %>/edit"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %></a>
+              <% if (i.count > 1 && canEdit('pantry')) { %><form method="post" action="/s/pantry/<%= i._id %>/use"><input type="hidden" name="query" value="<%= query %>"><button class="mini use-one" type="submit" aria-label="Used one <%= i.name %> (<%= i.count %> left)">−1</button></form><% } %>
               <form class="status-seg" method="post" action="/s/pantry/<%= i._id %>/status" aria-label="<%= i.name %>: <%= STATUS[i.status] %>">
                 <input type="hidden" name="query" value="<%= query %>">
                 <% Object.entries(STATUS).forEach(([v, l]) => { %><button type="submit" name="status" value="<%= v %>" class="seg-<%= v %><%= i.status === v ? ' on' : '' %>" aria-pressed="<%= i.status === v %>"><%= l %><span class="sr-only"> <%= i.name %></span></button><% }) %>
@@ -35,7 +48,7 @@
       </div>
     <% }) %>
   </div>
-  <p class="hint"><% if (shoppingOn) { %>Marking something <%= household.pantryShop === 'out' ? STATUS.out : STATUS.low + ' or ' + STATUS.out %> puts it on the shopping list, and buying it there marks it <%= STATUS.have %> again. <% } %>Swipe an item left to delete it.</p>
+  <p class="hint"><% if (shoppingOn) { %>Marking something <%= household.pantryShop === 'out' ? STATUS.out : STATUS.low + ' or ' + STATUS.out %> puts it on the shopping list, and what’s bought there waits under Put away. <% } %>Swipe an item left to delete it.</p>
 </main>
 <% if (canEdit('pantry')) { %><%- include('../partials/scanner', { mode: 'pantry', spots: household.pantrySpots, spot: spot || defaultSpot || household.pantrySpots[0], query }) %><% } %>
 <%- include('../partials/bottom') %>

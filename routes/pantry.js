@@ -7,8 +7,11 @@ const { recordChange, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { keyOf, addToCatalog } = require('../lib/catalog');
-const { addToShopping, expiryText } = require('../lib/pantry');
+const { addToShopping, expiryText, stockIn, countOf } = require('../lib/pantry');
+const ShoppingItem = require('../models/ShoppingItem');
+const { remember, CODE } = require('../lib/barcode');
 const { pantryNames } = require('../lib/prefs');
+const { shortDay } = require('../lib/dates');
 const Upload = require('../models/Upload');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const withPhoto = parseFiles(['photo']);
@@ -41,7 +44,9 @@ router.get('/s/pantry', async (req, res, next) => {
     if (show === 'low') filter.status = { $in: ['low', 'out'] };
     if (show === 'soon') filter.expires = { $ne: '', $lte: addDays(today, SOON_DAYS) };
     if (spot) filter.spot = spot;
-    const [items, catalog, counts] = await Promise.all([
+    const [putAway, items, catalog, counts] = await Promise.all([
+      // Bought on Shopping and waiting to be put away (the last two weeks).
+      req.perms.level('pantry') === 'edit' ? ShoppingItem.find({ ...visible(req.user), bought: true, putAway: 'pending', boughtAt: { $gte: new Date(Date.now() - 14 * 86400000) } }, { name: 1, qty: 1, boughtByName: 1, boughtAt: 1 }).sort({ boughtAt: -1 }).limit(30).lean() : [],
       PantryItem.find(filter).collation({ locale: 'en' }).sort({ name: 1 }).lean(),
       CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
       Promise.all([
@@ -51,7 +56,7 @@ router.get('/s/pantry', async (req, res, next) => {
     ]);
     const rows = items.map((i) => {
       const exp = expiryText(i.expires, today, SOON_DAYS);
-      return { ...i, exp, meta: [i.amount, exp.text, i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · ') };
+      return { ...i, exp, meta: [i.count > 1 ? `${i.count} of them` : '', i.amount, exp.text, i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · ') };
     });
     const order = [...spots, 'Other'];
     const groups = order
@@ -59,7 +64,7 @@ router.get('/s/pantry', async (req, res, next) => {
       .filter((g) => g.items.length);
     const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
     res.render('pantry/list', {
-      active: 'pantry', groups, catalog, show, spot, query, total: items.length,
+      active: 'pantry', groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(s.boughtAt.toISOString().slice(0, 10))].filter(Boolean).join(' · ') })),
       lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {
@@ -75,6 +80,8 @@ router.post('/s/pantry/:id/status', async (req, res, next) => {
     const status = STATUS_KEYS.includes(req.body.status) ? req.body.status : item.status;
     if (status !== item.status) {
       item.set({ status, statusBy: req.user.name, statusAt: new Date() });
+      if (status === 'out') item.count = 0;
+      else if (!item.count) item.count = 1;
       await item.save();
       const added = await addToShopping(req.user, req.household, item);
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} marked ${item.name} ${pantryNames(req.household)[status]}${added ? ' and added it to Shopping' : ''}` });
@@ -93,16 +100,31 @@ function readForm(req) {
     spot: pick(req.household, 'pantrySpots', b.spot),
     status: STATUS_KEYS.includes(b.status) ? b.status : 'have',
     amount: String(b.amount || '').trim().slice(0, 40),
+    count: Math.min(999, Math.max(0, parseInt(b.count, 10) || 0)),
     expires: isDate(b.expires) ? b.expires : '',
     autoShop: b.autoShop === 'on',
     note: String(b.note || '').trim().slice(0, 300),
   };
   values.key = keyOf(values.name);
+  if (values.status === 'have' && !values.count) values.count = 1; // Have means at least one
+  if (values.status === 'out') values.count = 0;
   return { values, error: values.name ? null : 'Enter the item’s name.' };
 }
 
-const formView = async (req, item, error) => ({
-  active: 'pantry', item, error: error || null, STATUS: pantryNames(req.household),
+// "Milk · Fridge · 2 · use by Nov 20": how one existing item is described when choosing.
+const describe = (p, STATUS) => [p.name, p.spot, p.count > 1 ? `${p.count} of them` : '', p.status !== 'have' ? STATUS[p.status] : '', p.expires ? `use by ${shortDay(p.expires)}` : ''].filter(Boolean).join(' · ');
+const sameAs = async (req, key) => (await PantryItem.find({ ...visible(req.user), key }).sort({ createdAt: 1 }).lean()).map((p) => ({ ...p, label: describe(p, pantryNames(req.household)) }));
+
+// choice: "new", or "add:<id>" / "replace:<id>" for one of `existing`.
+async function readChoice(req, existing) {
+  const [how, id] = String((req.body || {}).choice || '').split(':');
+  if (!['add', 'replace'].includes(how)) return { choice: 'new', target: null };
+  const hit = existing.find((p) => String(p._id) === id);
+  return hit ? { choice: how, target: await PantryItem.findById(hit._id) } : { choice: 'new', target: null };
+}
+
+const formView = async (req, item, error, existing = []) => ({
+  active: 'pantry', item, error: error || null, STATUS: pantryNames(req.household), existing,
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
   photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
 });
@@ -114,25 +136,98 @@ async function applyPhoto(req, item) {
   if (f) item.photoId = (await saveUpload(req.user, f[0], { isPrivate: false, imagesOnly: true }))._id;
 }
 
-// Quick add from the top of the list: just a name and where it's kept.
-router.post('/s/pantry/quick', async (req, res, next) => {
+// Adding: a short form with the use-by date and how many, before anything is saved. If the same
+// thing is already in the pantry, it asks: keep it separate, replace that one, or add to its count.
+// Also where scans and "Put away" (things bought on Shopping) land.
+router.get('/s/pantry/add', async (req, res, next) => {
   try {
-    const name = String(req.body.name || '').trim().slice(0, 80);
-    if (!name) return res.redirect(backTo(req.body.query));
-    const key = keyOf(name);
-    const dup = await PantryItem.findOne({ householdId: req.user.householdId, key }).lean();
-    if (dup) {
-      req.session.flash = `${dup.name} is already in the pantry.`;
-      return res.redirect(`${backTo(req.body.query)}#p-${dup._id}`);
-    }
-    const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
-    const item = await PantryItem.create({
-      householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name,
-      name: c ? c.name : name, key, spot: pick(req.household, 'pantrySpots', req.body.spot), statusBy: req.user.name, statusAt: new Date(),
+    const h = req.household;
+    const q = req.query;
+    const from = mongoose.isValidObjectId(q.from) ? await ShoppingItem.findOne({ _id: q.from, ...visible(req.user), bought: true, putAway: 'pending' }).lean() : null;
+    const name = String((from && from.name) || q.name || '').trim().slice(0, 80);
+    const key = name ? keyOf(name) : '';
+    const existing = key ? await sameAs(req, key) : [];
+    const c = key ? await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean() : null;
+    const defaultSpot = h.pantrySpots.includes(h.pantryDefaultSpot) ? h.pantryDefaultSpot : h.pantrySpots[0] || 'Other';
+    res.render('pantry/add', {
+      active: 'pantry',
+      item: {
+        name: c ? c.name : name,
+        spot: h.pantrySpots.includes(q.spot) ? q.spot : existing[0] ? existing[0].spot : defaultSpot,
+        expires: '', amount: '', count: from ? countOf(from.qty) : 1,
+      },
+      existing,
+      from: from ? String(from._id) : '',
+      fromText: from ? `Bought by ${from.boughtByName || from.byName}${from.qty && from.qty !== '1' ? ` (${from.qty})` : ''}` : '',
+      code: CODE.test(String(q.code || '')) ? String(q.code) : '',
+      brand: String(q.brand || '').slice(0, 80),
+      found: String(q.found || '').slice(0, 160),
+      again: q.again === '1',
+      error: null,
+      catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/s/pantry/add', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const name = String(b.name || '').trim().slice(0, 80);
+    if (!name) { req.session.flash = 'Enter the item’s name.'; return res.redirect('/s/pantry'); }
+    const key = keyOf(name);
+    const existing = await sameAs(req, key);
+    const { choice, target } = await readChoice(req, existing);
+    const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
+    const { item, text } = await stockIn(req.user, {
+      name: c ? c.name : name, key, choice, target,
+      spot: pick(req.household, 'pantrySpots', b.spot),
+      expires: isDate(b.expires) ? b.expires : '',
+      amount: String(b.amount || '').trim().slice(0, 40),
+      count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)),
+    });
+    if (choice === 'new') await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text, label: item.name });
+    else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
     await addToCatalog(req.user, req.household, [item.name]);
-    await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text: `added ${item.name} to the pantry`, label: item.name });
-    res.redirect(`${backTo(req.body.query)}#p-${item._id}`);
+    if (CODE.test(String(b.code || ''))) await remember(req.user.householdId, String(b.code), item.key, b.brand);
+    // From "Put away": that bought item is done.
+    if (mongoose.isValidObjectId(b.from)) await ShoppingItem.updateOne({ _id: b.from, householdId: req.user.householdId }, { $set: { putAway: 'done' } });
+    req.session.flash = `${item.name}: ${choice === 'new' ? 'added' : choice === 'add' ? `${item.count} now` : 'restocked'}.`;
+    res.redirect(b.again === '1' ? '/s/pantry?scan=1' : `/s/pantry#p-${item._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Old quick-add form (pages still open from before): on to the add page.
+router.post('/s/pantry/quick', (req, res) => {
+  const b = req.body || {};
+  res.redirect(303, `/s/pantry/add?${new URLSearchParams({ name: String(b.name || '').slice(0, 80), spot: String(b.spot || '').slice(0, 40) })}`);
+});
+
+// Bought but not for the pantry (or already dealt with): stop asking.
+router.post('/s/pantry/putaway/:id/skip', async (req, res, next) => {
+  try {
+    if (mongoose.isValidObjectId(req.params.id)) await ShoppingItem.updateOne({ _id: req.params.id, ...visible(req.user), putAway: 'pending' }, { $set: { putAway: 'done' } });
+    res.redirect('/s/pantry#putaway');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// One used up: the count goes down; at none left it's Out (and onto Shopping if that's on).
+router.post('/s/pantry/:id/use', async (req, res, next) => {
+  try {
+    const item = await find(req);
+    if (!item) return res.redirect(backTo((req.body || {}).query));
+    const before = item.toObject();
+    item.count = Math.max(0, (item.count || 1) - 1);
+    if (item.count === 0) item.set({ status: 'out', statusBy: req.user.name, statusAt: new Date() });
+    await item.save();
+    await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: item.count ? `used one ${item.name} (${item.count} left)` : `used the last ${item.name}`, label: item.name });
+    if (item.count === 0 && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
+    res.redirect(`${backTo((req.body || {}).query)}#p-${item._id}`);
   } catch (err) {
     next(err);
   }
@@ -152,8 +247,16 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
   try {
     const { values, error } = readForm(req);
     if (error || req.uploadError) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, error || req.uploadError));
-    const dup = await PantryItem.findOne({ householdId: req.user.householdId, key: values.key }).lean();
-    if (dup) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, `${dup.name} is already in the pantry. Edit that one instead.`));
+    // Already there: ask how to add it (separate, replace, or add to its count), then do that.
+    const existing = await sameAs(req, values.key);
+    if (existing.length && !(req.body || {}).choice) return res.status(422).render('pantry/form', await formView(req, { ...values, _id: null }, null, existing));
+    const { choice, target } = await readChoice(req, existing);
+    if (target) {
+      const { item, text } = await stockIn(req.user, { ...values, count: values.count || 1, choice, target });
+      try { await applyPhoto(req, item); await item.save(); } catch (e) { if (!e.userFacing) throw e; }
+      await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
+      return res.redirect(`/s/pantry#p-${item._id}`);
+    }
     const item = new PantryItem({ ...values, householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name, statusBy: req.user.name, statusAt: new Date() });
     try {
       await applyPhoto(req, item);
@@ -187,9 +290,6 @@ router.post('/s/pantry/:id', withPhoto, async (req, res, next) => {
     if (!item) return res.status(404).send('Not found');
     const { values, error } = readForm(req);
     if (error) return res.status(422).render('pantry/form', await formView(req, { ...item.toObject(), ...values }, error));
-    if (values.key !== item.key && (await PantryItem.exists({ householdId: req.user.householdId, key: values.key }))) {
-      return res.status(422).render('pantry/form', await formView(req, { ...item.toObject(), ...values }, `${values.name} is already in the pantry.`));
-    }
     const before = item.toObject();
     const statusChanged = values.status !== item.status;
     item.set(values);

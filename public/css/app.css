@@ -203,9 +203,17 @@ input[type="number"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1
 .step-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 12px; font-size: 15px; line-height: 1.45; }
 .step-list .step-head { list-style: none; margin-left: -22px; font-weight: 700; counter-increment: list-item 0; }
 .ing-rows { display: flex; flex-direction: column; gap: 8px; }
-.ing-row { display: flex; gap: 6px; align-items: center; }
-.ing-row .ing-qty { flex: 0 0 30%; min-width: 0; }
-.ing-row .ing-name { flex: 1; min-width: 0; }
+/* Amount, item, remove on the first line; type and prep under them. */
+.ing-row { display: grid; grid-template-columns: 30% minmax(0, 1fr) auto; gap: 6px; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--off); }
+.ing-row > * { min-width: 0; }
+.ing-row .ing-type { grid-column: 1 / 2; }
+.ing-row .ing-prep { grid-column: 2 / 4; }
+.tag-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-pick { position: relative; }
+.tag-pick input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tag-pick span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 14px; }
+.tag-pick input:checked + span { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.tag-pick input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
 input[type="search"] { min-height: 44px; width: 100%; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
 
 /* Meals */
@@ -383,3 +391,11 @@ span.check { cursor: default; }
 .setup-dots { display: flex; gap: 6px; }
 .setup-dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--off); }
 .setup-dots i.on { background: var(--primary); }
+
+/* Pantry: adding something that's already there */
+.choices { display: flex; flex-direction: column; gap: 10px; }
+.choice-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--off); }
+.choice-label { margin: 0; font-weight: 600; }
+.choice { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.choice input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.use-one { font-variant-numeric: tabular-nums; }

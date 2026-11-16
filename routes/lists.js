@@ -10,7 +10,12 @@ router.use('/settings/lists', requireAuth, requirePerm('settings'));
 const SECTION = 'Settings';
 
 const available = (household) => Object.keys(LISTS).filter((k) => household.features[LISTS[k].feature] !== false);
-const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => Model.updateMany({ householdId: household._id, [field]: from }, { $set: { [field]: to } })));
+const swap = (household, key, from, to) => Promise.all(LISTS[key].apply.map(([Model, field]) => {
+  const filter = { householdId: household._id, [field]: from };
+  if (!LISTS[key].array) return Model.updateMany(filter, { $set: { [field]: to } });
+  // A list field: rename it where it appears, or take it out.
+  return to == null ? Model.updateMany(filter, { $pull: { [field]: from } }) : Model.updateMany(filter, { $set: { [`${field}.$`]: to } });
+}));
 
 // Lists live on each section's settings page now.
 router.get('/settings/lists', (req, res) => res.redirect('/settings'));

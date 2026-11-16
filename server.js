@@ -103,6 +103,7 @@ connectDB(process.env.MONGODB_URI)
     // Accounts from before households could be shared get their membership (once).
     const moved = await ensureMemberships();
     if (moved) console.log(`Set up household memberships for ${moved} ${moved === 1 ? 'account' : 'accounts'}.`);
+    await require('./lib/migrate').migrate();
   })
   .then(() => {
     app.listen(PORT, () => console.log(`Nestly on http://localhost:${PORT}`));

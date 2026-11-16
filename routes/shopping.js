@@ -13,7 +13,7 @@ const User = require('../models/User');
 const { sendToUser } = require('../lib/push');
 const { logActivity } = require('../lib/activity');
 const { isQuick, takeUndo } = require('../lib/quick');
-const { restock } = require('../lib/pantry');
+const { markPutAway } = require('../lib/pantry');
 const { currency } = require('../lib/prefs');
 const { permsFor } = require('../lib/perms');
 const { membersOf, inHome } = require('../lib/members');
@@ -341,10 +341,10 @@ router.post('/s/shopping/:id/toggle', async (req, res, next) => {
     item.bought = want;
     item.boughtAt = item.bought ? new Date() : null;
     item.boughtByName = item.bought ? req.user.name : '';
+    if (req.household.features.pantry !== false) await markPutAway(req.user, item);
     await item.save();
     const text = item.bought ? `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}` : `moved ${item.name} back to Shopping`;
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text, label: item.name });
-    if (item.bought && req.household.features.pantry !== false) await restock(req.user, item.key);
     if (isQuick(req)) return res.json({ ok: true, bought: item.bought, undo: await takeUndo(req) });
     res.redirect(listBack(req));
   } catch (err) {

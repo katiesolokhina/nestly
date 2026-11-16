@@ -1,5 +1,5 @@
 <%# Barcode scanner. mode: 'pantry' (add or restock), 'shopping' (add to the list), 'shop' (tick off while shopping). %>
-<% const action = mode === 'pantry' ? '/s/pantry/scan' : '/s/shopping/scan'; %>
+<% const action = '/s/shopping/scan'; /* pantry scans go to the pantry's add page */ %>
 <dialog class="scanner" data-scanner data-mode="<%= mode %>" aria-labelledby="scan-title">
   <div class="scan-head"><h2 id="scan-title"><%= mode === 'shop' ? 'Scan to tick off' : mode === 'pantry' ? 'Scan into the pantry' : 'Scan to add' %></h2><button class="link-btn" type="button" data-scan-close>Close</button></div>
   <div class="scan-view" data-scan-view>
@@ -17,10 +17,7 @@
     <input type="hidden" name="again" value="<%= mode === 'shop' ? '1' : '0' %>">
     <p class="row-meta" data-scan-found></p>
     <div class="field"><label for="scan-name">Name</label><input id="scan-name" name="name" type="text" maxlength="80" required></div>
-    <% if (mode === 'pantry') { %>
-      <div class="field" data-scan-spot><label for="scan-spot">Where it’s kept</label><select id="scan-spot" name="spot"><% spots.forEach((s) => { %><option<%= s === spot ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
-      <div class="btn-row"><button class="btn btn-primary" type="submit" data-scan-go>Add to pantry</button><button class="btn btn-ghost" type="submit" data-again>Save, scan next</button></div>
-    <% } else if (mode === 'shopping') { %>
+    <% if (mode === 'shopping') { %>
       <input type="hidden" name="action" value="add">
       <div class="btn-row"><button class="btn btn-primary" type="submit" data-scan-go>Add to list</button><button class="btn btn-ghost" type="submit" data-again>Add, scan next</button></div>
     <% } else { %>

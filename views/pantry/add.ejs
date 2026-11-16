@@ -1,0 +1,25 @@
+<%- include('../partials/top', { title: 'Add to pantry' }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= from ? 'Put away' : 'Add to pantry' %></h1><% if (fromText || found) { %><p class="sub"><%= fromText || found %></p><% } %></div><a class="link-btn" href="/s/pantry">Cancel</a></div>
+  <form class="card" method="post" action="/s/pantry/add" novalidate>
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <input type="hidden" name="from" value="<%= from %>"><input type="hidden" name="code" value="<%= code %>"><input type="hidden" name="brand" value="<%= brand %>">
+    <div class="field"><label for="name">Item</label><input id="name" name="name" type="text" maxlength="80" required list="catalog-names" autocomplete="off" value="<%= item.name %>"<%= item.name ? '' : ' autofocus' %>></div>
+    <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
+    <% if (existing.length) { %><%- include('choices', { existing }) %><% } %>
+    <div class="fields">
+      <div class="field"><label for="expires">Use by</label><input id="expires" name="expires" type="date" value="<%= item.expires %>"<%= item.name ? ' autofocus' : '' %>></div>
+      <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="1" max="99" inputmode="numeric" value="<%= item.count %>"></div>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
+      <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit"><%= from ? 'Put away' : 'Save' %></button>
+      <% if (code || again) { %><button class="btn btn-ghost" type="submit" name="again" value="1">Save, scan next</button><% } %>
+    </div>
+  </form>
+  <p class="hint">The use-by date can be left blank. Notes and a photo are on the item’s page after it’s saved.</p>
+</main>
+<%- include('../partials/bottom') %>

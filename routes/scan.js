@@ -7,8 +7,7 @@ const ShoppingItem = require('../models/ShoppingItem');
 const CatalogItem = require('../models/CatalogItem');
 const { recordChange, visible } = require('../lib/changes');
 const { keyOf, addToCatalog, fromCatalog } = require('../lib/catalog');
-const { restock } = require('../lib/pantry');
-const { pick } = require('../lib/lists');
+const { markPutAway } = require('../lib/pantry');
 const { pantryNames } = require('../lib/prefs');
 const { lookup, remember, CODE } = require('../lib/barcode');
 
@@ -28,7 +27,7 @@ router.get('/api/barcode/:code', requireAuth, async (req, res, next) => {
     const key = found.name ? keyOf(found.name) : null;
     const [onList, pantry] = await Promise.all([
       key && req.sees('shopping') ? ShoppingItem.findOne({ ...visible(req.user), key, clearedAt: null }, { name: 1, bought: 1 }).sort({ bought: 1 }).lean() : null,
-      key && req.sees('pantry') ? PantryItem.findOne({ ...visible(req.user), key }, { name: 1, status: 1, spot: 1 }).lean() : null,
+      key && req.sees('pantry') ? PantryItem.find({ ...visible(req.user), key }, { name: 1, status: 1, spot: 1, count: 1, expires: 1 }).lean() : [],
     ]);
     res.json({
       code: found.code,
@@ -37,48 +36,14 @@ router.get('/api/barcode/:code', requireAuth, async (req, res, next) => {
       size: found.size,
       source: found.source,
       onList: onList ? { id: String(onList._id), name: onList.name, bought: onList.bought } : null,
-      pantry: pantry ? { id: String(pantry._id), name: pantry.name, status: pantry.status, statusName: pantryNames(req.household)[pantry.status], spot: pantry.spot } : null,
+      pantry: pantry.map((p) => ({ id: String(p._id), name: p.name, status: p.status, statusName: pantryNames(req.household)[p.status], spot: p.spot, count: p.count })),
     });
   } catch (err) {
     next(err);
   }
 });
 
-// Pantry: new items are added as Have; ones already there are marked Have (restocked).
-router.post('/s/pantry/scan', requireAuth, requireSection('pantry'), async (req, res, next) => {
-  try {
-    const name = nameOf(req);
-    const code = codeOf(req);
-    if (!name) { req.session.flash = 'Type a name for it first.'; return res.redirect('/s/pantry'); }
-    const key = keyOf(name);
-    const existing = await PantryItem.findOne({ householdId: req.user.householdId, key });
-    let item = existing;
-    if (existing) {
-      if (existing.status !== 'have') {
-        const before = existing.toObject();
-        existing.set({ status: 'have', statusBy: req.user.name, statusAt: new Date() });
-        await existing.save();
-        await recordChange(req, { kind: 'update', model: 'PantryItem', doc: existing, before, section: 'Pantry', text: `restocked ${existing.name}`, label: existing.name });
-        req.session.flash = `${existing.name}: marked ${pantryNames(req.household).have}.`;
-      } else {
-        req.session.flash = `${existing.name} is already in the pantry.`;
-      }
-    } else {
-      const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
-      item = await PantryItem.create({
-        householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name,
-        name: c ? c.name : name, key, spot: pick(req.household, 'pantrySpots', body(req).spot), statusBy: req.user.name, statusAt: new Date(),
-      });
-      await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: 'Pantry', text: `added ${item.name} to the pantry`, label: item.name });
-      req.session.flash = `${item.name} added to the pantry.`;
-    }
-    await addToCatalog(req.user, req.household, [item.name]);
-    await remember(req.user.householdId, code, key, body(req).brand);
-    res.redirect(`/s/pantry${body(req).again === '1' ? '?scan=1' : ''}#p-${item._id}`);
-  } catch (err) {
-    next(err);
-  }
-});
+// Pantry scans go to the pantry's add page (routes/pantry.js), which asks how to add it.
 
 // Shopping: add it to the list, or (in shopping mode) tick it off, or add it already bought.
 router.post('/s/shopping/scan', requireAuth, requireSection('shopping'), async (req, res, next) => {
@@ -110,9 +75,9 @@ router.post('/s/shopping/scan', requireAuth, requireSection('shopping'), async (
       }
       const before = item.isNew ? null : item.toObject();
       item.set({ bought: true, boughtAt: new Date(), boughtByName: req.user.name });
+      if (req.household.features.pantry !== false) await markPutAway(req.user, item);
       await item.save();
       await recordChange(req, { kind: before ? 'update' : 'create', model: 'ShoppingItem', doc: item, before, section: 'Shopping', text: `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}`, label: item.name });
-      if (req.household.features.pantry !== false) await restock(req.user, item.key);
       req.session.flash = `${item.name}: bought.`;
     }
     await addToCatalog(req.user, req.household, [item.name]);

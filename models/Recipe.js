@@ -10,9 +10,20 @@ const recipeSchema = new mongoose.Schema(
     category: { type: String, default: 'Uncategorized' },
     servings: { type: String, trim: true, maxlength: 40, default: '' },
     time: { type: String, trim: true, maxlength: 40, default: '' }, // "45 min"
-    // Each ingredient: an amount ("2 cups") and a name ("flour, sifted"). The name before a comma
-    // is what goes on the shopping list.
-    ingredients: { type: [{ _id: false, qty: { type: String, maxlength: 40 }, name: { type: String, maxlength: 120 } }], default: [] },
+    tags: { type: [String], default: [] }, // from the household's recipe tags: Homemade, To try...
+    // Each ingredient: an amount ("1"), a type ("red"), the item ("bell pepper"), and how it's
+    // prepared ("diced"). Type and item go on the shopping list ("red bell pepper"); prep doesn't.
+    // Older recipes may have notes after a comma in the name ("onion, diced"); those stay off the list too.
+    ingredients: {
+      type: [{
+        _id: false,
+        qty: { type: String, maxlength: 40 },
+        type: { type: String, maxlength: 40, default: '' },
+        name: { type: String, maxlength: 120 },
+        prep: { type: String, maxlength: 60, default: '' },
+      }],
+      default: [],
+    },
     steps: { type: [{ type: String, maxlength: 2000 }], default: [] },
     notes: { type: String, trim: true, maxlength: 2000, default: '' },
     link: { type: String, trim: true, maxlength: 1000, default: '' },

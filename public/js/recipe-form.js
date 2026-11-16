@@ -6,6 +6,7 @@ document.querySelectorAll('[data-recipe-form]').forEach((form) => {
   const blankRow = () => {
     const row = rows.querySelector('[data-ing-row]').cloneNode(true);
     row.querySelectorAll('input').forEach((i) => { i.value = ''; });
+    row.querySelectorAll('select').forEach((s) => { s.selectedIndex = 0; });
     return row;
   };
   add.addEventListener('click', () => {
@@ -18,11 +19,14 @@ document.querySelectorAll('[data-recipe-form]').forEach((form) => {
     if (!btn) return;
     const row = btn.closest('[data-ing-row]');
     if (rows.querySelectorAll('[data-ing-row]').length > 1) row.remove();
-    else row.querySelectorAll('input').forEach((i) => { i.value = ''; });
+    else {
+      row.querySelectorAll('input').forEach((i) => { i.value = ''; });
+      row.querySelectorAll('select').forEach((s) => { s.selectedIndex = 0; });
+    }
   });
   // Enter in the last ingredient adds a new row instead of saving the form.
   rows.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || !e.target.matches('.ing-name, .ing-qty')) return;
+    if (e.key !== 'Enter' || !e.target.matches('.ing-name, .ing-qty, .ing-type')) return;
     e.preventDefault();
     const row = e.target.closest('[data-ing-row]');
     if (row === rows.lastElementChild) add.click();

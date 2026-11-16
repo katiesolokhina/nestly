@@ -46,20 +46,44 @@ test('pantry', async (t) => {
   const sam = await signIn('sam@test.dev');
   const out = await signIn('out@test.dev');
 
-  // Quick add, grouped by spot; no doubles.
-  await katie('/s/pantry/quick', { method: 'POST', form: { name: 'Milk', spot: 'Fridge' } });
-  await katie('/s/pantry/quick', { method: 'POST', form: { name: 'Rice', spot: 'Pantry' } });
-  await katie('/s/pantry/quick', { method: 'POST', form: { name: 'milk', spot: 'Pantry' } });
-  assert.match((await katie('/s/pantry')).text, /Milk is already in the pantry/);
-  await withDb(app.uri, async () => assert.equal(await PantryItem.countDocuments({}), 2));
+  // Adding opens a short form first (use-by date, how many), grouped by spot after.
+  let page = await katie('/s/pantry/add?name=Milk&spot=Fridge');
+  assert.match(page.text, /name="expires"/);
+  assert.match(page.text, /name="count"/);
+  assert.doesNotMatch(page.text, /already in the pantry/);
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'Milk', spot: 'Fridge', expires: addDays(today, 9), count: '1', amount: '1 gallon' } });
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'Rice', spot: 'Pantry' } });
+  // The old quick add form goes to the add page.
+  assert.equal((await katie('/s/pantry/quick', { method: 'POST', form: { name: 'Beans', spot: 'Pantry' } })).location, '/s/pantry/add?name=Beans&spot=Pantry');
   const ids = await withDb(app.uri, async () => Object.fromEntries((await PantryItem.find().lean()).map((p) => [p.name, String(p._id)])));
-  let page = await sam('/s/pantry');
+  // Already there: choose to add to its count (keeping the earlier date), replace it, or keep separate.
+  page = await katie('/s/pantry/add?name=milk');
+  assert.match(page.text, /Milk is already in the pantry/);
+  assert.match(page.text, new RegExp(`value="add:${ids.Milk}" checked`));
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'milk', choice: `add:${ids.Milk}`, count: '2', expires: addDays(today, 12) } });
+  await withDb(app.uri, async () => {
+    const m = await PantryItem.findById(ids.Milk).lean();
+    assert.equal(m.count, 3);
+    assert.equal(m.expires, addDays(today, 9), 'the earlier date is kept');
+    assert.equal(await PantryItem.countDocuments({ key: 'milk' }), 1);
+  });
+  assert.match((await katie('/s/pantry')).text, /3 of them/);
+  // −1 as they're used.
+  await katie(`/s/pantry/${ids.Milk}/use`, { method: 'POST', form: { query: '' } });
+  await withDb(app.uri, async () => assert.equal((await PantryItem.findById(ids.Milk).lean()).count, 2));
+  // The Details page asks too.
+  page = await katie('/s/pantry', { method: 'POST', form: { name: 'Rice', spot: 'Pantry', status: 'have', count: '1', autoShop: 'on' } });
+  assert.equal(page.status, 422);
+  assert.match(page.text, /Rice is already in the pantry/);
+  await withDb(app.uri, async () => assert.equal(await PantryItem.countDocuments({ key: 'rice' }), 1));
+  page = await sam('/s/pantry');
   assert.match(page.text, /Fridge/);
   assert.match(page.text, /Milk/);
   assert.doesNotMatch((await out('/s/pantry')).text, /Milk/);
   assert.equal((await out(`/s/pantry/${ids.Milk}/status`, { method: 'POST', form: { status: 'out' } })).status, 404);
 
   // Low puts it on the shopping list, once.
+  await withDb(app.uri, async () => PantryItem.updateOne({ _id: ids.Milk }, { $set: { count: 1 } }));
   let r = await sam(`/s/pantry/${ids.Milk}/status`, { method: 'POST', form: { status: 'low', query: 'spot=Fridge' } });
   assert.equal(r.location, `/s/pantry?spot=Fridge#p-${ids.Milk}`);
   await sam(`/s/pantry/${ids.Milk}/status`, { method: 'POST', form: { status: 'out' } });
@@ -77,10 +101,42 @@ test('pantry', async (t) => {
   await katie(`/s/pantry/${ids.Rice}/status`, { method: 'POST', form: { status: 'out' } });
   await withDb(app.uri, async () => assert.equal(await ShoppingItem.countDocuments({ key: 'rice' }), 0));
 
-  // Buying it restocks the pantry.
+  // Buying it: it waits under Put away (on Pantry and Today) instead of changing the pantry.
   const milkShop = await withDb(app.uri, async () => String((await ShoppingItem.findOne({ key: 'milk' }).lean())._id));
+  await withDb(app.uri, async () => ShoppingItem.updateOne({ _id: milkShop }, { $set: { qty: '2' } }));
   await sam(`/s/shopping/${milkShop}/toggle`, { method: 'POST', form: { query: '' } });
-  await withDb(app.uri, async () => assert.equal((await PantryItem.findById(ids.Milk).lean()).status, 'have'));
+  await withDb(app.uri, async () => {
+    assert.equal((await PantryItem.findById(ids.Milk).lean()).status, 'out');
+    assert.equal((await ShoppingItem.findById(milkShop).lean()).putAway, 'pending');
+  });
+  page = await katie('/s/pantry');
+  assert.match(page.text, /id="putaway"/);
+  assert.match((await katie('/')).text, /Put away 1 thing from shopping/);
+  page = await katie(`/s/pantry/add?from=${milkShop}`);
+  assert.match(page.text, /Put away/);
+  assert.match(page.text, /name="count"[^>]*value="2"/, 'from the shopping quantity');
+  // Replace: Have again, with the new date and count.
+  await katie('/s/pantry/add', { method: 'POST', form: { from: milkShop, name: 'Milk', choice: `replace:${ids.Milk}`, count: '2', expires: addDays(today, 10) } });
+  await withDb(app.uri, async () => {
+    const m = await PantryItem.findById(ids.Milk).lean();
+    assert.deepEqual([m.status, m.count, m.expires], ['have', 2, addDays(today, 10)]);
+    assert.equal((await ShoppingItem.findById(milkShop).lean()).putAway, 'done');
+  });
+  assert.doesNotMatch((await katie('/s/pantry')).text, /id="putaway"/);
+  // Separate items: a second milk with its own date. One running out doesn't add milk to the list.
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'Milk', choice: 'new', count: '1', expires: addDays(today, 20), spot: 'Fridge' } });
+  await withDb(app.uri, async () => ShoppingItem.deleteMany({ key: 'milk' }));
+  await katie(`/s/pantry/${ids.Milk}/status`, { method: 'POST', form: { status: 'out' } });
+  await withDb(app.uri, async () => {
+    assert.equal(await PantryItem.countDocuments({ key: 'milk' }), 2);
+    assert.equal(await ShoppingItem.countDocuments({ key: 'milk' }), 0);
+    await PantryItem.updateOne({ _id: ids.Milk }, { $set: { status: 'have', count: 2 } });
+  });
+  // Skip: bought, but not for the pantry.
+  await withDb(app.uri, async () => ShoppingItem.create({ householdId: (await Household.findOne({ name: 'Home' }))._id, createdBy: null, byName: 'Sam', name: 'Rice', key: 'rice', bought: true, boughtAt: new Date(), boughtByName: 'Sam', putAway: 'pending' }));
+  const riceShop = await withDb(app.uri, async () => String((await ShoppingItem.findOne({ key: 'rice', putAway: 'pending' }).lean())._id));
+  await katie(`/s/pantry/putaway/${riceShop}/skip`, { method: 'POST' });
+  await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(riceShop).lean()).putAway, 'done'));
 
   // Recipes: what the pantry has starts unticked.
   const rev = await katie(`/s/shopping/ingredients?recipe=${app.seeded.recipeId}`);

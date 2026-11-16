@@ -99,7 +99,7 @@ test('recipes and meals', async (t) => {
   const chiliId = chili.location.split('/').pop();
   await withDb(app.uri, async () => {
     const tacos = await Recipe.findById(tacosId).lean();
-    assert.deepEqual(tacos.ingredients, [{ qty: '1 lb', name: 'Ground beef' }, { qty: '1', name: 'Onion, diced' }, { qty: '2 tbsp', name: 'olive oil' }]);
+    assert.deepEqual(tacos.ingredients, [{ qty: '1 lb', type: '', name: 'Ground beef', prep: '' }, { qty: '1', type: '', name: 'Onion, diced', prep: '' }, { qty: '2 tbsp', type: '', name: 'olive oil', prep: '' }]);
     assert.deepEqual(tacos.steps, ['Brown the beef.', 'Add onion.']);
     // New ingredients join the household's item list, without notes after the comma.
     assert.ok(await CatalogItem.exists({ key: 'onion' }));

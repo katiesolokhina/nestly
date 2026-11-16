@@ -96,6 +96,15 @@
   }
 
   function show(d) {
+    // Pantry: on to the add page, which asks for the date, how many, and (if it's there already)
+    // whether to add to it, replace it, or keep it separate.
+    if (mode === 'pantry') {
+      const found = d.source === 'saved' ? 'You’ve scanned this before.'
+        : d.source === 'lookup' ? `Found: ${[d.brand, d.name, d.size].filter(Boolean).join(' · ')}`
+          : 'Not found. Type what it is once, and Nestly will remember this barcode.';
+      location.href = `/s/pantry/add?${new URLSearchParams({ name: d.name || '', code: d.code, brand: d.brand || '', found })}`;
+      return;
+    }
     manual.hidden = true;
     result.hidden = false;
     result.elements.code.value = d.code;
@@ -105,14 +114,6 @@
     if (d.source === 'saved') parts.push('You’ve scanned this before.');
     else if (d.source === 'lookup') parts.push(`Found: ${[d.brand, d.name, d.size].filter(Boolean).join(' · ')}. Change the name if you like.`);
     else parts.push('Not found. Type what it is once, and Nestly will remember this barcode.');
-    if (mode === 'pantry' && d.pantry) {
-      parts.push(d.pantry.status === 'have' ? `Already in the pantry (${d.pantry.spot}).` : `In the pantry as ${d.pantry.statusName}: saving marks it restocked.`);
-      go.textContent = d.pantry.status === 'have' ? 'OK' : 'Mark restocked';
-      const spot = result.querySelector('[data-scan-spot]');
-      if (spot) spot.hidden = true;
-    } else if (mode === 'pantry') {
-      go.textContent = 'Add to pantry';
-    }
     if (mode === 'shopping' && d.onList && !d.onList.bought) parts.push(`${d.onList.name} is already on the list.`);
     if (mode === 'shop') {
       const onIt = d.onList && !d.onList.bought;
