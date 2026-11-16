@@ -19,6 +19,7 @@
       </div>
     <% } %>
     <div class="field"><label for="title"><%= recipesOn ? 'Or what you’re having' : 'What you’re having' %></label><input id="title" name="title" type="text" maxlength="120" placeholder="Leftovers, pizza night…" value="<%= item.recipeId ? '' : item.title %>"></div>
+    <% if (recipesOn) { %><div class="field"><label for="servings">Servings <span class="muted">(optional, with a recipe)</span></label><input id="servings" name="servings" type="number" min="1" max="200" inputmode="numeric" placeholder="As the recipe says" value="<%= item.servings || '' %>"><span class="hint">The week’s shopping list scales the recipe to this.</span></div><% } %>
     <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Double it, Sam cooks" value="<%= item.note %>"></div>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>

@@ -1,16 +1,31 @@
 <%- include('../partials/top', { title: item.title, scripts: ['confirm'] }) %>
 <main class="stack">
-  <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= [item.category === 'Uncategorized' ? '' : item.category, item.time, item.servings].filter(Boolean).join(' · ') || 'Recipe' %></p></div><a class="link-btn" href="/s/recipes">Back</a></div>
+  <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= [item.category === 'Uncategorized' ? '' : item.category, item.time, /^\d+$/.test(item.servings || '') ? 'Serves ' + item.servings : item.servings].filter(Boolean).join(' · ') || 'Recipe' %></p></div><a class="link-btn" href="/s/recipes">Back</a></div>
   <% if ((item.tags || []).length) { %><div class="chips"><% item.tags.forEach((t) => { %><a class="chip" href="/s/recipes?tag=<%= encodeURIComponent(t) %>"><%= t %></a><% }) %></div><% } %>
   <% if (photo) { %><a class="recipe-photo" href="/files/<%= photo._id %>/view?back=/s/recipes/<%= item._id %>"><img src="/files/<%= photo._id %>" alt="<%= item.title %>"></a><% } %>
   <div class="btn-row">
-    <% if (mealsOn) { %><a class="btn btn-primary" href="/s/meals/new?recipe=<%= item._id %>">Add to meal plan</a><% } %>
-    <% if (shoppingOn && item.ingredients.length) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?recipe=<%= item._id %>">Add to shopping list</a><% } %>
+    <% if (mealsOn) { %><a class="btn btn-primary" href="/s/meals/new?recipe=<%= item._id %><%= scale.serves && scale.factor !== 1 ? '&servings=' + scale.serves : '' %>">Add to meal plan</a><% } %>
+    <% if (shoppingOn && item.ingredients.length) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?recipe=<%= item._id %><%= scale.factor !== 1 ? '&x=' + scale.factor : '' %>">Add to shopping list<%= scale.label ? ' (' + scale.label + ')' : '' %></a><% } %>
   </div>
   <section class="card" aria-labelledby="ing">
-    <h2 id="ing">Ingredients</h2>
+    <div class="row-h"><h2 id="ing">Ingredients</h2><% if (scale.label) { %><a class="link-btn" href="/s/recipes/<%= item._id %>">Back to 1×</a><% } %></div>
+    <% if (item.ingredients.length) { %>
+      <div class="scale-bar">
+        <div class="chips" role="group" aria-label="Scale the recipe">
+          <% [0.5, 1, 2, 3].forEach((f) => { %><a class="chip<%= scale.factor === f ? ' on' : '' %>" href="/s/recipes/<%= item._id %><%= f === 1 ? '' : '?x=' + f %>"<%- scale.factor === f ? ' aria-current="true"' : '' %>><%= f === 0.5 ? '½' : f %>×</a><% }) %>
+        </div>
+        <% if (scale.base) { %>
+          <form class="scale-serves" method="get" action="/s/recipes/<%= item._id %>">
+            <label for="serves">Serves</label>
+            <input id="serves" name="serves" type="number" min="1" max="200" step="1" inputmode="numeric" value="<%= scale.serves %>">
+            <button class="btn btn-ghost" type="submit">Scale</button>
+          </form>
+        <% } %>
+      </div>
+      <% if (scale.label) { %><p class="notice" role="status">Scaled <%= scale.label %><%= scale.serves ? ' to serve ' + scale.serves : '' %>. Times and pan sizes in the steps aren’t changed.</p><% } %>
+    <% } %>
     <% if (!item.ingredients.length) { %><p class="muted small">None listed.</p><% } %>
-    <ul class="ing-list"><% item.ingredients.forEach((i) => { %><li><% if (i.qty) { %><strong><%= i.qty %></strong> <% } %><%= ingredientText(i) %></li><% }) %></ul>
+    <ul class="ing-list"><% item.ingredients.forEach((i) => { %><li><% if (i.qty) { %><strong><%= scale.qty(i.qty) %></strong> <% } %><%= ingredientText(i) %></li><% }) %></ul>
   </section>
   <% if (item.steps.length) { %>
     <section class="card" aria-labelledby="steps">

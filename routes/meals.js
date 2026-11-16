@@ -8,6 +8,7 @@ const { logActivity } = require('../lib/activity');
 const { todayIn, addDays, isDate, weekday, shortDay } = require('../lib/dates');
 const { titled } = require('../lib/meals');
 
+const { atHome, rankRecipes } = require('../lib/cook');
 const router = express.Router();
 router.use('/s/meals', requireAuth, requireSection('meals'), (req, res, next) => { req.weekOf = weekOfFor(req.household); next(); });
 const SECTION = 'Meals';
@@ -56,6 +57,22 @@ router.get('/s/meals', async (req, res, next) => {
           .filter((s) => s.slot !== 'Other' || s.meals.length),
       };
     });
+    // Use soon: what in the pantry expires by the end of this week, and saved recipes that use it
+    // (not already planned this week). One tap puts one on a day.
+    let suggest = null;
+    if (end >= today && req.sees('pantry') && recipesOn(req) && req.perms.level('meals') === 'edit') {
+      const { items, usual } = await atHome(req, { soonUntil: end });
+      const soon = items.filter((i) => i.soon);
+      if (soon.length) {
+        const planned = new Set(raw.filter((m) => m.recipeId).map((m) => String(m.recipeId)));
+        const all = await Recipe.find(visible(req.user), { title: 1, category: 1, tags: 1, ingredients: 1 }).lean();
+        const ranked = rankRecipes(all.filter((r) => !planned.has(String(r._id))), { have: items.map((i) => i.key), usual, expiring: soon.map((i) => ({ key: i.key, name: i.name, text: i.expText })) })
+          .filter((x) => x.uses.length)
+          .slice(0, 5);
+        const openDays = Array.from({ length: 7 }, (_, i) => addDays(start, i)).filter((d) => d >= today);
+        suggest = { soon: soon.slice(0, 8), recipes: ranked, days: openDays.map((d) => ({ date: d, label: fmtDay(d) })), slot: req.household.mealSlots.includes(req.household.mealSlot) ? req.household.mealSlot : req.household.mealSlots[req.household.mealSlots.length - 1] };
+      }
+    }
     const lastWeekCount = await Meal.countDocuments({ ...visible(req.user), date: { $gte: addDays(start, -7), $lte: addDays(start, -1) } });
     res.render('meals/week', {
       active: 'meals',
@@ -70,6 +87,7 @@ router.get('/s/meals', async (req, res, next) => {
       isThisWeek: start === req.weekOf(today),
       lastWeekCount,
       shoppingOn: req.perms.level('shopping') === 'edit',
+      suggest,
     });
   } catch (err) {
     next(err);
@@ -86,6 +104,7 @@ function readForm(req, recipes) {
     recipeId: recipe ? recipe._id : null,
     title: recipe ? recipe.title : String(b.title || '').trim().slice(0, 120),
     note: String(b.note || '').trim().slice(0, 300),
+    servings: recipe && parseInt(b.servings, 10) > 0 ? Math.min(200, parseInt(b.servings, 10)) : null,
   };
   let error = null;
   if (!values.date) error = 'Choose a day.';
@@ -108,6 +127,7 @@ router.get('/s/meals/new', async (req, res, next) => {
       recipeId: picked ? picked._id : null,
       title: '',
       note: '',
+      servings: parseInt(req.query.servings, 10) > 0 ? Math.min(200, parseInt(req.query.servings, 10)) : null,
     };
     res.render('meals/form', formView(req, item, recipes));
   } catch (err) {
@@ -138,7 +158,7 @@ router.post('/s/meals/copy-week', async (req, res, next) => {
     ]);
     const same = (a, b) => a.date === b.date && a.slot === b.slot && a.title === b.title && String(a.recipeId || '') === String(b.recipeId || '');
     const copies = from
-      .map((m) => ({ householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name, private: m.private, date: addDays(m.date, 7), slot: m.slot, recipeId: m.recipeId, title: m.title, note: m.note }))
+      .map((m) => ({ householdId: req.user.householdId, createdBy: req.user._id, byName: req.user.name, private: m.private, date: addDays(m.date, 7), slot: m.slot, recipeId: m.recipeId, title: m.title, note: m.note, servings: m.servings }))
       .filter((c) => !already.some((a) => same(a, c)));
     if (copies.length) {
       await Meal.insertMany(copies);

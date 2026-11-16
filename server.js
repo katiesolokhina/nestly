@@ -73,6 +73,7 @@ app.use(require('./routes/scan')); // before Shopping and Pantry, whose /:id rou
 app.use(require('./routes/shopping'));
 app.use(require('./routes/remember'));
 app.use(require('./routes/calendar'));
+app.use(require('./routes/cook')); // before Recipes, whose /s/recipes/:id would catch it
 app.use(require('./routes/recipes'));
 app.use(require('./routes/meals'));
 app.use(require('./routes/bills'));
@@ -108,6 +109,7 @@ connectDB(process.env.MONGODB_URI)
   .then(() => {
     app.listen(PORT, () => console.log(`Nestly on http://localhost:${PORT}`));
     if (configurePush()) startNotifications();
+    require('./lib/housekeeping').startHousekeeping();
   })
   .catch((err) => {
     console.error('Startup failed:', err.message);

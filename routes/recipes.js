@@ -9,6 +9,7 @@ const { pick } = require('../lib/lists');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { addToCatalog } = require('../lib/catalog');
 const { itemName, ingredientText, splitIngredient, BEFORE } = require('../lib/ingredients');
+const { scaleQty, servingsNum, format } = require('../lib/scale');
 const { importFromLink, fetchPhoto, parsePasted, socialOf } = require('../lib/recipe-import');
 
 const router = express.Router();
@@ -112,6 +113,15 @@ router.get('/s/recipes/new', async (req, res, next) => {
   }
 });
 
+// Shows a found recipe (from a link, pasted text, or an online search) on the form to check before saving.
+async function reviewImported(req, res, found) {
+  const { photoUrl, ...rest } = found;
+  // Best guess at each ingredient's type and prep, to check on the form.
+  const types = await usedTypes(req);
+  rest.ingredients = (rest.ingredients || []).map((i) => splitIngredient(i, { preps: req.household.prepStyles, types }));
+  res.render('recipes/form', await formView(req, { ...blank(req), ...rest, photoUrl: photoUrl || '' }, null, { imported: true }));
+}
+
 const importView = (extra) => ({ active: 'recipes', error: null, link: '', text: '', pasteLink: '', shared: '', ...extra });
 
 router.get('/s/recipes/import', (req, res) => {
@@ -150,11 +160,7 @@ router.post('/s/recipes/import', async (req, res, next) => {
     } else {
       found = await importFromLink(link);
     }
-    const { photoUrl, ...rest } = found;
-    // Best guess at each ingredient's type and prep, to check on the form.
-    const types = await usedTypes(req);
-    rest.ingredients = (rest.ingredients || []).map((i) => splitIngredient(i, { preps: req.household.prepStyles, types }));
-    res.render('recipes/form', await formView(req, { ...blank(req), ...rest, photoUrl }, null, { imported: true }));
+    await reviewImported(req, res, found);
   } catch (err) {
     if (!err.userFacing) return next(err);
     res.status(422).render('recipes/import', importView({ error: err.message, link, text, pasteLink: err.social ? link : '' }));
@@ -189,7 +195,14 @@ router.get('/s/recipes/:id', async (req, res, next) => {
     const photo = item.photoId ? await Upload.findById(item.photoId).lean() : null;
     let source = '';
     try { source = item.link ? new URL(item.link).hostname.replace(/^www\./, '') : ''; } catch { /* shown without a site name */ }
-    res.render('recipes/show', { active: 'recipes', item, photo, source, ingredientText, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
+    // Scaling: ?serves=8 (when the recipe says how many it serves) or ?x=2.
+    const base = servingsNum(item.servings);
+    const serves = parseFloat(req.query.serves);
+    const x = parseFloat(req.query.x);
+    let factor = base && serves > 0 && serves <= 200 ? serves / base : x > 0 && x <= 20 ? x : 1;
+    factor = Math.round(factor * 1000) / 1000;
+    const scale = { factor, base, serves: base ? Math.round(base * factor * 10) / 10 : null, label: factor === 1 ? '' : `${format(factor)}×`, qty: (q) => scaleQty(q, factor) };
+    res.render('recipes/show', { active: 'recipes', item, photo, source, ingredientText, scale, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
   } catch (err) {
     next(err);
   }
@@ -257,3 +270,4 @@ router.post('/s/recipes/:id/delete', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.reviewImported = reviewImported;

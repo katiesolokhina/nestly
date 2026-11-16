@@ -1,0 +1,56 @@
+<%- include('../partials/top', { title: 'What can I cook?' }) %>
+<main class="stack">
+  <div class="head"><div><h1>What can I cook?</h1><p class="sub">From what’s at home<%= items.some((i) => i.soon) ? ', starting with what’s about to expire' : '' %>.</p></div><a class="link-btn" href="/s/recipes">Recipes</a></div>
+
+  <form class="card stack" method="get" action="/s/recipes/cook">
+    <input type="hidden" name="go" value="1">
+    <div class="field"><label for="craving">Craving <span class="muted">(optional)</span></label><input id="craving" name="craving" type="search" maxlength="60" placeholder="Soup, spicy, pasta, quick…" value="<%= craving %>"></div>
+    <% if (items.length) { %>
+      <fieldset class="group">
+        <legend>Use what’s at home</legend>
+        <div class="tag-picks"><% items.forEach((i) => { %><label class="tag-pick<%= i.soon ? ' soon' : '' %>"><input type="checkbox" name="use" value="<%= i.key %>"<%= picked.has(i.key) ? ' checked' : '' %>><span><%= i.name %><%= i.soon ? ' · ' + i.expText.toLowerCase() : '' %></span></label><% }) %></div>
+      </fieldset>
+    <% } else { %>
+      <p class="hint">Nothing’s in the pantry yet, so add what you have below.</p>
+    <% } %>
+    <div class="field"><label for="also">Also have <span class="muted">(comma between)</span></label><input id="also" name="also" type="text" maxlength="300" placeholder="Rice, eggs" value="<%= also %>"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">Find recipes</button>
+      <button class="btn btn-ghost" type="submit" name="online" value="1">Also search online</button>
+    </div>
+  </form>
+
+  <section class="card" aria-labelledby="mine">
+    <h2 id="mine">From your recipes</h2>
+    <% if (!mine.length) { %><p class="muted small"><%= craving ? 'None of your recipes match that craving.' : 'No saved recipes with ingredients yet.' %> Try searching online.</p><% } %>
+    <% mine.forEach((m) => { %>
+      <div class="row cook-row">
+        <a class="row-body row-link" href="/s/recipes/<%= m.recipe._id %>">
+          <span class="row-title"><%= m.recipe.title %></span>
+          <span class="row-meta">Have <%= m.got %> of <%= m.total %><%= m.missing.length ? ' · Need ' + m.missing.slice(0, 4).join(', ') + (m.missing.length > 4 ? ' +' + (m.missing.length - 4) : '') : ' · Everything’s here' %></span>
+          <% if (m.uses.length) { %><span class="row-meta late">Uses <%= m.uses.map((u) => u.name + ' (' + u.text.toLowerCase() + ')').join(', ') %></span><% } %>
+        </a>
+        <% if (mealsOn) { %><a class="btn btn-ghost" href="/s/meals/new?recipe=<%= m.recipe._id %>">Plan it<span class="sr-only"> (<%= m.recipe.title %>)</span></a><% } %>
+      </div>
+    <% }) %>
+  </section>
+
+  <% if (online || onlineError) { %>
+    <section class="card" aria-labelledby="web">
+      <h2 id="web">Online</h2>
+      <% if (onlineError) { %><p class="alert" role="alert"><%= onlineError %></p><% } %>
+      <% if (online && !online.length) { %><p class="muted small">Nothing found. Try fewer ingredients or a different craving.</p><% } %>
+      <% (online || []).forEach((r) => { %>
+        <div class="row cook-row">
+          <div class="row-body">
+            <span class="row-title"><%= r.title %></span>
+            <span class="row-meta"><%= [r.minutes ? r.minutes + ' min' : '', r.have.length ? 'Uses ' + r.have.slice(0, 4).join(', ') : '', r.missing.length ? 'Need ' + r.missing.slice(0, 4).join(', ') + (r.missing.length > 4 ? ' +' + (r.missing.length - 4) : '') : ''].filter(Boolean).join(' · ') %></span>
+          </div>
+          <% if (canAdd) { %><form method="post" action="/s/recipes/cook/save"><input type="hidden" name="source" value="<%= r.source %>"><input type="hidden" name="id" value="<%= r.id %>"><input type="hidden" name="query" value="<%= query %>"><button class="btn btn-ghost" type="submit">See it<span class="sr-only"> (<%= r.title %>)</span></button></form><% } %>
+        </div>
+      <% }) %>
+      <p class="hint"><% if (source === 'spoonacular') { %>Powered by <a href="https://spoonacular.com/food-api" rel="noopener" target="_blank">Spoonacular</a>.<% } else { %>Recipes from <a href="https://www.themealdb.com" rel="noopener" target="_blank">TheMealDB</a>. It looks up a few ingredients at a time.<% } %> “See it” opens the recipe to check; nothing is saved until you tap Save.</p>
+    </section>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>

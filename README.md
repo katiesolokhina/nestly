@@ -106,6 +106,13 @@ One sign-in can belong to several households. Each person's role (admin or membe
 
 Accounts from before this change get their membership automatically when the server starts.
 
+## Cooking and planning
+
+- **What can I cook?** (Recipes): your recipes ranked by what's in the pantry, with what expires soon first, plus recipes found online. Online search uses Spoonacular when `SPOONACULAR_KEY` is set in `.env` (free key at spoonacular.com/food-api, 50 searches a day), and TheMealDB otherwise (free, no key, smaller). Results are cached for an hour. Saving one opens it in the recipe form first.
+- **Scaling**: ½×, 2×, 3× or "Serves N" on a recipe; the amounts, the "add to shopping" list and a planned meal's servings all follow.
+- **Use soon** (Meals week): recipes that use what expires this week, with one tap to plan one on an open day.
+- **Activity**: one week at a time. Admins can download a week, a date range, or everything as CSV, clear a date range, and set auto-clear (Settings → Activity; off by default).
+
 ## Recipe import
 
 Importing from a link makes the server fetch that page, so it only fetches http(s) on ports 80 and 443, refuses private and local addresses (checked on every connection), and limits size, time, and redirects. It reads the recipe data most sites publish (schema.org Recipe). Sites that block apps get a message suggesting pasting the text instead.

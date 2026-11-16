@@ -12,6 +12,9 @@ const { visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { keyOf, fromCatalog, addToCatalog } = require('../lib/catalog');
 const { combine, itemName } = require('../lib/ingredients');
+const { scaleQty, servingsNum, format } = require('../lib/scale');
+// A recipe with its amounts scaled.
+const scaled = (r, f) => (f === 1 ? r : { ...r, ingredients: r.ingredients.map((i) => ({ ...i, qty: scaleQty(i.qty, f) })) });
 const { todayIn, addDays, isDate, shortDay } = require('../lib/dates');
 const { weekOfFor } = require('./meals');
 
@@ -25,7 +28,9 @@ async function source(req) {
   if (q.recipe && mongoose.isValidObjectId(q.recipe) && req.sees('recipes')) {
     const r = await Recipe.findOne({ _id: q.recipe, ...visible(req.user) }).lean();
     if (!r) return null;
-    return { kind: 'recipe', title: r.title, back: `/s/recipes/${r._id}`, hidden: { recipe: String(r._id) }, recipes: [r], note: '' };
+    const x = parseFloat(q.x);
+    const f = x > 0 && x <= 20 ? Math.round(x * 1000) / 1000 : 1;
+    return { kind: 'recipe', title: f === 1 ? r.title : `${r.title} (${format(f)}×)`, back: `/s/recipes/${r._id}${f === 1 ? '' : `?x=${f}`}`, hidden: { recipe: String(r._id), ...(f === 1 ? {} : { x: String(f) }) }, recipes: [scaled(r, f)], note: '' };
   }
   if (isDate(q.week) && req.sees('meals')) {
     const today = todayIn(req.user.timezone);
@@ -35,8 +40,12 @@ async function source(req) {
     const meals = await Meal.find({ ...visible(req.user), date: { $gte: from, $lte: end }, recipeId: { $ne: null } }).lean();
     const ids = [...new Set(meals.map((m) => String(m.recipeId)))];
     const recipes = ids.length ? await Recipe.find({ _id: { $in: ids }, ...visible(req.user) }).lean() : [];
-    // A recipe planned twice counts twice.
-    const planned = meals.map((m) => recipes.find((r) => String(r._id) === String(m.recipeId))).filter(Boolean);
+    // A recipe planned twice counts twice, each scaled to the servings planned for that meal.
+    const planned = meals.map((m) => {
+      const r = recipes.find((x) => String(x._id) === String(m.recipeId));
+      const base = r && servingsNum(r.servings);
+      return r && scaled(r, m.servings && base ? m.servings / base : 1);
+    }).filter(Boolean);
     return {
       kind: 'week',
       title: `Meals, ${shortDay(from).replace(/, \d{4}$/, '')} – ${shortDay(end).replace(/, \d{4}$/, '')}`,

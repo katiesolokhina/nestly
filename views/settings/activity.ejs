@@ -1,0 +1,16 @@
+<%- include('../partials/top', { title: 'Activity settings' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Activity', sub: 'How long ' + household.name + ' keeps its change history.', back: '/settings' }) %>
+  <form class="card stack" method="post" action="/settings/activity">
+    <div class="field">
+      <label for="keepMonths">Clear activity older than</label>
+      <select id="keepMonths" name="keepMonths">
+        <% KEEP.forEach((n) => { %><option value="<%= n %>"<%= keep === n ? ' selected' : '' %>><%= n === 0 ? 'Never (keep everything)' : n + (n === 1 ? ' month' : ' months') %></option><% }) %>
+      </select>
+      <span class="hint">Checked a few times a day. Download anything you want to keep first, from the bottom of the Activity page.</span>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <a class="link-btn" href="/activity#tools">Download or clear by date</a>
+</main>
+<%- include('../partials/bottom') %>

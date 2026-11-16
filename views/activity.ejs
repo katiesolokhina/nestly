@@ -1,7 +1,13 @@
-<%- include('partials/top', { title: 'Activity', scripts: ['auto-submit'] }) %>
+<%- include('partials/top', { title: 'Activity', scripts: ['auto-submit', 'confirm'] }) %>
 <main class="stack">
   <div><h1>Activity</h1><p class="sub">Every change, who made it, and when.</p></div>
+  <nav class="month-nav" aria-label="Week">
+    <a class="btn btn-ghost" href="/activity?week=<%= prev %><%= section ? '&section=' + encodeURIComponent(section) : '' %>">‹ <span class="sr-only">Week before</span>Earlier</a>
+    <div class="week-label"><strong><%= weekLabel %></strong><span class="row-meta"><%= range %> · <%= count %> <%= count === 1 ? 'change' : 'changes' %></span></div>
+    <% if (next) { %><a class="btn btn-ghost" href="/activity?week=<%= next %><%= section ? '&section=' + encodeURIComponent(section) : '' %>">Later<span class="sr-only"> (week after)</span> ›</a><% } else { %><span class="nav-spacer" aria-hidden="true"></span><% } %>
+  </nav>
   <form method="get" action="/activity" class="field" data-auto-submit>
+    <input type="hidden" name="week" value="<%= week %>">
     <label for="section">Section</label>
     <div class="btn-row">
       <select id="section" name="section">
@@ -11,11 +17,41 @@
       <button class="btn btn-ghost" type="submit">Filter</button>
     </div>
   </form>
-  <div class="card">
-    <% if (!entries.length) { %><p class="muted small center">No activity here yet.</p><% } %>
-    <% entries.forEach((e) => { %>
-      <div class="row"><span class="avatar" aria-hidden="true"><%= e.actorName.charAt(0).toUpperCase() %></span><div class="row-body"><span class="row-title"><%= e.text %></span><span class="row-meta"><%= e.when %> · <%= e.section %></span></div><% if (e.restorable) { %><form method="post" action="/activity/<%= e._id %>/undo"><input type="hidden" name="back" value="/activity"><button class="link-btn" type="submit">Restore<span class="sr-only"> <%= e.undo.label %></span></button></form><% } %></div>
-    <% }) %>
-  </div>
+  <% if (!days.length) { %><div class="card"><p class="muted small center">Nothing this week.</p></div><% } %>
+  <% days.forEach((d) => { %>
+    <section class="card" aria-label="<%= d.label %>">
+      <p class="aisle"><%= d.label %></p>
+      <% d.items.forEach((e) => { %>
+        <div class="row"><span class="avatar" aria-hidden="true"><%= e.actorName.charAt(0).toUpperCase() %></span><div class="row-body"><span class="row-title"><%= e.text %></span><span class="row-meta"><%= e.when %> · <%= e.section %></span></div><% if (e.restorable) { %><form method="post" action="/activity/<%= e._id %>/undo"><input type="hidden" name="back" value="/activity?week=<%= week %>"><button class="link-btn" type="submit">Restore<span class="sr-only"> <%= e.undo.label %></span></button></form><% } %></div>
+      <% }) %>
+    </section>
+  <% }) %>
+
+  <% if (isAdmin) { %>
+    <section class="card stack" id="tools" aria-labelledby="tl">
+      <h2 id="tl">Download or clear</h2>
+      <p class="row-meta"><%= oldest ? 'Activity goes back to ' + oldestLabel + '.' : 'No activity saved yet.' %> <%= keepMonths ? 'Entries older than ' + keepMonths + (keepMonths === 1 ? ' month' : ' months') + ' are cleared automatically.' : 'Nothing is cleared automatically.' %> <a href="/settings/activity">Change</a></p>
+      <div class="btn-row">
+        <a class="btn btn-ghost" href="/activity/download?from=<%= week %>&to=<%= weekEnd %>">Download this week</a>
+        <a class="btn btn-ghost" href="/activity/download">Download everything</a>
+      </div>
+      <form class="stack" method="get" action="/activity/download">
+        <div class="fields">
+          <div class="field"><label for="dl-from">From</label><input id="dl-from" name="from" type="date" required value="<%= week %>" max="<%= today %>"></div>
+          <div class="field"><label for="dl-to">To</label><input id="dl-to" name="to" type="date" required value="<%= today %>" max="<%= today %>"></div>
+        </div>
+        <button class="btn btn-ghost" type="submit">Download these dates</button>
+      </form>
+      <form class="stack" method="post" action="/activity/clear" data-confirm="Clear every entry in those dates, for everyone? Download them first if you want a copy. This can’t be undone.">
+        <input type="hidden" name="back" value="<%= week %>">
+        <div class="fields">
+          <div class="field"><label for="cl-from">Clear from</label><input id="cl-from" name="from" type="date" required value="<%= week %>" max="<%= today %>"></div>
+          <div class="field"><label for="cl-to">To</label><input id="cl-to" name="to" type="date" required value="<%= weekEnd %>" max="<%= today %>"></div>
+        </div>
+        <button class="btn btn-ghost link-danger" type="submit">Clear these dates</button>
+      </form>
+      <p class="hint">Clearing frees up space. Restore buttons for those changes go too.</p>
+    </section>
+  <% } %>
 </main>
 <%- include('partials/bottom') %>

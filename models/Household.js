@@ -73,6 +73,8 @@ const householdSchema = new mongoose.Schema(
     chorePoints: { type: Boolean, default: false },
     choreEarners: { type: [String], default: ['child', 'teen'] },
     rewards: { type: [{ name: { type: String, trim: true, maxlength: 60 }, cost: { type: Number, min: 1, max: 100000 } }], default: [] },
+    // Activity older than this many months is cleared each day; 0 keeps everything.
+    activityKeepMonths: { type: Number, enum: [0, 1, 3, 6, 12, 24], default: 0 },
     // First-run guide for a new household: which step the admin is on. 0 means done (or skipped).
     setupStep: { type: Number, default: 0 },
     infoTemplates: { type: [{ _id: false, type: { type: String }, fields: [{ _id: false, label: String, kind: String }] }], default: [] },

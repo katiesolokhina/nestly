@@ -12,6 +12,7 @@ const mealSchema = new mongoose.Schema(
     recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe', default: null },
     title: { type: String, trim: true, maxlength: 120, default: '' }, // the recipe's name when planned, or what was typed
     note: { type: String, trim: true, maxlength: 300, default: '' },
+    servings: { type: Number, min: 1, max: 200, default: null }, // planned servings; the week's shopping scales the recipe to it
   },
   { timestamps: true }
 );
