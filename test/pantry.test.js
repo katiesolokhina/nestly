@@ -147,6 +147,12 @@ test('pantry', async (t) => {
     assert.equal((await ShoppingItem.findById(milkShop).lean()).putAway, 'done');
   });
   assert.doesNotMatch((await katie('/s/pantry')).text, /id="putaway"/);
+  // Something new (not in the pantry yet) waits under Put away too.
+  const newShop = await withDb(app.uri, async () => String((await ShoppingItem.create({ householdId: (await Household.findOne({ name: 'Home' }))._id, createdBy: null, byName: 'Sam', name: 'Paprika', key: 'paprika' }))._id));
+  await sam(`/s/shopping/${newShop}/toggle`, { method: 'POST', form: { query: '' } });
+  await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(newShop).lean()).putAway, 'pending'));
+  assert.match((await katie('/s/pantry')).text, /Paprika/);
+  await katie(`/s/pantry/putaway/${newShop}/skip`, { method: 'POST' });
   // Separate items: a second milk with its own date. One running out doesn't add milk to the list.
   await katie('/s/pantry/add', { method: 'POST', form: { name: 'Milk', choice: 'new', count: '1', expires: addDays(today, 20), spot: 'Fridge' } });
   await withDb(app.uri, async () => ShoppingItem.deleteMany({ key: 'milk' }));

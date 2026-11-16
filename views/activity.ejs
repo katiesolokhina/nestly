@@ -32,25 +32,27 @@
       <h2 id="tl">Download or clear</h2>
       <p class="row-meta"><%= oldest ? 'Activity goes back to ' + oldestLabel + '.' : 'No activity saved yet.' %> <%= keepMonths ? 'Entries older than ' + keepMonths + (keepMonths === 1 ? ' month' : ' months') + ' are cleared automatically.' : 'Nothing is cleared automatically.' %> <a href="/settings/activity">Change</a></p>
       <div class="btn-row">
-        <a class="btn btn-ghost" href="/activity/download?from=<%= week %>&to=<%= weekEnd %>">Download this week</a>
-        <a class="btn btn-ghost" href="/activity/download">Download everything</a>
+        <a class="btn btn-ghost" href="/activity/download?from=<%= week %>&to=<%= weekEnd %><%= section ? '&section=' + encodeURIComponent(section) : '' %>">Download this week<%= section ? ' (' + section + ')' : '' %></a>
+        <a class="btn btn-ghost" href="/activity/download<%= section ? '?section=' + encodeURIComponent(section) : '' %>">Download everything<%= section ? ' in ' + section : '' %></a>
       </div>
       <form class="stack" method="get" action="/activity/download">
         <div class="fields">
           <div class="field"><label for="dl-from">From</label><input id="dl-from" name="from" type="date" required value="<%= week %>" max="<%= today %>"></div>
           <div class="field"><label for="dl-to">To</label><input id="dl-to" name="to" type="date" required value="<%= today %>" max="<%= today %>"></div>
+          <div class="field"><label for="dl-sec">Section</label><select id="dl-sec" name="section"><option value="">All sections</option><% allSections.forEach((s) => { %><option value="<%= s %>"<%= s === section ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
         </div>
         <button class="btn btn-ghost" type="submit">Download these dates</button>
       </form>
-      <form class="stack" method="post" action="/activity/clear" data-confirm="Clear every entry in those dates, for everyone? Download them first if you want a copy. This can’t be undone.">
+      <form class="stack" method="post" action="/activity/clear" data-confirm="Clear the entries in those dates and that section, for everyone? Download them first if you want a copy. This can’t be undone.">
         <input type="hidden" name="back" value="<%= week %>">
         <div class="fields">
           <div class="field"><label for="cl-from">Clear from</label><input id="cl-from" name="from" type="date" required value="<%= week %>" max="<%= today %>"></div>
           <div class="field"><label for="cl-to">To</label><input id="cl-to" name="to" type="date" required value="<%= weekEnd %>" max="<%= today %>"></div>
+          <div class="field"><label for="cl-sec">Section</label><select id="cl-sec" name="section"><option value="">All sections</option><% allSections.forEach((s) => { %><option value="<%= s %>"<%= s === section ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
         </div>
         <button class="btn btn-ghost link-danger" type="submit">Clear these dates</button>
       </form>
-      <p class="hint">Clearing frees up space. Restore buttons for those changes go too.</p>
+      <p class="hint">Download and clear use the section you choose (it starts on the one you’re viewing). Clearing frees up space; Restore buttons for those changes go too.</p>
     </section>
   <% } %>
 </main>

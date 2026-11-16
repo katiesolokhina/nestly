@@ -69,6 +69,7 @@ const ACTIVITY_SECTIONS = ['Settings', ...SECTIONS.map((s) => s.label)];
 
 // Activity, one week at a time. Admins can download it (CSV) or clear a stretch of it.
 const weekOf = (household, d) => addDays(d, -((weekday(d) - (household.weekStart === 1 ? 1 : 0) + 7) % 7));
+const sectionOf = (v) => (ACTIVITY_SECTIONS.includes(v) ? v : '');
 const between = (tz, from, to) => ({ $gte: zonedDate(from, 0, tz), $lt: zonedDate(addDays(to, 1), 0, tz) }); // whole local days
 
 function activityFilter(req) {
@@ -97,7 +98,7 @@ router.get('/activity', requireAuth, requirePerm('activity'), async (req, res, n
     const days = [...new Set(rows.map((r) => r.day))].map((d) => ({ label: dayLabel(d, today), items: rows.filter((r) => r.day === d) }));
     const oldest = req.member.role === 'admin' ? await Activity.findOne({ householdId: req.user.householdId }, { createdAt: 1 }).sort({ createdAt: 1 }).lean() : null;
     res.render('activity', {
-      active: 'activity', section, sections: shown, days, count: rows.length, week,
+      active: 'activity', section, sections: shown, allSections: ACTIVITY_SECTIONS, days, count: rows.length, week,
       weekLabel: week === thisWeek ? 'This week' : week === addDays(thisWeek, -7) ? 'Last week' : `Week of ${shortDay(week)}`,
       range: `${shortDay(week).replace(/, \d{4}$/, '')} – ${shortDay(addDays(week, 6))}`,
       prev: addDays(week, -7), next: week < thisWeek ? addDays(week, 7) : null, today,
@@ -122,12 +123,14 @@ router.get('/activity/download', requireAuth, requirePerm('activity'), async (re
     const to = isDate(req.query.to) ? req.query.to : todayIn(tz);
     const filter = { householdId: req.user.householdId, $or: [{ private: false }, { actorId: req.user._id }] };
     if (from) filter.createdAt = between(tz, from, to);
+    const section = sectionOf(req.query.section);
+    if (section) filter.section = section;
     const entries = await Activity.find(filter, { actorName: 1, section: 1, text: 1, createdAt: 1 }).sort({ createdAt: 1 }).lean();
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
     const time = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
     const lines = [['Date', 'Time', 'Who', 'Section', 'What'], ...entries.map((e) => [date.format(e.createdAt), time.format(e.createdAt), e.actorName, e.section, e.text])];
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="nestly-activity-${from || 'all'}-to-${to}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="nestly-activity-${section ? `${section.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-` : ''}${from || 'all'}-to-${to}.csv"`);
     res.setHeader('Cache-Control', 'no-store');
     res.send(`\ufeff${lines.map((l) => l.map(csvCell).join(',')).join('\r\n')}\r\n`);
   } catch (err) {
@@ -146,11 +149,13 @@ router.post('/activity/clear', requireAuth, requirePerm('activity'), async (req,
       req.session.flash = 'Choose the first and last day to clear.';
       return res.redirect('/activity#tools');
     }
-    const { deletedCount } = await Activity.deleteMany({ householdId: req.user.householdId, createdAt: between(tz, b.from, b.to) });
-    const span = b.from === b.to ? shortDay(b.from) : `${shortDay(b.from)} to ${shortDay(b.to)}`;
-    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} cleared ${deletedCount} activity ${deletedCount === 1 ? 'entry' : 'entries'} from ${span}` });
-    req.session.flash = `Cleared ${deletedCount} ${deletedCount === 1 ? 'entry' : 'entries'} from ${span}.`;
-    res.redirect(`/activity${isDate(b.back) ? `?week=${b.back}` : ''}`);
+    const section = sectionOf(b.section);
+    const { deletedCount } = await Activity.deleteMany({ householdId: req.user.householdId, createdAt: between(tz, b.from, b.to), ...(section ? { section } : {}) });
+    const span = `${deletedCount} ${section ? `${section} ` : ''}activity ${deletedCount === 1 ? 'entry' : 'entries'} from ${b.from === b.to ? shortDay(b.from) : `${shortDay(b.from)} to ${shortDay(b.to)}`}`;
+    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} cleared ${span}` });
+    req.session.flash = `Cleared ${span}.`;
+    const back = new URLSearchParams({ ...(isDate(b.back) ? { week: b.back } : {}), ...(section ? { section } : {}) }).toString();
+    res.redirect(`/activity${back ? `?${back}` : ''}`);
   } catch (err) {
     next(err);
   }

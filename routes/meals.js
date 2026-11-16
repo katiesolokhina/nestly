@@ -63,15 +63,13 @@ router.get('/s/meals', async (req, res, next) => {
     if (end >= today && req.sees('pantry') && recipesOn(req) && req.perms.level('meals') === 'edit') {
       const { items, usual } = await atHome(req, { soonUntil: end });
       const soon = items.filter((i) => i.soon);
-      if (soon.length) {
-        const planned = new Set(raw.filter((m) => m.recipeId).map((m) => String(m.recipeId)));
-        const all = await Recipe.find(visible(req.user), { title: 1, category: 1, tags: 1, ingredients: 1 }).lean();
-        const ranked = rankRecipes(all.filter((r) => !planned.has(String(r._id))), { have: items.map((i) => i.key), usual, expiring: soon.map((i) => ({ key: i.key, name: i.name, text: i.expText })) })
-          .filter((x) => x.uses.length)
-          .slice(0, 5);
-        const openDays = Array.from({ length: 7 }, (_, i) => addDays(start, i)).filter((d) => d >= today);
-        suggest = { soon: soon.slice(0, 8), recipes: ranked, days: openDays.map((d) => ({ date: d, label: fmtDay(d) })), slot: req.household.mealSlots.includes(req.household.mealSlot) ? req.household.mealSlot : req.household.mealSlots[req.household.mealSlots.length - 1] };
-      }
+      const planned = new Set(raw.filter((m) => m.recipeId).map((m) => String(m.recipeId)));
+      const all = await Recipe.find(visible(req.user), { title: 1, category: 1, tags: 1, ingredients: 1 }).lean();
+      const ranked = rankRecipes(all.filter((r) => !planned.has(String(r._id))), { have: items.map((i) => i.key), usual, expiring: soon.map((i) => ({ key: i.key, name: i.name, text: i.expText })) });
+      // Nothing expiring: the recipes you have the most ingredients for instead.
+      const recipes = soon.length ? ranked.filter((x) => x.uses.length).slice(0, 5) : ranked.filter((x) => x.got).sort((a, b) => b.score - a.score || a.missing.length - b.missing.length).slice(0, 3);
+      const openDays = Array.from({ length: 7 }, (_, i) => addDays(start, i)).filter((d) => d >= today);
+      suggest = { soon: soon.slice(0, 8), recipes, hasRecipes: all.length > 0, hasPantry: items.length > 0, days: openDays.map((d) => ({ date: d, label: fmtDay(d) })), slot: req.household.mealSlots.includes(req.household.mealSlot) ? req.household.mealSlot : req.household.mealSlots[req.household.mealSlots.length - 1] };
     }
     const lastWeekCount = await Meal.countDocuments({ ...visible(req.user), date: { $gte: addDays(start, -7), $lte: addDays(start, -1) } });
     res.render('meals/week', {

@@ -58,15 +58,29 @@ test('activity by week', async (t) => {
   assert.doesNotMatch(r.text, /paid rent/);
   r = await katie('/activity/download');
   assert.match(r.text, /paid water/);
+  // By section.
+  r = await katie('/activity/download?section=Bills');
+  assert.match(r.text, /paid rent/);
+  assert.doesNotMatch(r.text, /Milk|HYPERLINK/);
+  assert.match(r.headers.get('content-disposition'), /nestly-activity-bills-all/);
+  assert.match((await katie('/activity?section=Shopping')).text, /<option value="Shopping" selected>Shopping/);
 
   // Clear a range.
   r = await katie('/activity/clear', { method: 'POST', form: { from: addDays(today, -45), to: addDays(today, -5) } });
-  assert.match((await katie('/activity')).text, /Cleared 2 entries/);
+  assert.match((await katie('/activity')).text, /Cleared 2 activity entries/);
   await withDb(app.uri, async () => {
     assert.equal(await Activity.countDocuments({ text: /paid rent|HYPERLINK/ }), 0);
     assert.equal(await Activity.countDocuments({ text: /paid water|Milk/ }), 2);
   });
   assert.equal((await katie('/activity/clear', { method: 'POST', form: { from: today, to: addDays(today, -3) } })).location, '/activity#tools');
+  // Clear one section: only its entries go.
+  r = await katie('/activity/clear', { method: 'POST', form: { from: addDays(today, -500), to: today, section: 'Bills', back: today } });
+  assert.match(r.location, /section=Bills/);
+  assert.match((await katie('/activity')).text, /Cleared 1 Bills activity entry/);
+  await withDb(app.uri, async () => {
+    assert.equal(await Activity.countDocuments({ text: /paid water/ }), 0);
+    assert.equal(await Activity.countDocuments({ text: /Milk/ }), 1);
+  });
 
   // Auto-clear: off by default; turning it on clears older entries.
   page = await katie('/settings/activity');

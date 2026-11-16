@@ -16,12 +16,17 @@
   <% if (suggest) { %>
     <section class="card" aria-labelledby="usesoon">
       <h2 id="usesoon">Use soon</h2>
-      <p class="row-meta"><%= suggest.soon.map((i) => i.name + ' (' + i.expText.toLowerCase() + ')').join(', ') %></p>
-      <% if (!suggest.recipes.length) { %><p class="muted small">None of your recipes use these yet. <a href="/s/recipes/cook">Find ideas</a>.</p><% } %>
+      <% if (suggest.soon.length) { %>
+        <p class="row-meta"><%= suggest.soon.map((i) => i.name + ' (' + i.expText.toLowerCase() + ')').join(', ') %></p>
+        <% if (!suggest.recipes.length) { %><p class="muted small">None of your recipes use these yet. <a href="/s/recipes/cook">Find ideas</a>.</p><% } %>
+      <% } else { %>
+        <p class="row-meta">Nothing in the pantry has a use-by date this week<%= suggest.hasPantry ? '' : ' (the pantry is empty)' %>.<%= suggest.recipes.length ? ' You have most of what these need:' : '' %></p>
+        <% if (!suggest.recipes.length) { %><p class="muted small"><%= suggest.hasRecipes ? 'None of your recipes match what’s in the pantry.' : 'Save a few recipes and they’ll show up here.' %> <a href="/s/recipes/cook">Find ideas</a>.</p><% } %>
+      <% } %>
       <% suggest.recipes.forEach((m, n) => { %>
         <form class="plan-row" method="post" action="/s/meals">
           <input type="hidden" name="recipeId" value="<%= m.recipe._id %>"><input type="hidden" name="slot" value="<%= suggest.slot %>">
-          <a class="row-body row-link" href="/s/recipes/<%= m.recipe._id %>"><span class="row-title"><%= m.recipe.title %></span><span class="row-meta">Uses <%= m.uses.map((u) => u.name).join(', ') %><%= m.missing.length ? ' · Need ' + m.missing.slice(0, 3).join(', ') + (m.missing.length > 3 ? ' +' + (m.missing.length - 3) : '') : '' %></span></a>
+          <a class="row-body row-link" href="/s/recipes/<%= m.recipe._id %>"><span class="row-title"><%= m.recipe.title %></span><span class="row-meta"><%= m.uses.length ? 'Uses ' + m.uses.map((u) => u.name).join(', ') : 'Have ' + m.got + ' of ' + m.total %><%= m.missing.length ? ' · Need ' + m.missing.slice(0, 3).join(', ') + (m.missing.length > 3 ? ' +' + (m.missing.length - 3) : '') : '' %></span></a>
           <label class="sr-only" for="sd-<%= n %>">Day for <%= m.recipe.title %></label>
           <select id="sd-<%= n %>" name="date"><% suggest.days.forEach((d) => { %><option value="<%= d.date %>"><%= d.label %></option><% }) %></select>
           <button class="btn btn-ghost" type="submit">Plan<span class="sr-only"> <%= m.recipe.title %> for <%= suggest.slot.toLowerCase() %></span></button>
