@@ -1,4 +1,5 @@
 const express = require('express');
+const { defaultsOf } = require('../lib/defaults');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const Recipe = require('../models/Recipe');
@@ -25,7 +26,7 @@ async function find(req) {
   return Recipe.findOne({ _id: req.params.id, ...visible(req.user) });
 }
 
-const blank = (req) => ({ _id: null, title: '', category: 'Uncategorized', tags: [], servings: '', time: '', ingredients: [], steps: [], notes: '', link: '', photoId: null, photoUrl: '', private: false });
+const blank = (req) => ({ _id: null, title: '', category: defaultsOf(req.household).recipeCat || 'Uncategorized', tags: [], servings: '', time: '', ingredients: [], steps: [], notes: '', link: '', photoId: null, photoUrl: '', private: false });
 
 function readForm(req) {
   const b = req.body || {};

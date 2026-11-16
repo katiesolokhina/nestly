@@ -7,6 +7,7 @@ const Upload = require('../models/Upload');
 const { recordChange, recordDeleteMany, visible } = require('../lib/changes');
 const { pick } = require('../lib/lists');
 const { keyOf, fromCatalog, setStaple } = require('../lib/catalog');
+const { defaultsOf } = require('../lib/defaults');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const { dayLabel, todayIn } = require('../lib/dates');
 const User = require('../models/User');
@@ -93,7 +94,7 @@ async function addByName(req, res, name, back) {
     return res.redirect(back);
   }
   const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
-  const item = await ShoppingItem.create(fromCatalog(req.user, name, c, req.household));
+  const item = await ShoppingItem.create({ ...fromCatalog(req.user, name, c, req.household), private: defaultsOf(req.household).private });
   await remember(req.user, item);
   await recordChange(req, { kind: 'create', model: 'ShoppingItem', doc: item, section: SECTION, text: `added ${item.name} to Shopping`, label: item.name });
   res.redirect(back);
@@ -239,7 +240,7 @@ router.get('/s/shopping/new', async (req, res, next) => {
   try {
     const name = String(req.query.name || '').trim().slice(0, 80);
     const c = name ? await CatalogItem.findOne({ householdId: req.user.householdId, key: keyOf(name) }).lean() : null;
-    res.render('shopping/form', await formData(req, { ...fromCatalog(req.user, name, c, req.household), _id: null, private: false, staple: c ? c.staple : false }));
+    res.render('shopping/form', await formData(req, { ...fromCatalog(req.user, name, c, req.household), _id: null, private: defaultsOf(req.household).private, staple: c ? c.staple : false }));
   } catch (err) {
     next(err);
   }

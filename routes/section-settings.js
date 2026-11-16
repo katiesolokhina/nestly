@@ -23,6 +23,54 @@ const templateOf = (household, type) => {
   return (TEMPLATES[type] || []).map(([label, kind]) => ({ label, kind }));
 };
 
+// ---------- Settings → Defaults: what new items start with, every section in one place ----------
+const { ROWS: DEFAULT_ROWS } = require('../lib/defaults');
+const { membersOf: householdMembers } = require('../lib/members');
+const defaultRows = (req) => DEFAULT_ROWS.filter((r) => req.household.features[r.section] !== false && req.perms.level(r.section) === 'edit');
+
+router.get('/settings/defaults', requireAuth, requirePerm('settings'), async (req, res, next) => {
+  try {
+    const h = req.household;
+    const rows = defaultRows(req);
+    if (!rows.length) return res.status(404).send('Not found');
+    const people = rows.some((r) => r.people) ? await householdMembers(req.user.householdId) : [];
+    const groups = [];
+    rows.forEach((r) => {
+      const options = r.people ? people.map((m) => [String(m._id), m.name]) : r.bool ? [] : r.list(h).map((v) => [v, v]);
+      const value = r.bool ? Boolean(h[r.field]) : String(h[r.field] ?? '');
+      const on = r.bool ? value : Boolean(value) && value !== r.off && options.some(([v]) => v === value);
+      let g = groups.find((x) => x.section === r.section);
+      if (!g) { g = { section: r.section, name: sectionName(h, r.section), rows: [] }; groups.push(g); }
+      g.rows.push({ ...r, options, value, on });
+    });
+    res.render('settings/defaults', { active: 'settings', groups });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/defaults', requireAuth, requirePerm('settings'), async (req, res, next) => {
+  try {
+    const h = req.household;
+    const b = req.body || {};
+    const rows = defaultRows(req);
+    if (!rows.length) return res.status(404).send('Not found');
+    const on = new Set([].concat(b.on || []).map(String));
+    const people = rows.some((r) => r.people) ? (await householdMembers(req.user.householdId)).map((m) => String(m._id)) : [];
+    rows.forEach((r) => {
+      if (r.bool) { h[r.field] = on.has(r.field); return; }
+      const options = r.people ? people : r.list(h);
+      h[r.field] = on.has(r.field) && options.includes(String(b[r.field])) ? String(b[r.field]) : r.off;
+    });
+    await h.save();
+    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} changed the new-item defaults` });
+    req.session.flash = 'Defaults saved.';
+    res.redirect('/settings/defaults');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Chore rewards: add one, or remove one. Requests already made keep their name and cost.
 router.post('/settings/s/chores/rewards', async (req, res, next) => {
   try {
@@ -104,27 +152,27 @@ router.post('/settings/s/:key', async (req, res, next) => {
     const b = req.body || {};
     if (!KEYS.includes(key) || req.perms.level(key) !== 'edit') return res.status(404).send('Not found');
     if (key === 'shopping') {
-      h.defaultStore = pick(b.defaultStore, ['Any store', ...h.stores], 'Any store');
+      if ('defaultStore' in b) h.defaultStore = pick(b.defaultStore, ['Any store', ...h.stores], 'Any store');
       h.tripAlerts = b.tripAlerts === 'on';
       h.tripGapMin = Number(pick(b.tripGapMin, [15, 30, 60, 120], h.tripGapMin));
     } else if (key === 'remember') {
       h.remNotify = pick(b.remNotify, ['all', 'me', 'none'], 'all');
-      h.remCat = pick(b.remCat, ['', ...h.remCats], '');
+      if ('remCat' in b) h.remCat = pick(b.remCat, ['', ...h.remCats], '');
     } else if (key === 'calendar' || key === 'meals') {
       h.weekStart = Number(pick(b.weekStart, [0, 1], h.weekStart));
       if (key === 'calendar') {
         h.eventAlert = pick(b.eventAlert, ['none', '0', '5', '10', '15', '30', '60', '120', '180', '1440', '2880', '10080'], '60');
         h.eventAlertAllDay = pick(b.eventAlertAllDay, ['none', '0', '1440', '2880', '10080'], '0');
-        h.eventCat = pick(b.eventCat, ['Uncategorized', ...h.eventCats], 'Uncategorized');
+        if ('eventCat' in b) h.eventCat = pick(b.eventCat, ['Uncategorized', ...h.eventCats], 'Uncategorized');
       } else {
-        h.mealSlot = pick(b.mealSlot, ['', ...h.mealSlots], '');
+        if ('mealSlot' in b) h.mealSlot = pick(b.mealSlot, ['', ...h.mealSlots], '');
       }
     } else if (key === 'pantry') {
       const name = (v, d) => String(v || '').trim().slice(0, 16) || d;
       h.pantryNames = { have: name(b.nameHave, 'Have'), low: name(b.nameLow, 'Low'), out: name(b.nameOut, 'Out') };
       h.pantryShop = pick(b.pantryShop, ['both', 'out', 'never'], 'both');
       h.pantrySoonDays = Number(pick(b.pantrySoonDays, [1, 2, 3, 5, 7, 14], 3));
-      h.pantryDefaultSpot = pick(b.pantryDefaultSpot, ['', ...h.pantrySpots], '');
+      if ('pantryDefaultSpot' in b) h.pantryDefaultSpot = pick(b.pantryDefaultSpot, ['', ...h.pantrySpots], '');
       // Aisle → spot: '' means "where new items go".
       h.aisleSpots = h.aisles.map((aisle, i) => ({ aisle, spot: pick(b[`aisleSpot${i}`], ['', ...h.pantrySpots], '') })).filter((m) => m.spot);
     } else if (key === 'bills') {

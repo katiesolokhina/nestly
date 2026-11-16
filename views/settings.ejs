@@ -35,6 +35,7 @@
     <div class="card">
       <% row('/settings/people', 'People', isAdmin ? 'Invites, roles, and permissions' : perms.invite ? 'Who’s here, and invites' : 'Who’s in this household', 'people') %>
       <% if (isAdmin) { row('/settings/sections', 'Sections', 'Turn sections on or off, and rename them', 'list') } %>
+      <% if (canSettings && sectionRows.length) { row('/settings/defaults', 'Defaults', 'What new items start with', 'list') } %>
       <% if (isAdmin) { row('/settings/export', 'Download data', 'A copy of everything in ' + household.name, 'download') } %>
       <% if (isAdmin) { row('/settings/activity', 'Activity', 'Download, clear, or auto-clear old history', 'list') } %>
     </div>

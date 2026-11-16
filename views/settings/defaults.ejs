@@ -1,0 +1,26 @@
+<%- include('../partials/top', { title: 'Defaults', scripts: ['defaults'] }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Defaults', sub: 'What new items start with. Turn one on and pick a value; you can still change it on each item.', back: '/settings' }) %>
+  <form class="stack" method="post" action="/settings/defaults">
+    <% groups.forEach((g) => { %>
+      <section class="card stack">
+        <h2><%= g.name %></h2>
+        <% g.rows.forEach((r) => { %>
+          <div class="def-row" data-def>
+            <label class="check-row"><span><%= r.label %></span><input type="checkbox" name="on" value="<%= r.field %>"<%= r.on ? ' checked' : '' %> data-def-on></label>
+            <% if (!r.bool) { %>
+              <label class="sr-only" for="def-<%= r.field %>"><%= r.label %></label>
+              <select id="def-<%= r.field %>" name="<%= r.field %>" data-def-value>
+                <% r.options.forEach(([v, label]) => { %><option value="<%= v %>"<%= r.value === v ? ' selected' : '' %>><%= label %></option><% }) %>
+              </select>
+            <% } %>
+            <span class="hint" data-def-off<%= r.on ? ' hidden' : '' %>>Off: <%= r.offText %>.</span>
+          </div>
+        <% }) %>
+      </section>
+    <% }) %>
+    <p class="hint">Shopping defaults that are on replace what a saved item remembers.</p>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+</main>
+<%- include('../partials/bottom') %>

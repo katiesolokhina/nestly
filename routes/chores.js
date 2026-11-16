@@ -1,4 +1,5 @@
 const express = require('express');
+const { defaultsOf } = require('../lib/defaults');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const Chore = require('../models/Chore');
@@ -118,7 +119,8 @@ async function formView(req, item, error, members) {
 
 router.get('/s/chores/new', async (req, res, next) => {
   try {
-    const item = { _id: null, title: '', details: '', room: req.household.choreRooms.includes(req.query.room) ? req.query.room : 'Anywhere', assignee: null, date: todayIn(req.user.timezone), time: '', repeat: 'none', interval: 1, days: [], until: '', points: 1 };
+    const d = defaultsOf(req.household);
+    const item = { _id: null, title: '', details: '', room: req.household.choreRooms.includes(req.query.room) ? req.query.room : d.choreRoom || 'Anywhere', assignee: d.choreWho || null, date: todayIn(req.user.timezone), time: '', repeat: 'none', interval: 1, days: [], until: '', points: 1 };
     res.render('chores/form', await formView(req, item));
   } catch (err) {
     next(err);

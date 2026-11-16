@@ -10,6 +10,7 @@ const { keyOf, addToCatalog, fromCatalog } = require('../lib/catalog');
 const { markPutAway } = require('../lib/pantry');
 const { pantryNames } = require('../lib/prefs');
 const { lookup, remember, CODE } = require('../lib/barcode');
+const { defaultsOf } = require('../lib/defaults');
 
 const router = express.Router();
 const FOR = { pantry: 'pantry', shopping: 'shopping', shop: 'shopping' };
@@ -63,7 +64,7 @@ router.post('/s/shopping/scan', requireAuth, requireSection('shopping'), async (
         req.session.flash = `${onList.name} is already on the list.`;
       } else {
         const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
-        item = await ShoppingItem.create({ ...fromCatalog(req.user, name, c, req.household), ...(body(req).brand && !(c && c.brand) ? { brand: String(body(req).brand).slice(0, 80) } : {}) });
+        item = await ShoppingItem.create({ ...fromCatalog(req.user, name, c, req.household), private: defaultsOf(req.household).private, ...(body(req).brand && !(c && c.brand) ? { brand: String(body(req).brand).slice(0, 80) } : {}) });
         await recordChange(req, { kind: 'create', model: 'ShoppingItem', doc: item, section: 'Shopping', text: `added ${item.name} to Shopping`, label: item.name });
         req.session.flash = `${item.name} added to the list.`;
       }

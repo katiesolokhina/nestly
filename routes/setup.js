@@ -1,4 +1,4 @@
-// First-run guide for a new household, for its admin: sections, people, staples, chores.
+// First-run guide for a new household, for its admin: sections, people, aisles and spots, staples, chores.
 // Every step can be skipped, and it can be finished later from Today.
 const express = require('express');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
@@ -7,11 +7,12 @@ const { SECTIONS } = require('../lib/sections');
 const { addToCatalog, setStaple, keyOf } = require('../lib/catalog');
 const { logActivity } = require('../lib/activity');
 const { todayIn, weekday } = require('../lib/dates');
+const { AISLES, SPOTS, applyStarter } = require('../lib/starter');
 
 const router = express.Router();
 router.use('/setup', requireAuth, requireAdmin);
 
-const STEPS = ['sections', 'people', 'staples', 'chores'];
+const STEPS = ['sections', 'people', 'layout', 'staples', 'chores'];
 const STARTER_CHORES = [
   ['Dishes', 'Kitchen', 'daily'],
   ['Take out the trash', 'Kitchen', 'weekly'],
@@ -25,7 +26,8 @@ const STARTER_CHORES = [
 
 // Steps for sections that are off are skipped.
 function stepsFor(h) {
-  return STEPS.filter((s) => (s === 'staples' ? h.features.shopping !== false : s === 'chores' ? h.features.chores !== false : true));
+  const on = (k) => h.features[k] !== false;
+  return STEPS.filter((s) => (s === 'staples' ? on('shopping') : s === 'chores' ? on('chores') : s === 'layout' ? on('shopping') || on('pantry') : true));
 }
 
 async function goTo(req, res, next) {
@@ -48,7 +50,7 @@ router.get('/setup', (req, res) => {
   const h = req.household;
   const steps = stepsFor(h);
   const step = STEPS[(h.setupStep || 1) - 1] && steps.includes(STEPS[(h.setupStep || 1) - 1]) ? STEPS[h.setupStep - 1] : steps[0];
-  res.render('setup', { active: 'today', step, n: steps.indexOf(step) + 1, of: steps.length, SECTIONS, STARTER_CHORES });
+  res.render('setup', { active: 'today', step, n: steps.indexOf(step) + 1, of: steps.length, SECTIONS, STARTER_CHORES, AISLES, SPOTS });
 });
 
 router.post('/setup/skip', async (req, res, next) => {
@@ -73,6 +75,14 @@ router.post('/setup/:step', async (req, res, next) => {
         SECTIONS.forEach((s) => { h.features[s.key] = on.has(s.key); });
         await h.save();
         await logActivity(req.user, { section: 'Settings', text: `${req.user.name} chose ${h.name}’s sections` });
+      } else if (step === 'layout') {
+        // The starter aisles (in store order), pantry spots, and where each aisle's things go.
+        if (b.starter === '1') {
+          const shopping = h.features.shopping !== false;
+          if (h.features.pantry === false) { const spots = h.pantrySpots; applyStarter(h, { aisles: shopping }); h.pantrySpots = spots; } else applyStarter(h, { aisles: shopping });
+          await h.save();
+          await logActivity(req.user, { section: 'Settings', text: `${req.user.name} added the starter aisles and spots` });
+        }
       } else if (step === 'staples') {
         const typed = String(b.staples || '').split(/[\n,]/).map((x) => x.trim().slice(0, 80)).filter(Boolean);
         const names = typed.filter((n, i) => typed.findIndex((x) => keyOf(x) === keyOf(n)) === i).slice(0, 30); // first spelling wins

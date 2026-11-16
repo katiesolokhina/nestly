@@ -430,3 +430,6 @@ span.check { cursor: default; }
 .edit-row { display: flex; align-items: center; gap: 8px; }
 .edit-row input[type="text"] { flex: 1; min-width: 0; }
 .add textarea { flex: 1; min-width: 0; min-height: 44px; resize: none; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.4; overflow: hidden; }
+.plain-list { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.def-row { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--off); padding-top: 8px; }
+.def-row:first-of-type { border-top: 0; padding-top: 0; }

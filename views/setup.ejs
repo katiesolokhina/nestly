@@ -1,6 +1,6 @@
 <%- include('partials/top', { title: 'Set up ' + household.name }) %>
 <main class="stack">
-  <div class="head"><div><p class="muted small">Step <%= n %> of <%= of %></p><h1><%= { sections: 'What will you use?', people: 'Who’s in ' + household.name + '?', staples: 'Things you buy often', chores: 'Chores to start with' }[step] %></h1></div>
+  <div class="head"><div><p class="muted small">Step <%= n %> of <%= of %></p><h1><%= { sections: 'What will you use?', people: 'Who’s in ' + household.name + '?', layout: 'Aisles and where things go', staples: 'Things you buy often', chores: 'Chores to start with' }[step] %></h1></div>
     <form method="post" action="/setup/skip"><button class="link-btn" type="submit">Finish later</button></form></div>
   <div class="setup-dots" aria-hidden="true"><% for (let i = 1; i <= of; i++) { %><i class="<%= i <= n ? 'on' : '' %>"></i><% } %></div>
 
@@ -17,6 +17,18 @@
       <a class="btn btn-ghost btn-block" href="/settings/people">Make invite links</a>
       <form method="post" action="/setup/people"><button class="btn btn-primary btn-block" type="submit">Next</button></form>
     </section>
+  <% } else if (step === 'layout') { %>
+    <% const shop = household.features.shopping !== false, pan = household.features.pantry !== false; %>
+    <form class="card stack" method="post" action="/setup/layout">
+      <p class="row-meta"><%= shop && pan ? 'Shopping is sorted by aisle, in the order you walk the store, and bought things go to the pantry spot for their aisle.' : shop ? 'Shopping is sorted by aisle, in the order you walk the store.' : 'Pantry items are grouped by where they’re kept.' %> Start with these and change them any time in Settings.</p>
+      <% if (shop) { %>
+        <ul class="plain-list small"><% AISLES.forEach(([a, s]) => { %><li><%= a %><% if (pan && s) { %> <span class="muted">→ <%= s %></span><% } %></li><% }) %></ul>
+      <% } else { %>
+        <p class="small"><%= SPOTS.join(' · ') %></p>
+      <% } %>
+      <label class="check-row">Add these<input type="checkbox" name="starter" value="1" checked></label>
+      <button class="btn btn-primary btn-block" type="submit">Next</button>
+    </form>
   <% } else if (step === 'staples') { %>
     <form class="card stack" method="post" action="/setup/staples">
       <p class="row-meta">These become one-tap buttons on the Shopping page. One per line, or separated by commas.</p>

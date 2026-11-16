@@ -5,7 +5,6 @@ const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/li
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
 const { keyOf, addToCatalog } = require('../lib/catalog');
-const { applyStarter } = require('../lib/starter');
 
 const router = express.Router();
 router.use('/settings/lists', requireAuth, requirePerm('settings'));
@@ -44,23 +43,6 @@ router.post('/settings/lists/usually-have', async (req, res, next) => {
     const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(req.body.key || ''), usuallyHave: true }, { $set: { usuallyHave: false } });
     if (item) await logActivity(req.user, { section: SECTION, text: `${req.user.name} stopped marking ${item.name} as usually have` });
     res.redirect('/settings/s/shopping#usual');
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Settings → Pantry: the starter aisles, spots, and aisle → spot map (only what's missing).
-router.post('/settings/lists/starter', async (req, res, next) => {
-  try {
-    const h = req.household;
-    if (h.features.pantry === false || req.perms.level('pantry') !== 'edit') return res.status(404).send('Not found');
-    const aisles = h.features.shopping !== false && req.perms.level('shopping') === 'edit';
-    const { addedSpots, addedAisles, mapped } = applyStarter(h, { aisles });
-    await h.save();
-    const parts = [addedAisles.length && `${addedAisles.length} aisle${addedAisles.length === 1 ? '' : 's'}`, addedSpots.length && `${addedSpots.length} spot${addedSpots.length === 1 ? '' : 's'}`, mapped && `${mapped} aisle mapping${mapped === 1 ? '' : 's'}`].filter(Boolean);
-    req.session.flash = parts.length ? `Added ${parts.join(', ')}. Remove any you don’t use.` : 'You already have everything in the starter set.';
-    if (parts.length) await logActivity(req.user, { section: SECTION, text: `${req.user.name} added the starter set (${parts.join(', ')})` });
-    res.redirect('/settings/s/pantry');
   } catch (err) {
     next(err);
   }

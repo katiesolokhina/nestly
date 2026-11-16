@@ -12,23 +12,20 @@
   <% if (key !== 'recipes' && key !== 'info') { %>
   <form class="card stack" method="post" action="/settings/s/<%= key %><%= back !== '/settings' ? '?from=section' : '' %>">
     <h2>Defaults</h2>
+    <p class="hint">What new items start with (store, category, tag…) is in <a href="/settings/defaults">Settings → Defaults</a>.</p>
     <% if (key === 'shopping') { %>
-      <% sel('defaultStore', [['Any store', 'Any store'], ...household.stores.map((s) => [s, s])], household.defaultStore, 'New items go to') %>
       <label class="check-row">Tell everyone when someone starts shopping<input type="checkbox" name="tripAlerts"<%= household.tripAlerts !== false ? ' checked' : '' %>></label>
       <% sel('tripGapMin', [[15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [120, '2 hours']], household.tripGapMin, 'At most once every') %>
       <p class="hint">Each person can still turn shopping alerts off for themselves in Notifications.</p>
     <% } else if (key === 'remember') { %>
       <% sel('remNotify', [['all', 'Everyone'], ['me', 'Just whoever adds it'], ['none', 'No one']], household.remNotify, 'New reminders notify') %>
-      <% sel('remCat', [['', 'First in the list'], ...household.remCats.map((c) => [c, c])], household.remCat, 'Category') %>
     <% } else if (key === 'calendar') { %>
       <% weekRow() %>
       <% sel('eventAlert', alertChoices.filter((c) => c.kind === 'timed' || c.value === 'none').map((c) => [c.value, c.label]), household.eventAlert, 'Events with a time notify') %>
       <% sel('eventAlertAllDay', alertChoices.filter((c) => c.kind === 'allday' || c.value === 'none').map((c) => [c.value, c.label]), household.eventAlertAllDay, 'All-day events notify') %>
-      <% sel('eventCat', [['Uncategorized', 'Uncategorized'], ...household.eventCats.map((c) => [c, c])], household.eventCat, 'Category') %>
       <p class="hint">These are what a new event starts with. Each event can still be changed.</p>
     <% } else if (key === 'meals') { %>
       <% weekRow() %>
-      <% sel('mealSlot', [['', 'Last in the list'], ...household.mealSlots.map((s) => [s, s])], household.mealSlot, 'New meals go in') %>
       <p class="hint">The week start is shared with the Calendar.</p>
     <% } else if (key === 'pantry') { %>
       <fieldset class="group">
@@ -41,7 +38,6 @@
       </fieldset>
       <% sel('pantryShop', [['both', names.low + ' or ' + names.out], ['out', names.out + ' only'], ['never', 'Never']], household.pantryShop, 'Add to shopping when') %>
       <% sel('pantrySoonDays', [[1, '1 day'], [2, '2 days'], [3, '3 days'], [5, '5 days'], [7, '7 days'], [14, '14 days']], household.pantrySoonDays, '“Expiring soon” means within') %>
-      <% sel('pantryDefaultSpot', [['', 'First in the list'], ...household.pantrySpots.map((s) => [s, s])], household.pantryDefaultSpot, 'New items go in') %>
       <fieldset class="group" id="aisles">
         <legend>Where bought things are kept</legend>
         <p class="hint">By shopping aisle. Used when something bought is put away, or skipped into the pantry.</p>
@@ -111,11 +107,6 @@
   <% } %>
 
   <% if (pantry) { %>
-    <section class="card stack" id="starter">
-      <h2>Starter set</h2>
-      <p class="hint">Adds common shopping aisles (in store order), pantry spots, and where each aisle’s things are kept. Only what’s missing is added; nothing you have changes.</p>
-      <form method="post" action="/settings/lists/starter"><button class="btn btn-ghost" type="submit">Add the starter set</button></form>
-    </section>
     <section class="card stack" id="auto">
       <h2>Skip the details</h2>
       <p class="hint">These go straight into the pantry when bought (as <%= names.have %>, no date), without waiting in Put away. Remove one to be asked again.</p>

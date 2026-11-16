@@ -1,4 +1,5 @@
 const express = require('express');
+const { defaultsOf } = require('../lib/defaults');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const Bill = require('../models/Bill');
@@ -115,7 +116,7 @@ async function formView(req, item, error, extra = {}) {
 }
 
 const blank = (req, members) => ({
-  _id: null, name: '', category: 'Uncategorized', cents: null, dueDate: todayIn(req.user.timezone), link: '', note: '', private: false,
+  _id: null, name: '', category: defaultsOf(req.household).billCat || 'Uncategorized', cents: null, dueDate: todayIn(req.user.timezone), link: '', note: '', private: false,
   splitMode: req.household.billSplit === 'none' ? 'none' : 'even',
   shares: req.household.billSplit === 'none' ? [] : members.map((m) => ({ userId: m._id, name: m.name, cents: 0 })), seriesId: null,
   repeat: 'none', interval: 1, until: '',
