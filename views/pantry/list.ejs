@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan'] }) %>
+<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan', 'confirm'] }) %>
 <main class="stack">
   <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (canEdit('pantry')) { %><div class="btn-row"><button class="btn btn-ghost" type="button" data-scan-open hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg> Scan</button><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div><% } %></div>
   <% if (canEdit('pantry')) { %><form class="add pantry-add" method="get" action="/s/pantry/add">
@@ -9,14 +9,16 @@
   <% if (putAway.length) { %>
     <section class="card" id="putaway" aria-labelledby="pa">
       <h2 id="pa">Put away</h2>
-      <p class="row-meta">Bought on Shopping. Add each to the pantry with its date, or skip it.</p>
+      <p class="row-meta">Bought on Shopping. Put away adds it with its date; Skip adds it without details. Always skips the details for that item from now on.</p>
       <% putAway.forEach((s) => { %>
         <div class="row">
           <div class="row-body"><span class="row-title"><%= s.name %></span><span class="row-meta"><%= s.meta %></span></div>
+          <form method="post" action="/s/pantry/putaway/<%= s._id %>/always"><button class="link-btn" type="submit">Always<span class="sr-only"> skip details for <%= s.name %></span></button></form>
           <form method="post" action="/s/pantry/putaway/<%= s._id %>/skip"><button class="link-btn" type="submit">Skip<span class="sr-only"> <%= s.name %></span></button></form>
           <a class="btn btn-primary" href="/s/pantry/add?from=<%= s._id %>">Put away<span class="sr-only"> <%= s.name %></span></a>
         </div>
       <% }) %>
+      <% if (putAway.length > 1) { %><form method="post" action="/s/pantry/putaway/skip-all" data-confirm="Add all <%= putAway.length %> to the pantry without dates?"><button class="link-btn" type="submit">Skip details for all <%= putAway.length %></button></form><% } %>
     </section>
   <% } %>
   <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>

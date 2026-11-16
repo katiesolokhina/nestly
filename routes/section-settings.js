@@ -5,6 +5,7 @@ const CatalogItem = require('../models/CatalogItem');
 const { LISTS, categoryColor, reminderColor } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 const { sectionName, pantryNames } = require('../lib/prefs');
+const { guessSpot } = require('../lib/pantry');
 const { KINDS, TEMPLATES } = require('../lib/info');
 const alerts = require('../lib/alerts');
 const { rolesOf } = require('../lib/perms');
@@ -64,9 +65,17 @@ router.get('/settings/s/:key', async (req, res, next) => {
     const usual = key === 'shopping'
       ? await CatalogItem.find({ householdId: req.user.householdId, usuallyHave: true }, { name: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean()
       : null;
+    const pantry = key === 'pantry'
+      ? {
+        auto: await CatalogItem.find({ householdId: req.user.householdId, autoPantry: true }, { name: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean(),
+        catalog: await CatalogItem.find({ householdId: req.user.householdId, autoPantry: { $ne: true } }, { name: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).limit(500).lean(),
+        aisles: h.aisles.map((a) => { const saved = (h.aisleSpots || []).find((m) => m.aisle === a); return { aisle: a, spot: saved && h.pantrySpots.includes(saved.spot) ? saved.spot : guessSpot(h, a) }; }),
+      }
+      : null;
     res.render('settings/section', {
       active: 'settings',
       key,
+      pantry,
       title: sectionName(h, key),
       back: req.query.from === 'section' ? `/s/${key}` : '/settings',
       notice: req.query.saved ? 'Saved.' : null,
@@ -115,6 +124,8 @@ router.post('/settings/s/:key', async (req, res, next) => {
       h.pantryShop = pick(b.pantryShop, ['both', 'out', 'never'], 'both');
       h.pantrySoonDays = Number(pick(b.pantrySoonDays, [1, 2, 3, 5, 7, 14], 3));
       h.pantryDefaultSpot = pick(b.pantryDefaultSpot, ['', ...h.pantrySpots], '');
+      // Aisle → spot: '' means "where new items go".
+      h.aisleSpots = h.aisles.map((aisle, i) => ({ aisle, spot: pick(b[`aisleSpot${i}`], ['', ...h.pantrySpots], '') })).filter((m) => m.spot);
     } else if (key === 'bills') {
       h.billSplit = pick(b.billSplit, ['even', 'none'], 'even');
       h.currency = String(b.currency || '').trim().slice(0, 4) || '$';

@@ -343,6 +343,10 @@ test('sections', async (t) => {
     assert.match(fam.text, /&amp;cat=Family" aria-label="Next month"|&cat=Family" aria-label="Next month"/);
     assert.match(fam.text, /new\?date=[\d-]+&amp;category=Family|new\?date=[\d-]+&category=Family/);
     assert.match((await sam('/s/calendar/new?category=Family')).text, /<option selected>Family<\/option>/);
+    // Birthdays start as yearly; others don't repeat.
+    assert.match((await sam('/s/calendar/new?category=Holidays')).text, /<option value="yearly" selected>/);
+    assert.match((await sam('/s/calendar/new?category=Family')).text, /<option value="none" selected>/);
+    assert.match((await sam('/s/calendar/new')).text, /<option data-yearly>Holidays<\/option>/);
     const none = await sam(`/s/calendar?day=${today}&cat=Uncategorized`);
     assert.match(none.text, /Filter none/);
     assert.doesNotMatch(none.text, /Filter fam/);

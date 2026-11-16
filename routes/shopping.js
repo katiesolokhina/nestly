@@ -341,7 +341,7 @@ router.post('/s/shopping/:id/toggle', async (req, res, next) => {
     item.bought = want;
     item.boughtAt = item.bought ? new Date() : null;
     item.boughtByName = item.bought ? req.user.name : '';
-    if (req.household.features.pantry !== false) await markPutAway(req.user, item);
+    if (req.household.features.pantry !== false) await markPutAway(req.user, item, req.household);
     await item.save();
     const text = item.bought ? `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}` : `moved ${item.name} back to Shopping`;
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text, label: item.name });

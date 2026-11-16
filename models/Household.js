@@ -15,10 +15,12 @@ const householdSchema = new mongoose.Schema(
     aisles: { type: [String], default: ['Produce', 'Dairy & eggs', 'Meat & seafood', 'Frozen', 'Pantry', 'Household'] },
     tags: { type: [String], default: ['Groceries', 'Home', 'Gift', 'School'] },
     remCats: { type: [String], default: ['Errands', 'Car', 'Home', 'Family'] },
-    eventCats: { type: [String], default: ['Appointments', 'Birthdays', 'Family', 'Home'] },
+    eventCats: { type: [String], default: ['Appointments', 'Birthdays', 'Holidays', 'Family', 'Home'] },
     mealSlots: { type: [String], default: ['Breakfast', 'Lunch', 'Dinner'] },
     billCats: { type: [String], default: ['Housing', 'Utilities', 'Internet & phone', 'Subscriptions', 'Insurance', 'Car'] },
     pantrySpots: { type: [String], default: ['Pantry', 'Fridge', 'Freezer', 'Spices', 'Bathroom', 'Cleaning'] },
+    // Where things bought from each shopping aisle are kept: [{ aisle, spot }]. Unset aisles are guessed.
+    aisleSpots: { type: [{ _id: false, aisle: String, spot: String }], default: [] },
     infoTypes: { type: [String], default: ['Wi-Fi & codes', 'Contacts', 'Appliances', 'Documents & how-tos'] },
     recipeCats: { type: [String], default: ['Breakfast', 'Mains', 'Sides', 'Soups', 'Desserts', 'Snacks'] },
     recipeTags: { type: [String], default: ['Homemade', 'Online recipe', 'To try', 'Family recipes'] },

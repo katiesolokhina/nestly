@@ -133,12 +133,15 @@ router.get('/s/calendar', async (req, res, next) => {
   }
 });
 
+// Birthdays, holidays and anniversaries repeat every year unless changed.
+const YEARLY = /birthday|holiday|anniversar/i;
+
 router.get('/s/calendar/new', async (req, res, next) => {
   try {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
     // Adding from a filtered calendar starts in that category.
     const category = req.household.eventCats.includes(req.query.category) ? req.query.category : req.household.eventCats.includes(req.household.eventCat) ? req.household.eventCat : 'Uncategorized';
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: 'none', interval: 1, days: [], until: '', category, alert: req.household.eventAlert || '60', details: '', private: false };
+    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: YEARLY.test(category) ? 'yearly' : 'none', interval: 1, days: [], until: '', category, alert: req.household.eventAlert || '60', details: '', private: false };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);

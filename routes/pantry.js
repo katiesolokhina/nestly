@@ -7,7 +7,7 @@ const { recordChange, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { keyOf, addToCatalog } = require('../lib/catalog');
-const { addToShopping, expiryText, stockIn, countOf } = require('../lib/pantry');
+const { addToShopping, expiryText, stockIn, countOf, quickStock, spotFor } = require('../lib/pantry');
 
 // An item's batches, also for older items saved before there were any.
 const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '' }] : []);
@@ -162,7 +162,7 @@ router.get('/s/pantry/add', async (req, res, next) => {
       active: 'pantry',
       item: {
         name: c ? c.name : name,
-        spot: h.pantrySpots.includes(q.spot) ? q.spot : existing[0] ? existing[0].spot : defaultSpot,
+        spot: h.pantrySpots.includes(q.spot) ? q.spot : existing[0] ? existing[0].spot : from ? spotFor(h, from.aisle) : defaultSpot,
         expires: '', amount: '', count: from ? countOf(from.qty) : 1, // one batch: this date, this many
       },
       existing,
@@ -214,10 +214,49 @@ router.post('/s/pantry/quick', (req, res) => {
   res.redirect(303, `/s/pantry/add?${new URLSearchParams({ name: String(b.name || '').slice(0, 80), spot: String(b.spot || '').slice(0, 40) })}`);
 });
 
-// Bought but not for the pantry (or already dealt with): stop asking.
+// Skip: into the pantry without the details (Have, no date; added to its count if it's there).
+const pendingOf = (req, extra = {}) => ShoppingItem.find({ ...visible(req.user), bought: true, putAway: 'pending', ...extra });
+async function skipDetails(req, shops) {
+  for (const s of shops) {
+    await quickStock(req.user, req.household, s);
+    s.putAway = 'done';
+    await s.save();
+  }
+  if (shops.length) await addToCatalog(req.user, req.household, shops.map((s) => s.name));
+}
+
+router.post('/s/pantry/putaway/skip-all', async (req, res, next) => {
+  try {
+    const shops = await pendingOf(req);
+    await skipDetails(req, shops);
+    req.session.flash = shops.length ? `Added ${shops.length} ${shops.length === 1 ? 'thing' : 'things'} to the pantry.` : 'Nothing to put away.';
+    res.redirect('/s/pantry');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Always skip the details for this item: bought → straight into the pantry from now on.
+// Listed (and undone) in Settings → Pantry.
+router.post('/s/pantry/putaway/:id/always', async (req, res, next) => {
+  try {
+    const s = mongoose.isValidObjectId(req.params.id) ? await ShoppingItem.findOne({ _id: req.params.id, ...visible(req.user), bought: true }).lean() : null;
+    if (!s) return res.redirect('/s/pantry#putaway');
+    await addToCatalog(req.user, req.household, [s.name]);
+    await CatalogItem.updateOne({ householdId: req.user.householdId, key: s.key }, { $set: { autoPantry: true } });
+    await skipDetails(req, await pendingOf(req, { key: s.key }));
+    req.session.flash = `${s.name} added. From now on it goes straight into the pantry when bought (Settings → Pantry to change).`;
+    res.redirect('/s/pantry#putaway');
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/s/pantry/putaway/:id/skip', async (req, res, next) => {
   try {
-    if (mongoose.isValidObjectId(req.params.id)) await ShoppingItem.updateOne({ _id: req.params.id, ...visible(req.user), putAway: 'pending' }, { $set: { putAway: 'done' } });
+    const shops = mongoose.isValidObjectId(req.params.id) ? await pendingOf(req, { _id: req.params.id }) : [];
+    await skipDetails(req, shops);
+    if (shops[0]) req.session.flash = `${shops[0].name} added to the pantry.`;
     res.redirect('/s/pantry#putaway');
   } catch (err) {
     next(err);

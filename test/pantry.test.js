@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { startApp, startDatabase, client, withDb, localToday } = require('./helpers');
 const Household = require('../models/Household');
+const CatalogItem = require('../models/CatalogItem');
 const User = require('../models/User');
 const PantryItem = require('../models/PantryItem');
 const ShoppingItem = require('../models/ShoppingItem');
@@ -152,7 +153,63 @@ test('pantry', async (t) => {
   await sam(`/s/shopping/${newShop}/toggle`, { method: 'POST', form: { query: '' } });
   await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(newShop).lean()).putAway, 'pending'));
   assert.match((await katie('/s/pantry')).text, /Paprika/);
+  // Skip: into the pantry as Have, no date, in its aisle's spot.
+  const hh = await withDb(app.uri, async () => {
+    const h = await Household.findOne({ name: 'Home' });
+    h.aisleSpots = [{ aisle: 'Frozen', spot: h.pantrySpots[h.pantrySpots.length - 1] }];
+    await h.save();
+    return h._id;
+  });
   await katie(`/s/pantry/putaway/${newShop}/skip`, { method: 'POST' });
+  await withDb(app.uri, async () => {
+    const p = await PantryItem.findOne({ key: 'paprika' }).lean();
+    assert.deepEqual([p.status, p.count, p.expires || ''], ['have', 1, '']);
+    assert.equal((await ShoppingItem.findById(newShop).lean()).putAway, 'done');
+  });
+  const buy = async (name, extra = {}) => {
+    const id = await withDb(app.uri, async () => String((await ShoppingItem.create({ householdId: hh, createdBy: null, byName: 'Sam', name, key: name.toLowerCase(), ...extra }))._id));
+    await sam(`/s/shopping/${id}/toggle`, { method: 'POST', form: { query: '' } });
+    return id;
+  };
+  // Already there: Skip adds to its count.
+  await katie(`/s/pantry/putaway/${await buy('Paprika', { qty: '2' })}/skip`, { method: 'POST' });
+  await withDb(app.uri, async () => assert.equal((await PantryItem.findOne({ key: 'paprika' }).lean()).count, 3));
+  // The aisle's spot.
+  await katie(`/s/pantry/putaway/${await buy('Peas', { aisle: 'Frozen' })}/skip`, { method: 'POST' });
+  await withDb(app.uri, async () => {
+    const h = await Household.findById(hh).lean();
+    assert.equal((await PantryItem.findOne({ key: 'peas' }).lean()).spot, h.pantrySpots[h.pantrySpots.length - 1]);
+  });
+  // Always: added now, and straight into the pantry next time (no Put away).
+  const towels = await buy('Paper towels');
+  await katie(`/s/pantry/putaway/${towels}/always`, { method: 'POST' });
+  await withDb(app.uri, async () => {
+    assert.equal((await CatalogItem.findOne({ householdId: hh, key: 'paper towels' }).lean()).autoPantry, true);
+    assert.equal((await PantryItem.findOne({ key: 'paper towels' }).lean()).count, 1);
+  });
+  const towels2 = await buy('Paper towels');
+  await withDb(app.uri, async () => {
+    assert.equal((await ShoppingItem.findById(towels2).lean()).putAway, 'done');
+    assert.equal((await PantryItem.findOne({ key: 'paper towels' }).lean()).count, 2);
+  });
+  // Settings → Pantry lists it; removing it asks again.
+  let st = await katie('/settings/s/pantry');
+  assert.match(st.text, /Skip the details/);
+  assert.match(st.text, /Paper towels/);
+  assert.match(st.text, /<select id="aisleSpot\d+" name="aisleSpot\d+">/);
+  await katie('/settings/lists/auto-pantry', { method: 'POST', form: { key: 'paper towels' } });
+  await katie('/settings/lists/auto-pantry', { method: 'POST', form: { action: 'add', name: 'Dish soap' } });
+  await withDb(app.uri, async () => {
+    assert.equal((await CatalogItem.findOne({ householdId: hh, key: 'paper towels' }).lean()).autoPantry, false);
+    assert.equal((await CatalogItem.findOne({ householdId: hh, key: 'dish soap' }).lean()).autoPantry, true);
+  });
+  // Skip all: every waiting item goes in without details.
+  await buy('Soap');
+  await buy('Beans');
+  assert.match((await katie('/s/pantry')).text, /Skip details for all 2/);
+  await katie('/s/pantry/putaway/skip-all', { method: 'POST' });
+  assert.doesNotMatch((await katie('/s/pantry')).text, /id="putaway"/);
+  await withDb(app.uri, async () => assert.equal(await PantryItem.countDocuments({ key: { $in: ['soap', 'beans'] } }), 2));
   // Separate items: a second milk with its own date. One running out doesn't add milk to the list.
   await katie('/s/pantry/add', { method: 'POST', form: { name: 'Milk', choice: 'new', count: '1', expires: addDays(today, 20), spot: 'Fridge' } });
   await withDb(app.uri, async () => ShoppingItem.deleteMany({ key: 'milk' }));

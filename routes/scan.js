@@ -75,7 +75,7 @@ router.post('/s/shopping/scan', requireAuth, requireSection('shopping'), async (
       }
       const before = item.isNew ? null : item.toObject();
       item.set({ bought: true, boughtAt: new Date(), boughtByName: req.user.name });
-      if (req.household.features.pantry !== false) await markPutAway(req.user, item);
+      if (req.household.features.pantry !== false) await markPutAway(req.user, item, req.household);
       await item.save();
       await recordChange(req, { kind: before ? 'update' : 'create', model: 'ShoppingItem', doc: item, before, section: 'Shopping', text: `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}`, label: item.name });
       req.session.flash = `${item.name}: bought.`;

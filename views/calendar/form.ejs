@@ -35,7 +35,7 @@
     </fieldset>
 
     <div class="fields">
-      <div class="field"><label for="category">Category</label><select id="category" name="category"><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
+      <div class="field"><label for="category">Category</label><select id="category" name="category" data-category><option<%= item.category === 'Uncategorized' ? ' selected' : '' %>>Uncategorized</option><% household.eventCats.forEach((c) => { %><option<%= item.category === c ? ' selected' : '' %><%- /birthday|holiday|anniversar/i.test(c) ? ' data-yearly' : '' %>><%= c %></option><% }) %></select></div>
     </div>
     <div class="field">
       <label for="alert">Notify</label>

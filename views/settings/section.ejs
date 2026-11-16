@@ -42,6 +42,13 @@
       <% sel('pantryShop', [['both', names.low + ' or ' + names.out], ['out', names.out + ' only'], ['never', 'Never']], household.pantryShop, 'Add to shopping when') %>
       <% sel('pantrySoonDays', [[1, '1 day'], [2, '2 days'], [3, '3 days'], [5, '5 days'], [7, '7 days'], [14, '14 days']], household.pantrySoonDays, '“Expiring soon” means within') %>
       <% sel('pantryDefaultSpot', [['', 'First in the list'], ...household.pantrySpots.map((s) => [s, s])], household.pantryDefaultSpot, 'New items go in') %>
+      <fieldset class="group" id="aisles">
+        <legend>Where bought things are kept</legend>
+        <p class="hint">By shopping aisle. Used when something bought is put away, or skipped into the pantry.</p>
+        <% pantry.aisles.forEach((a, i) => { %>
+          <label class="time-row" for="aisleSpot<%= i %>"><%= a.aisle %><select id="aisleSpot<%= i %>" name="aisleSpot<%= i %>"><option value="">Where new items go</option><% household.pantrySpots.forEach((s) => { %><option<%= a.spot === s ? ' selected' : '' %>><%= s %></option><% }) %></select></label>
+        <% }) %>
+      </fieldset>
     <% } else if (key === 'bills') { %>
       <% sel('billSplit', [['even', 'Evenly with everyone'], ['none', 'Not split']], household.billSplit, 'New bills are split') %>
       <label class="time-row" for="f-currency">Currency symbol<input id="f-currency" name="currency" type="text" maxlength="4" list="currencies" value="<%= household.currency || '$' %>" style="width:5em"></label>
@@ -100,6 +107,23 @@
           <div class="btn-row"><button class="btn btn-ghost" type="button" data-row-add>Add a field</button><button class="btn btn-primary" type="submit">Save <%= t.type %></button></div>
         </form>
       <% }) %>
+    </section>
+  <% } %>
+
+  <% if (pantry) { %>
+    <section class="card stack" id="auto">
+      <h2>Skip the details</h2>
+      <p class="hint">These go straight into the pantry when bought (as <%= names.have %>, no date), without waiting in Put away. Remove one to be asked again.</p>
+      <% if (!pantry.auto.length) { %><p class="muted small">Nothing yet. Tap “Always” on a Put away item, or add one here.</p><% } %>
+      <% pantry.auto.forEach((u) => { %>
+        <div class="row"><span class="row-body row-title"><%= u.name %></span><form method="post" action="/settings/lists/auto-pantry"><input type="hidden" name="key" value="<%= u.key %>"><button class="link-btn link-danger" type="submit">Remove<span class="sr-only"> <%= u.name %></span></button></form></div>
+      <% }) %>
+      <form class="add" method="post" action="/settings/lists/auto-pantry">
+        <input type="hidden" name="action" value="add">
+        <input type="text" name="name" list="auto-names" maxlength="80" aria-label="Item to skip the details for" placeholder="Add an item" autocomplete="off" required>
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <datalist id="auto-names"><% pantry.catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
     </section>
   <% } %>
 

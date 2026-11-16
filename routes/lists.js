@@ -4,6 +4,7 @@ const { requireAuth, requirePerm } = require('../middleware/auth');
 const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/lists');
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
+const { keyOf, addToCatalog } = require('../lib/catalog');
 
 const router = express.Router();
 router.use('/settings/lists', requireAuth, requirePerm('settings'));
@@ -42,6 +43,28 @@ router.post('/settings/lists/usually-have', async (req, res, next) => {
     const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(req.body.key || ''), usuallyHave: true }, { $set: { usuallyHave: false } });
     if (item) await logActivity(req.user, { section: SECTION, text: `${req.user.name} stopped marking ${item.name} as usually have` });
     res.redirect('/settings/s/shopping#usual');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Settings → Pantry: saved items that go straight into the pantry when bought.
+router.post('/settings/lists/auto-pantry', async (req, res, next) => {
+  try {
+    if (req.perms.level('pantry') !== 'edit') return res.status(404).send('Not found');
+    const b = req.body || {};
+    if (b.action === 'add') {
+      const name = String(b.name || '').trim().slice(0, 80);
+      if (name) {
+        await addToCatalog(req.user, req.household, [name]);
+        const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: keyOf(name) }, { $set: { autoPantry: true } }, { returnDocument: 'after' });
+        if (item) await logActivity(req.user, { section: 'Pantry', text: `${req.user.name} set ${item.name} to go straight into the pantry when bought` });
+      }
+    } else {
+      const item = await CatalogItem.findOneAndUpdate({ householdId: req.user.householdId, key: String(b.key || ''), autoPantry: true }, { $set: { autoPantry: false } });
+      if (item) await logActivity(req.user, { section: 'Pantry', text: `${req.user.name} set ${item.name} to wait in Put away again` });
+    }
+    res.redirect('/settings/s/pantry#auto');
   } catch (err) {
     next(err);
   }

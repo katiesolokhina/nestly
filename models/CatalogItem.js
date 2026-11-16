@@ -19,6 +19,8 @@ const catalogSchema = new mongoose.Schema(
     barcodes: { type: [String], default: [] }, // scanned codes that mean this item
     // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).
     usuallyHave: { type: Boolean, default: false },
+    // Bought → straight into the pantry (no date, no Put away prompt). Listed in Settings → Pantry.
+    autoPantry: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

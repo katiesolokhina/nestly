@@ -44,6 +44,18 @@ document.querySelectorAll('form[data-event-form]').forEach((form) => {
     }
     if (custom) custom.hidden = alert.value !== 'custom';
   };
+  // Birthdays and holidays: picking the category switches "How often" to Yearly, unless someone
+  // already chose how often. Picking another category undoes only what this did.
+  const cat = form.querySelector('[data-category]');
+  let auto = false;
+  if (cat) {
+    repeat.addEventListener('change', () => { auto = false; });
+    cat.addEventListener('change', () => {
+      const yearly = cat.selectedOptions[0] && cat.selectedOptions[0].hasAttribute('data-yearly');
+      if (yearly && repeat.value === 'none') { repeat.value = 'yearly'; auto = true; }
+      else if (!yearly && auto) { repeat.value = 'none'; auto = false; }
+    });
+  }
   form.addEventListener('change', () => { update(); updateAlert(); });
   update();
   updateAlert();
