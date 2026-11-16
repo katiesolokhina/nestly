@@ -12,6 +12,7 @@ const { visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { keyOf, fromCatalog, addToCatalog } = require('../lib/catalog');
 const { combine, itemName } = require('../lib/ingredients');
+const { covers } = require('../lib/cook');
 const { scaleQty, servingsNum, format } = require('../lib/scale');
 // A recipe with its amounts scaled.
 const scaled = (r, f) => (f === 1 ? r : { ...r, ingredients: r.ingredients.map((i) => ({ ...i, qty: scaleQty(i.qty, f) })) });
@@ -61,22 +62,31 @@ async function source(req) {
 async function review(req, src) {
   const rows = combine(src.recipes.flatMap((r) => r.ingredients.map((i) => ({ qty: i.qty, name: itemName(i), from: r.title }))));
   const keys = rows.map((r) => r.key);
+  // The whole pantry (not just exact names): "chicken" at home covers "chicken thigh".
   const [onList, usual, pantry] = await Promise.all([
     ShoppingItem.find({ ...visible(req.user), key: { $in: keys }, bought: false, clearedAt: null }, { key: 1 }).lean(),
     CatalogItem.find({ householdId: req.user.householdId, key: { $in: keys }, usuallyHave: true }, { key: 1 }).lean(),
-    req.sees('pantry') ? PantryItem.find({ householdId: req.user.householdId, key: { $in: keys }, status: 'have' }, { key: 1, amount: 1 }).lean() : [],
+    req.sees('pantry') ? PantryItem.find({ ...visible(req.user), status: { $ne: 'out' } }, { key: 1, status: 1, count: 1 }).lean() : [],
   ]);
   const listed = new Set(onList.map((x) => x.key));
   const have = new Set(usual.map((x) => x.key));
-  const stocked = new Map(pantry.map((x) => [x.key, x]));
-  return rows.map((r) => ({
-    ...r,
-    onList: listed.has(r.key),
-    usuallyHave: have.has(r.key),
-    inPantry: stocked.has(r.key),
-    pantryAmount: stocked.has(r.key) ? stocked.get(r.key).amount : '',
-    checked: !listed.has(r.key) && !have.has(r.key) && !stocked.has(r.key),
-  }));
+  const out = rows.map((r) => {
+    const match = pantry.filter((p) => covers(p.key, r.key));
+    const stocked = match.find((p) => p.status === 'have');
+    const low = !stocked && match.find((p) => p.status === 'low');
+    return {
+      ...r,
+      onList: listed.has(r.key),
+      usuallyHave: have.has(r.key),
+      inPantry: Boolean(stocked),
+      pantryCount: stocked ? match.filter((p) => p.status === 'have').reduce((n, p) => n + (p.count || 0), 0) : 0,
+      low: Boolean(low),
+      checked: !listed.has(r.key) && !have.has(r.key) && !stocked,
+    };
+  });
+  // What to buy first, then what's covered.
+  const rank = (x) => (x.onList ? 3 : x.checked ? 0 : x.inPantry ? 1 : 2);
+  return out.sort((a, b) => rank(a) - rank(b));
 }
 
 router.get('/s/shopping/ingredients', async (req, res, next) => {

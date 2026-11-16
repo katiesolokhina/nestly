@@ -172,7 +172,7 @@ test('recipes and meals', async (t) => {
   assert.match(week.text, /Tacos/);
   assert.match(week.text, /Leftovers/);
   assert.match(week.text, /Sam cooks/);
-  assert.match(week.text, /Add ingredients to shopping/);
+  assert.match(week.text, /Shop for what’s missing/);
   const todayPage = await sam('/');
   assert.match(todayPage.text, /Today’s meals/);
   assert.match(todayPage.text, /Tacos/);

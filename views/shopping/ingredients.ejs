@@ -8,17 +8,19 @@
     <form class="stack" method="post" action="/s/shopping/ingredients">
       <% Object.entries(src.hidden).forEach(([k, v]) => { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% }) %>
       <div class="card">
-        <p class="row-meta">Untick what you already have. Things already on the list are left off, and things the pantry has start unticked. Tap Undo next to “Usually have” to stop skipping something.</p>
+        <% const buy = rows.filter((r) => r.checked).length, home = rows.filter((r) => r.inPantry).length, listed = rows.filter((r) => r.onList).length; %>
+        <p class="row-title"><%= buy %> to buy<%= home ? ' · ' + home + ' in the pantry' : '' %><%= listed ? ' · ' + listed + ' already on the list' : '' %></p>
+        <p class="row-meta">Only what’s missing is ticked. Tick anything you want more of; tap Undo next to “Usually have” to stop skipping something.</p>
         <% rows.forEach((r) => { %>
           <label class="row ing-pick<%= r.onList ? ' done' : '' %>">
             <input type="checkbox" name="add" value="<%= r.key %>"<%= r.checked ? ' checked' : '' %><%= r.onList ? ' disabled' : '' %>>
             <span class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= [r.qty, r.from.length > 1 || src.kind === 'week' ? r.from.join(', ') : ''].filter(Boolean).join(' · ') %></span></span>
-            <% if (r.onList) { %><span class="tag">On the list</span><% } else if (r.inPantry) { %><span class="tag good">In pantry<%= r.pantryAmount ? ': ' + r.pantryAmount : '' %></span><% } else if (r.usuallyHave) { %><span class="tag lilac">Usually have</span><button class="link-btn" type="submit" formaction="/s/shopping/ingredients/usual" formnovalidate name="unmark" value="<%= r.key %>">Undo<span class="sr-only"> usually have for <%= r.name %></span></button><% } %>
+            <% if (r.onList) { %><span class="tag">On the list</span><% } else if (r.inPantry) { %><span class="tag good">In pantry<%= r.pantryCount > 1 ? ': ' + r.pantryCount : '' %></span><% } else if (r.low) { %><span class="tag">Low at home</span><% } else if (r.usuallyHave) { %><span class="tag lilac">Usually have</span><button class="link-btn" type="submit" formaction="/s/shopping/ingredients/usual" formnovalidate name="unmark" value="<%= r.key %>">Undo<span class="sr-only"> usually have for <%= r.name %></span></button><% } %>
           </label>
         <% }) %>
       </div>
       <div class="card"><label class="check-row">Remember what I untick as “usually have”, so it starts unticked next time<input type="checkbox" name="remember"></label></div>
-      <button class="btn btn-primary btn-block" type="submit">Add ticked items</button>
+      <button class="btn btn-primary btn-block" type="submit">Add ticked items to shopping</button>
     </form>
   <% } %>
 </main>

@@ -32,6 +32,17 @@
             <div class="row meal-row"><span class="meal-slot"><%= m.slot %></span><a class="row-body row-link" href="<%= m.href %>"><span class="row-title"><%= m.title %></span><% if (m.note) { %><span class="row-meta"><%= m.note %></span><% } %></a></div>
           <% }) %>
         </section>
+      <% } else if (w.k === 'usesoon' && useSoon) { %>
+        <section class="card full">
+          <div class="row-h"><h2>Use soon</h2><a class="link-btn" href="<%= useSoon.plan ? '/s/meals' : '/s/recipes/cook' %>"><%= useSoon.plan ? 'Plan meals' : 'Ideas' %></a></div>
+          <% if (!useSoon.items.length) { %><p class="muted small center">Nothing expires in the next <%= useSoon.soonDays %> <%= useSoon.soonDays === 1 ? 'day' : 'days' %>.</p><% } %>
+          <% useSoon.items.forEach((i) => { %><a class="row row-link" href="<%= i.href %>"><span class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta<%= i.late ? ' late' : '' %>"><%= i.meta %></span></span></a><% }) %>
+          <% if (useSoon.more) { %><a class="link-btn" href="/s/pantry?show=soon">And <%= useSoon.more %> more</a><% } %>
+          <% if (useSoon.recipes.length) { %>
+            <p class="label">Recipes that use them</p>
+            <% useSoon.recipes.forEach((r) => { %><a class="row row-link" href="<%= r.href %>"><span class="row-body"><span class="row-title"><%= r.title %></span><span class="row-meta"><%= r.meta %></span></span><span class="chev" aria-hidden="true">›</span></a><% }) %>
+          <% } else if (useSoon.items.length) { %><p class="muted small">None of your recipes use these. <a href="/s/recipes/cook">Find ideas</a>.</p><% } %>
+        </section>
       <% } else if (w.k === 'upcoming') { %>
         <section class="card full">
           <h2>Coming up</h2>

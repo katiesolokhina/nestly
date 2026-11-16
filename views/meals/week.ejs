@@ -10,7 +10,7 @@
     <div class="btn-row">
       <% if (!isThisWeek) { %><a class="btn btn-ghost" href="/s/meals">This week</a><% } %>
       <% if (lastWeekCount) { %><form method="post" action="/s/meals/copy-week"><input type="hidden" name="week" value="<%= start %>"><button class="btn btn-ghost" type="submit">Copy the week before</button></form><% } %>
-      <% if (shoppingOn && withRecipes) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?week=<%= start %>">Add ingredients to shopping</a><% } %>
+      <% if (shoppingOn && withRecipes) { %><a class="btn btn-ghost" href="/s/shopping/ingredients?week=<%= start %>">Shop for what’s missing</a><% } %>
     </div>
   </div>
   <% if (suggest) { %>

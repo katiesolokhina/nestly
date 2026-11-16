@@ -44,13 +44,14 @@ test('new-item defaults', async (t) => {
   const h = await withDb(app.uri, () => Household.findById(app.seeded.homeId).lean());
   assert.deepEqual([h.shopTag, h.defaultStore, h.shopPrivate, h.shopMethod, h.recipeCat, h.choreRoom, h.billCat, h.eventCat], ['Groceries', 'Kroger', true, '', 'Soups', 'Kitchen', 'Utilities', 'Birthdays']);
 
-  // Shopping: defaults win over the saved item.
+  // Shopping: the saved item keeps its own; new items get the defaults.
   await katie('/s/shopping/quick', { method: 'POST', form: { name: 'Paper towels' } });
   await katie('/s/shopping/quick', { method: 'POST', form: { name: 'Milk' } });
   await withDb(app.uri, async () => {
     const towels = await ShoppingItem.findOne({ key: 'paper towels' }).lean();
-    assert.deepEqual([towels.tag, towels.store, towels.private], ['Groceries', 'Kroger', true]);
-    assert.equal((await ShoppingItem.findOne({ key: 'milk' }).lean()).tag, 'Groceries');
+    assert.deepEqual([towels.tag, towels.store, towels.private], ['Home', 'Costco', true]);
+    const milk = await ShoppingItem.findOne({ key: 'milk' }).lean();
+    assert.deepEqual([milk.tag, milk.store], ['Groceries', 'Kroger']);
   });
   assert.match((await katie('/s/shopping/new')).text, /name="private"[^>]*checked/);
   // Other sections' forms start with theirs.

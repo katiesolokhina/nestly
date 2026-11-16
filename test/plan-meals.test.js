@@ -31,7 +31,19 @@ test('plan meals around what expires', async (t) => {
   const katie = client(app.base);
   await katie('/login', { method: 'POST', form: { email: 'katie@test.dev', password: PW } });
 
-  let page = await katie('/s/meals');
+  // Today: what to use soon, and the recipes that use it.
+  let page = await katie('/');
+  assert.match(page.text, /<h2>Use soon<\/h2>/);
+  assert.match(page.text, /Spinach<\/span><span class="row-meta">Expires in 2 days/i);
+  assert.match(page.text, /Spinach soup<\/span><span class="row-meta">Uses Spinach · need 1/);
+  // Shopping for the soup: onion is missing (ticked, first); spinach is home (unticked).
+  page = await katie(`/s/shopping/ingredients?recipe=${app.seeded.soupId}`);
+  assert.match(page.text, /1 to buy · 1 in the pantry/);
+  assert.ok(page.text.indexOf('>onion<') < page.text.indexOf('>spinach<'), 'missing first');
+  assert.match(page.text, /value="spinach">/);
+  assert.match(page.text, /value="onion" checked>/);
+
+  page = await katie('/s/meals');
   assert.match(page.text, /Use soon/);
   assert.match(page.text, /Spinach \(expires in 2 days\)/);
   assert.match(page.text, /Spinach soup/);
