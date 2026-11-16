@@ -35,10 +35,10 @@ test('search', async (t) => {
   await katie('/'); // uses up the Undo bar from the last add
   let page = await katie('/search?q=lemon');
   assert.equal(page.status, 200);
-  for (const s of ['Lemon juice', 'Buy lemons for Mia', 'Fish tacos', 'Uses lemon', 'Clean lemon tree leaves', 'Saved items']) assert.match(page.text, new RegExp(s));
+  for (const s of ['Lemon juice', 'Buy lemons for Mia', 'Fish tacos', 'Uses lemon', 'Clean lemon tree leaves', 'Saved items']) assert.match(page.text, new RegExp(s, 'i'));
   assert.doesNotMatch(page.text, /Garage/, 'hidden values aren’t searched');
   assert.doesNotMatch(page.text, /Lemon cake/, 'other people’s private items');
-  assert.match((await sam('/search?q=lemon')).text, /Lemon cake/);
+  assert.match((await sam('/search?q=lemon')).text, /Lemon cake/i);
   assert.match((await katie('/search?q=((')).text, /Nothing matches/);
   assert.match((await katie('/search?q=a')).text, /at least 2 letters/);
   assert.match((await katie('/search?q=code')).text, /Garage/, 'labels are searched');

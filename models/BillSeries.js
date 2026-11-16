@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // A repeating bill (rent, internet). Each time it's due, a bill is made from the latest details,
 // including the last amount, which can then be changed for that time (like a utility bill).
@@ -8,7 +9,7 @@ const seriesSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     category: { type: String, default: 'Uncategorized' },
     cents: { type: Number, required: true, min: 0 },
     link: { type: String, default: '' },

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // A chore: once, or repeating on a schedule (the same repeat options as Calendar events).
 // Whether it's done comes from ChoreDone, so undoing a "done" puts it straight back.
@@ -9,7 +10,7 @@ const choreSchema = new mongoose.Schema(
     byName: { type: String, required: true },
     // Chores are always shared. The field exists so "delete someone's private items" never matches one.
     private: { type: Boolean, default: false },
-    title: { type: String, required: true, trim: true, maxlength: 120 },
+    title: { type: String, required: true, trim: true, maxlength: 120, set: titleCase },
     details: { type: String, trim: true, maxlength: 1000, default: '' },
     room: { type: String, default: 'Anywhere' },
     assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // null: anyone

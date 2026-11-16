@@ -173,6 +173,7 @@ router.post('/settings/s/:key', async (req, res, next) => {
       h.pantryShop = pick(b.pantryShop, ['both', 'out', 'never'], 'both');
       h.pantrySoonDays = Number(pick(b.pantrySoonDays, [1, 2, 3, 5, 7, 14], 3));
       if ('pantryDefaultSpot' in b) h.pantryDefaultSpot = pick(b.pantryDefaultSpot, ['', ...h.pantrySpots], '');
+      if (b.nonFoodShown === '1') { const picked = new Set([].concat(b.nonFood || []).map(String)); h.nonFoodSpots = h.pantrySpots.filter((s) => picked.has(s)); }
       // Aisle → spot: '' means "where new items go".
       h.aisleSpots = h.aisles.map((aisle, i) => ({ aisle, spot: pick(b[`aisleSpot${i}`], ['', ...h.pantrySpots], '') })).filter((m) => m.spot);
     } else if (key === 'bills') {

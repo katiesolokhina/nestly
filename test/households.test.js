@@ -185,9 +185,9 @@ test('notifications from every household', async (t) => {
   await Membership.create({ userId: katie._id, householdId: lake._id, role: 'member' });
   await PushSubscription.create({ userId: katie._id, endpoint: 'https://push.test/k', keys: { p256dh: 'p', auth: 'a' } });
   await Reminder.create({ householdId: home._id, createdBy: katie._id, byName: 'Katie', text: 'Trash', date: '2026-11-15', time: '09:00' });
-  await Reminder.create({ householdId: lake._id, createdBy: katie._id, byName: 'Katie', text: 'Close the dock', date: '2026-11-15', time: '09:00' });
+  await Reminder.create({ householdId: lake._id, createdBy: katie._id, byName: 'Katie', text: 'Close The Dock', date: '2026-11-15', time: '09:00' });
   const sent = [];
   await tick(new Date('2026-11-15T09:00:00-06:00'), async (to, p) => { sent.push(p); return 1; });
-  assert.deepEqual(sent.map((s) => s.title).sort(), ['Home: Trash', 'Lake house: Close the dock']);
-  assert.ok(sent.find((s) => s.title === 'Lake house: Close the dock').url.startsWith(`/h/${lake._id}?next=`));
+  assert.deepEqual(sent.map((s) => s.title).sort(), ['Home: Trash', 'Lake house: Close The Dock']);
+  assert.ok(sent.find((s) => s.title === 'Lake house: Close The Dock').url.startsWith(`/h/${lake._id}?next=`));
 });

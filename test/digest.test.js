@@ -47,8 +47,8 @@ test('morning email', async (t) => {
   const m = mails[0];
   assert.equal(m.to, 'k@t.dev');
   assert.equal(m.subject, 'Nestly: 3 things today');
-  assert.match(m.text, /Reminder: Call the vet/);
-  assert.match(m.text, /Chore: Close the shutters \(Overdue since/);
+  assert.match(m.text, /Reminder: Call the vet/i);
+  assert.match(m.text, /Chore: Close the shutters \(Overdue since/i);
   assert.match(m.text, /Reward request: Mia wants Pick dinner/);
   assert.match(m.text, /LAKE <HOUSE>/);
   assert.match(m.html, /Lake &lt;house&gt;/, 'escaped in HTML');

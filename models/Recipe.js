@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 const recipeSchema = new mongoose.Schema(
   {
@@ -6,7 +7,7 @@ const recipeSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    title: { type: String, required: true, trim: true, maxlength: 120 },
+    title: { type: String, required: true, trim: true, maxlength: 120, set: titleCase },
     category: { type: String, default: 'Uncategorized' },
     servings: { type: String, trim: true, maxlength: 40, default: '' },
     time: { type: String, trim: true, maxlength: 40, default: '' }, // "45 min"

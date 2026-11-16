@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 const shoppingSchema = new mongoose.Schema(
   {
@@ -6,7 +7,7 @@ const shoppingSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     key: { type: String, required: true },
     qty: { type: String, trim: true, maxlength: 30, default: '1' },
     price: { type: Number, min: 0, default: null },

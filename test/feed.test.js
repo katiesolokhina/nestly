@@ -51,11 +51,11 @@ test('calendar feed', async (t) => {
   assert.match(feed.headers.get('content-type'), /text\/calendar/);
   const ics = feed.text;
   assert.match(ics, /^BEGIN:VCALENDAR\r\n/);
-  assert.match(ics, /SUMMARY:Soccer\\, practice/);
+  assert.match(ics, /SUMMARY:Soccer\\, practice/i);
   assert.match(ics, /DTSTART;TZID=America\/Chicago:\d{8}T173000/);
   assert.match(ics, /RRULE:FREQ=WEEKLY;BYDAY=MO,WE/);
   assert.match(ics, /DTEND;VALUE=DATE:20990104/, 'all-day end is the day after');
-  assert.match(ics, /SUMMARY:Reminder: Call vet/);
+  assert.match(ics, /SUMMARY:Reminder: Call vet/i);
   assert.match(ics, /SUMMARY:Chore: Dishes/);
   assert.match(ics, /RRULE:FREQ=DAILY/);
   assert.doesNotMatch(ics, /Sam private/);

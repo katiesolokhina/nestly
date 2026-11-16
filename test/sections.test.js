@@ -100,31 +100,31 @@ test('sections', async (t) => {
   });
 
   await t.test('private items stay private everywhere', async () => {
-    await katie('/s/shopping', { method: 'POST', form: { name: 'Hiking boots', method: 'Online', store: 'Target', link: 'https://www.rei.com/boots', private: 'on' } });
-    const boots = await item('Hiking boots');
+    await katie('/s/shopping', { method: 'POST', form: { name: 'Hiking Boots', method: 'Online', store: 'Target', link: 'https://www.rei.com/boots', private: 'on' } });
+    const boots = await item('Hiking Boots');
     bootsId = String(boots._id);
     const mine = await katie('/s/shopping');
-    assert.match(mine.text, /Hiking boots/);
+    assert.match(mine.text, /Hiking Boots/i);
     assert.match(mine.text, /Only me/);
     assert.match(mine.text, /href="https:\/\/www\.rei\.com\/boots"/);
-    assert.doesNotMatch((await sam('/s/shopping')).text, /Hiking boots/);
-    assert.doesNotMatch((await sam('/activity')).text, /Hiking boots/);
-    assert.doesNotMatch((await sam('/')).text, /Hiking boots/);
+    assert.doesNotMatch((await sam('/s/shopping')).text, /Hiking Boots/);
+    assert.doesNotMatch((await sam('/activity')).text, /Hiking Boots/);
+    assert.doesNotMatch((await sam('/')).text, /Hiking Boots/);
     assert.equal((await sam(`/s/shopping/${bootsId}/edit`)).status, 404);
     // Someone else's private item looks the same as one that's already gone: back to the list.
     assert.equal((await sam(`/s/shopping/${bootsId}/toggle`, { method: 'POST', form: {} })).location, '/s/shopping');
     assert.equal((await sam(`/s/shopping/${bootsId}/delete`, { method: 'POST', form: {} })).location, '/s/shopping');
     assert.equal((await sam(`/s/shopping/${bootsId}/delete`, { method: 'POST', headers: { 'x-requested-with': 'fetch' } })).status, 404);
     await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(bootsId).lean()).bought, false));
-    assert.doesNotMatch((await sam('/s/shopping/new')).text, /Hiking boots/, 'private names stay out of shared suggestions');
+    assert.doesNotMatch((await sam('/s/shopping/new')).text, /Hiking Boots/, 'private names stay out of shared suggestions');
     assert.equal((await other('/s/shopping')).text.includes('Eggs'), false, 'other households see nothing');
     assert.equal((await other(`/s/shopping/${eggsId}/edit`)).status, 404);
   });
 
   await t.test('undo is limited to visible entries, and only the person who can see it', async () => {
-    const privateEntry = await withDb(app.uri, async () => require('../models/Activity').findOne({ text: /Hiking boots/ }).lean());
+    const privateEntry = await withDb(app.uri, async () => require('../models/Activity').findOne({ text: /Hiking Boots/ }).lean());
     assert.equal((await sam(`/activity/${privateEntry._id}/undo`, { method: 'POST', form: { back: '/' } })).status, 404);
-    assert.ok(await item('Hiking boots'));
+    assert.ok(await item('Hiking Boots'));
   });
 
   await t.test('undo restores a deleted item, and Restore works from Activity', async () => {
@@ -170,14 +170,14 @@ test('sections', async (t) => {
   });
 
   await t.test('filters and shopping mode narrow the list', async () => {
-    await katie('/s/shopping', { method: 'POST', form: { name: 'Air fryer', method: 'Online', store: 'Target', tag: 'Home' } });
+    await katie('/s/shopping', { method: 'POST', form: { name: 'Air Fryer', method: 'Online', store: 'Target', tag: 'Home' } });
     let page = await katie('/s/shopping?method=Online');
-    assert.match(page.text, /Air fryer/);
+    assert.match(page.text, /Air Fryer/);
     assert.doesNotMatch(page.text, /aria-label="Edit Eggs"/);
     page = await katie('/s/shopping?store=Costco&mode=shop');
     assert.match(page.text, /Shopping at Costco/);
     assert.match(page.text, /aria-label="Edit Eggs"/);
-    assert.doesNotMatch(page.text, /Air fryer/);
+    assert.doesNotMatch(page.text, /Air Fryer/);
     assert.doesNotMatch(page.text, /Add an item/);
   });
 
@@ -231,17 +231,17 @@ test('sections', async (t) => {
     await katie('/s/remember', { method: 'POST', form: { text: 'Renew registration', details: 'Need the insurance card', date: today, category: 'Car' } });
     assert.match((await sam('/s/remember')).text, /Need the insurance card/);
     const r = await withDb(app.uri, () => Reminder.findOne({ text: 'Renew registration' }).lean());
-    await sam(`/s/remember/${r._id}`, { method: 'POST', form: { text: 'Renew car registration', details: 'Card is in the glovebox', date: today, category: 'Car' } });
-    assert.match((await katie('/s/remember')).text, /Renew car registration/);
-    assert.match((await katie('/s/remember?category=Car')).text, /Renew car registration/);
-    assert.doesNotMatch((await katie('/s/remember?category=Home')).text, /Renew car registration/);
-    assert.match((await katie('/')).text, /Renew car registration/, 'due today appears on Today');
+    await sam(`/s/remember/${r._id}`, { method: 'POST', form: { text: 'Renew Car Registration', details: 'Card is in the glovebox', date: today, category: 'Car' } });
+    assert.match((await katie('/s/remember')).text, /Renew Car Registration/);
+    assert.match((await katie('/s/remember?category=Car')).text, /Renew Car Registration/);
+    assert.doesNotMatch((await katie('/s/remember?category=Home')).text, /Renew Car Registration/);
+    assert.match((await katie('/')).text, /Renew Car Registration/, 'due today appears on Today');
     await katie(`/s/remember/${r._id}/done`, { method: 'POST', form: { from: 'today' } });
     const page = await katie('/');
-    assert.doesNotMatch(page.text.replace(/undo-bar[\s\S]*?<\/div>/, ''), /Renew car registration/);
+    assert.doesNotMatch(page.text.replace(/undo-bar[\s\S]*?<\/div>/, ''), /Renew Car Registration/);
     const id = page.text.match(/\/activity\/([a-f0-9]{24})\/undo/)[1];
     await katie(`/activity/${id}/undo`, { method: 'POST', form: { back: '/' } });
-    assert.match((await katie('/')).text, /Renew car registration/);
+    assert.match((await katie('/')).text, /Renew Car Registration/);
     assert.equal((await katie('/s/remember', { method: 'POST', form: { text: '' } })).status, 422);
     await katie('/s/remember', { method: 'POST', form: { text: 'Secret party', category: 'Family', private: 'on' } });
     assert.doesNotMatch((await sam('/s/remember')).text, /Secret party/);
@@ -251,11 +251,11 @@ test('sections', async (t) => {
     const today = localToday();
     const [y, m, d] = today.split('-');
     const lastYear = `${Number(y) - 1}-${m}-${d}`;
-    await katie('/s/calendar', { method: 'POST', form: { title: 'Sam birthday', date: lastYear, repeat: 'yearly', category: 'Birthdays' } });
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Sam Birthday', date: lastYear, repeat: 'yearly', category: 'Birthdays' } });
     await katie('/s/calendar', { method: 'POST', form: { title: 'Dentist', date: today, time: '16:30', category: 'Appointments' } });
     await katie('/s/calendar', { method: 'POST', form: { title: 'Surprise', date: today, private: 'on' } });
     const month = await sam(`/s/calendar?day=${today}`);
-    assert.match(month.text, /Sam birthday/);
+    assert.match(month.text, /Sam Birthday/);
     assert.match(month.text, /Every year/);
     assert.match(month.text, /4:30 PM/);
     assert.doesNotMatch(month.text, /Surprise/);
@@ -281,7 +281,7 @@ test('sections', async (t) => {
     await katie('/s/calendar', { method: 'POST', form: { title: 'All day fair', date: today, time: '10:00', allDay: 'on' } });
     const month = await sam(`/s/calendar?day=${today}`);
     assert.match(month.text, /7:00 PM – 10:30 PM · AT&amp;T Center, Dallas · Family/);
-    assert.match(month.text, /All day fair<\/span><span class="row-meta">All day/);
+    assert.match(month.text, /All Day Fair<\/span><span class="row-meta">All day/);
 
     const Event = require('../models/Event');
     const gym = await withDb(app.uri, () => Event.findOne({ title: 'Gym class' }).lean());
@@ -332,14 +332,14 @@ test('sections', async (t) => {
 
   await t.test('the calendar filters by category and keeps the filter while browsing', async () => {
     const today = localToday();
-    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter fam', date: today, category: 'Family' } });
-    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter none', date: today } });
-    await katie('/s/remember', { method: 'POST', form: { text: 'Filter reminder', date: today } });
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter Fam', date: today, category: 'Family' } });
+    await katie('/s/calendar', { method: 'POST', form: { title: 'Filter None', date: today } });
+    await katie('/s/remember', { method: 'POST', form: { text: 'Filter Reminder', date: today } });
     const all = await sam(`/s/calendar?day=${today}`);
-    for (const t of ['Filter fam', 'Filter none', 'Filter reminder']) assert.match(all.text, new RegExp(t));
+    for (const t of ['Filter Fam', 'Filter None', 'Filter Reminder']) assert.match(all.text, new RegExp(t));
     const fam = await sam(`/s/calendar?day=${today}&cat=Family`);
-    assert.match(fam.text, /Filter fam/);
-    assert.doesNotMatch(fam.text, /Filter none|Filter reminder/);
+    assert.match(fam.text, /Filter Fam/);
+    assert.doesNotMatch(fam.text, /Filter None|Filter Reminder/);
     assert.match(fam.text, /&amp;cat=Family" aria-label="Next month"|&cat=Family" aria-label="Next month"/);
     assert.match(fam.text, /new\?date=[\d-]+&amp;category=Family|new\?date=[\d-]+&category=Family/);
     assert.match((await sam('/s/calendar/new?category=Family')).text, /<option selected>Family<\/option>/);
@@ -348,12 +348,12 @@ test('sections', async (t) => {
     assert.match((await sam('/s/calendar/new?category=Family')).text, /<option value="none" selected>/);
     assert.match((await sam('/s/calendar/new')).text, /<option data-yearly>Holidays<\/option>/);
     const none = await sam(`/s/calendar?day=${today}&cat=Uncategorized`);
-    assert.match(none.text, /Filter none/);
-    assert.doesNotMatch(none.text, /Filter fam/);
-    assert.match((await sam(`/s/calendar?day=${today}&cat=Nope`)).text, /Filter reminder/, 'unknown categories show everything');
+    assert.match(none.text, /Filter None/);
+    assert.doesNotMatch(none.text, /Filter Fam/);
+    assert.match((await sam(`/s/calendar?day=${today}&cat=Nope`)).text, /Filter Reminder/, 'unknown categories show everything');
     const rem = await sam(`/s/calendar?day=${today}&show=reminders`);
-    assert.match(rem.text, /Filter reminder/);
-    assert.doesNotMatch(rem.text, /Filter fam|Filter none/);
+    assert.match(rem.text, /Filter Reminder/);
+    assert.doesNotMatch(rem.text, /Filter Fam|Filter None/);
     assert.match(rem.text, /show=reminders" aria-label="Next month"/);
     assert.match(rem.text, /background:#a77bc9/i, 'default reminder color');
     assert.equal((await sam('/settings/lists/reminder-color', { method: 'POST', form: { color: '#225588' } })).status, 404, 'members can’t change household settings');

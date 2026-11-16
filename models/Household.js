@@ -19,6 +19,8 @@ const householdSchema = new mongoose.Schema(
     mealSlots: { type: [String], default: ['Breakfast', 'Lunch', 'Dinner'] },
     billCats: { type: [String], default: ['Housing', 'Utilities', 'Internet & phone', 'Subscriptions', 'Insurance', 'Car'] },
     pantrySpots: { type: [String], default: ['Pantry', 'Fridge', 'Freezer', 'Spices', 'Bathroom', 'Cleaning'] },
+    // Spots whose things aren't food, so recipes and "use soon" leave them out.
+    nonFoodSpots: { type: [String], default: ['Cleaning', 'Bathroom', 'Laundry', 'Medicine cabinet', 'Pet supplies', 'Bulk storage', 'Under sink'] },
     // Where things bought from each shopping aisle are kept: [{ aisle, spot }]. Unset aisles are guessed.
     aisleSpots: { type: [{ _id: false, aisle: String, spot: String }], default: [] },
     infoTypes: { type: [String], default: ['Wi-Fi & codes', 'Contacts', 'Appliances', 'Documents & how-tos'] },

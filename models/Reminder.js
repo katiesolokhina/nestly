@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 const reminderSchema = new mongoose.Schema(
   {
@@ -6,7 +7,7 @@ const reminderSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    text: { type: String, required: true, trim: true, maxlength: 160 },
+    text: { type: String, required: true, trim: true, maxlength: 160, set: titleCase },
     details: { type: String, trim: true, maxlength: 1000, default: '' },
     date: { type: String, default: '' }, // YYYY-MM-DD or empty
     time: { type: String, default: '' }, // HH:MM, or empty to notify at each person's morning time

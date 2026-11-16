@@ -68,9 +68,9 @@ test('recipe tags, types, and prep', async (t) => {
   assert.doesNotMatch((await katie('/s/recipes?tag=Homemade')).text, /Fajitas/);
   assert.match((await katie('/s/recipes?q=thigh')).text, /Fajitas/);
   // Renaming a tag follows into recipes; removing takes it off.
-  await katie('/settings/lists/recipeTags', { method: 'POST', form: { action: 'rename', value: 'To try', name: 'Want to try' } });
+  await katie('/settings/lists/recipeTags', { method: 'POST', form: { action: 'rename', value: 'To try', name: 'Want To Try' } });
   await katie('/settings/lists/recipeTags', { method: 'POST', form: { action: 'remove', value: 'Weeknight' } });
-  await withDb(app.uri, async () => assert.deepEqual((await Recipe.findById(id).lean()).tags, ['Want to try']));
+  await withDb(app.uri, async () => assert.deepEqual((await Recipe.findById(id).lean()).tags, ['Want To Try']));
   // Types used before are suggested.
   assert.match((await katie('/s/recipes/new')).text, /<option value="thigh">/);
   // A prep style no longer in the list stays on recipes that use it.

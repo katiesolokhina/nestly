@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // The household's saved items: every name added to Shopping, a recipe, or the pantry, with its
 // usual details. They're the suggestions when typing, and staples are the one-tap ones.
@@ -6,7 +7,7 @@ const mongoose = require('mongoose');
 const catalogSchema = new mongoose.Schema(
   {
     householdId: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true },
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     key: { type: String, required: true }, // lowercase name, so "Eggs" and "eggs" are one item
     qty: { type: String, trim: true, maxlength: 30, default: '1' },
     store: { type: String, default: 'Any store' },

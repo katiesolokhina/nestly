@@ -39,7 +39,7 @@ test('download household data', async (t) => {
   assert.equal(data.household.name, 'Our Home');
   assert.deepEqual(data.people.map((p) => p.name).sort(), ['Katie', 'Sam']);
   const names = data.shopping.map((i) => i.name).sort();
-  assert.deepEqual(names, ['Milk', 'My gift']);
+  assert.deepEqual(names, ['Milk', 'My Gift']);
   assert.equal(data.chores[0].title, 'Dishes');
   assert.ok(data.savedItems.some((i) => i.name === 'Milk'));
   assert.equal(data.shopping[0].householdId, undefined);

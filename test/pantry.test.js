@@ -195,7 +195,7 @@ test('pantry', async (t) => {
   // Settings → Pantry lists it; removing it asks again.
   let st = await katie('/settings/s/pantry');
   assert.match(st.text, /Skip the details/);
-  assert.match(st.text, /Paper towels/);
+  assert.match(st.text, /Paper towels/i);
   assert.match(st.text, /<select id="aisleSpot\d+" name="aisleSpot\d+">/);
   await katie('/settings/lists/auto-pantry', { method: 'POST', form: { key: 'paper towels' } });
   await katie('/settings/lists/auto-pantry', { method: 'POST', form: { action: 'add', name: 'Dish soap' } });

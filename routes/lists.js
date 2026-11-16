@@ -5,6 +5,7 @@ const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/li
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
 const { keyOf, addToCatalog } = require('../lib/catalog');
+const { titleCase } = require('../lib/titlecase');
 
 const router = express.Router();
 router.use('/settings/lists', requireAuth, requirePerm('settings'));
@@ -27,6 +28,9 @@ const LINKED = { stores: ['defaultStore', 'Any store'], pantrySpots: ['pantryDef
 function follow(household, key, from, to) {
   const link = LINKED[key];
   if (link && household[link[0]] === from) household[link[0]] = to == null ? link[1] : to;
+  if (key === 'pantrySpots' && (household.nonFoodSpots || []).includes(from)) {
+    household.nonFoodSpots = household.nonFoodSpots.filter((s) => s !== from).concat(to == null ? [] : [to]);
+  }
   if (key === 'infoTypes') {
     const tpl = (household.infoTemplates || []).find((t) => t.type === from);
     if (tpl) {
@@ -99,7 +103,9 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     const label = cfg.title.toLowerCase();
     const b = req.body || {};
     const { action, value } = b;
-    const name = String(b.name || '').trim().slice(0, 40);
+    // Names in Title Case, except prep styles ("diced"), which read inside an ingredient.
+    const tc = (n) => (key === 'prepStyles' ? n : titleCase(n));
+    const name = tc(String(b.name || '').trim().slice(0, 40));
     const i = list.indexOf(value);
     const quick = req.get('X-Requested-With') === 'fetch';
     const fail = (msg, back = pageFor(key)) => { if (quick) return res.status(422).json({ error: msg }); req.session.flash = msg; return res.redirect(back); };
@@ -136,7 +142,7 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     if (action === 'add') {
       // One or many: "Bakery, Deli, Snacks", or one per line. Ones already there are skipped.
       const names = [];
-      splitNames(b.name).forEach((n) => { if (!list.some((v) => same(v, n)) && !names.some((v) => same(v, n))) names.push(n); });
+      splitNames(b.name).map(tc).forEach((n) => { if (!list.some((v) => same(v, n)) && !names.some((v) => same(v, n))) names.push(n); });
       if (!names.length) return fail(splitNames(b.name).length ? `${splitNames(b.name).join(', ')} ${splitNames(b.name).length === 1 ? 'is' : 'are'} already in ${label}.` : 'Enter a name.');
       if (list.length + names.length > 100) return fail(`That’s more than 100 ${label}.`);
       names.forEach((n) => { list.push(n); if (key === 'eventCats') setColor(n, PALETTE[(list.length - 1) % PALETTE.length]); });
@@ -156,7 +162,7 @@ router.post('/settings/lists/:key', async (req, res, next) => {
       // Edit mode: every entry's name, which to remove, and (categories) colors, saved at once.
       const back = `${pageFor(key).replace('#', `?edit=${key}#`)}`;
       const orig = [].concat(b.orig || []).map(String);
-      const names = [].concat(b.names || []).map((n) => String(n).trim().slice(0, 40));
+      const names = [].concat(b.names || []).map((n) => tc(String(n).trim().slice(0, 40)));
       const gone = new Set([].concat(b.remove || []).map(String));
       const cols = [].concat(b.colors || []).map(String);
       if (orig.length !== list.length || !list.every((v) => orig.includes(v))) return fail('The list changed. Reload and try again.', back);

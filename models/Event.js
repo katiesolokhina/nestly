@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 const eventSchema = new mongoose.Schema(
   {
@@ -6,7 +7,7 @@ const eventSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    title: { type: String, required: true, trim: true, maxlength: 120 },
+    title: { type: String, required: true, trim: true, maxlength: 120, set: titleCase },
     date: { type: String, required: true }, // YYYY-MM-DD, the first (or only) day
     endDate: { type: String, default: '' }, // YYYY-MM-DD for multi-day events, else empty
     time: { type: String, default: '' }, // start time HH:MM; empty means all day

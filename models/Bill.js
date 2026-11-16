@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // Money is stored in cents, so splits always add up exactly.
 const shareSchema = new mongoose.Schema(
@@ -19,7 +20,7 @@ const billSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     category: { type: String, default: 'Uncategorized' },
     cents: { type: Number, required: true, min: 0 },
     dueDate: { type: String, required: true }, // YYYY-MM-DD

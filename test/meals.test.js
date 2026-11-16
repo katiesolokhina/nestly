@@ -84,7 +84,7 @@ test('recipes and meals', async (t) => {
   // ---------- Recipes ----------
   let r = await katie('/s/recipes/new');
   assert.equal(r.status, 200);
-  assert.match(r.text, /Olive oil/); // the shared item list is offered for ingredients
+  assert.match(r.text, /Olive oil/i); // the shared item list is offered for ingredients
   r = await katie('/s/recipes', { method: 'POST', form: [['title', ''], ['category', 'Mains']] });
   assert.equal(r.status, 422);
   r = await katie('/s/recipes', {
@@ -178,8 +178,8 @@ test('recipes and meals', async (t) => {
   assert.match(todayPage.text, /Tacos/);
 
   // Renaming the recipe renames it on the plan.
-  await katie(`/s/recipes/${tacosId}`, { method: 'POST', form: [['title', 'Beef tacos'], ['category', 'Mains'], ['ingQty', '1 lb'], ['ingName', 'Ground beef'], ['ingQty', '1'], ['ingName', 'Onion, diced'], ['ingQty', '2 tbsp'], ['ingName', 'olive oil']] });
-  assert.match((await sam('/s/meals')).text, /Beef tacos/);
+  await katie(`/s/recipes/${tacosId}`, { method: 'POST', form: [['title', 'Beef Tacos'], ['category', 'Mains'], ['ingQty', '1 lb'], ['ingName', 'Ground beef'], ['ingQty', '1'], ['ingName', 'Onion, diced'], ['ingQty', '2 tbsp'], ['ingName', 'olive oil']] });
+  assert.match((await sam('/s/meals')).text, /Beef Tacos/i);
 
   // Next week: copy the week before, without doubling on a second copy.
   const nextWeek = addDays(today, 7);
@@ -214,7 +214,7 @@ test('recipes and meals', async (t) => {
     const items = await ShoppingItem.find({ clearedAt: null }).lean();
     const onion = items.find((i) => i.key === 'onion');
     assert.ok(onion);
-    assert.match(onion.note, /Beef tacos/);
+    assert.match(onion.note, /Beef Tacos/);
     assert.match(onion.note, /Chili/);
     assert.equal(items.filter((i) => i.key === 'ground beef').length, 1); // not doubled
     assert.ok(!items.some((i) => i.key === 'made-up')); // only what the plan holds

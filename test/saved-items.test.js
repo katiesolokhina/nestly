@@ -29,7 +29,7 @@ test('saved items', async (t) => {
   const sam = await signIn('sam@test.dev');
 
   // Adding items saves them; staples get their order as they're marked.
-  for (const name of ['Milk', 'Eggs', 'Bread', 'Oat milk']) await katie('/s/shopping', { method: 'POST', form: { name, qty: '1' } });
+  for (const name of ['Milk', 'Eggs', 'Bread', 'Oat Milk']) await katie('/s/shopping', { method: 'POST', form: { name, qty: '1' } });
   const ids = await withDb(app.uri, async () => Object.fromEntries((await CatalogItem.find().lean()).map((c) => [c.name, String(c._id)])));
   assert.equal(Object.keys(ids).length, 4);
   for (const n of ['Milk', 'Eggs', 'Bread']) await katie(`/s/shopping/saved/${ids[n]}/staple`, { method: 'POST', form: { on: '1' } });
@@ -50,10 +50,10 @@ test('saved items', async (t) => {
 
   // Search and filters.
   page = await katie('/s/shopping/saved?q=milk');
-  assert.match(page.text, /Oat milk/);
+  assert.match(page.text, /Oat Milk/i);
   assert.doesNotMatch(page.text, /href="\/s\/shopping\/saved\/[^"]+"><span class="row-title">Bread/);
   page = await katie('/s/shopping/saved?show=staples');
-  assert.doesNotMatch(page.text, /Oat milk/);
+  assert.doesNotMatch(page.text, /Oat Milk/);
   assert.match((await katie('/s/shopping/saved?q=(')).text, /Nothing matches/, 'regex characters are safe');
 
   // Edit usual details and rename: what's on the list and in the pantry follows.
@@ -62,7 +62,7 @@ test('saved items', async (t) => {
     const u = await User.findOne({ email: 'katie@test.dev' });
     await PantryItem.create({ householdId: home._id, createdBy: u._id, byName: 'Katie', name: 'Milk', key: 'milk' });
   });
-  let r = await katie(`/s/shopping/saved/${ids.Milk}`, { method: 'POST', form: { name: 'Whole milk', qty: '2', store: 'Any store', brand: 'Horizon', staple: 'on', usuallyHave: 'on' } });
+  let r = await katie(`/s/shopping/saved/${ids.Milk}`, { method: 'POST', form: { name: 'Whole Milk', qty: '2', store: 'Any store', brand: 'Horizon', staple: 'on', usuallyHave: 'on' } });
   assert.equal(r.location, '/s/shopping/saved');
   await withDb(app.uri, async () => {
     const c = await CatalogItem.findById(ids.Milk).lean();
@@ -71,10 +71,10 @@ test('saved items', async (t) => {
     assert.equal(c.brand, 'Horizon');
     assert.equal(c.usuallyHave, true);
     assert.equal(c.staple, true);
-    assert.ok(await ShoppingItem.exists({ name: 'Whole milk', key: 'whole milk' }));
-    assert.ok(await PantryItem.exists({ name: 'Whole milk' }));
+    assert.ok(await ShoppingItem.exists({ name: 'Whole Milk', key: 'whole milk' }));
+    assert.ok(await PantryItem.exists({ name: 'Whole Milk' }));
   });
-  assert.deepEqual(order((await katie('/s/shopping/saved')).text), ['Bread', 'Whole milk', 'Eggs'], 'keeps its place');
+  assert.deepEqual(order((await katie('/s/shopping/saved')).text), ['Bread', 'Whole Milk', 'Eggs'], 'keeps its place');
   // Adding it again picks up the saved details.
   await katie('/s/shopping', { method: 'POST', form: { name: 'whole milk' } });
   // Renaming onto another saved item is refused.
@@ -84,15 +84,15 @@ test('saved items', async (t) => {
 
   // Unstaple from the editor.
   await katie(`/s/shopping/saved/${ids.Eggs}`, { method: 'POST', form: { name: 'Eggs' } });
-  assert.deepEqual(order((await katie('/s/shopping/saved')).text), ['Bread', 'Whole milk']);
+  assert.deepEqual(order((await katie('/s/shopping/saved')).text), ['Bread', 'Whole Milk']);
 
   // Delete only removes the suggestion.
-  await katie(`/s/shopping/saved/${ids['Oat milk']}/delete`, { method: 'POST' });
+  await katie(`/s/shopping/saved/${ids['Oat Milk']}/delete`, { method: 'POST' });
   await withDb(app.uri, async () => {
-    assert.equal(await CatalogItem.exists({ name: 'Oat milk' }), null);
-    assert.ok(await ShoppingItem.exists({ name: 'Oat milk' }));
+    assert.equal(await CatalogItem.exists({ name: 'Oat Milk' }), null);
+    assert.ok(await ShoppingItem.exists({ name: 'Oat Milk' }));
   });
-  assert.match((await katie('/s/shopping/saved')).text, /deleted the saved item Oat milk/, 'Undo bar');
+  assert.match((await katie('/s/shopping/saved')).text, /deleted the saved item Oat Milk/, 'Undo bar');
 
   // In-page taps get JSON back, and a second tap on something already gone isn't an error.
   const QUICK = { 'x-requested-with': 'fetch' };

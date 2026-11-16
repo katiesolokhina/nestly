@@ -105,6 +105,7 @@ function readForm(req) {
     status: STATUS_KEYS.includes(b.status) ? b.status : 'have',
     amount: String(b.amount || '').trim().slice(0, 40),
     autoShop: b.autoShop === 'on',
+    food: b.food === 'yes' ? true : b.food === 'no' ? false : null,
     note: String(b.note || '').trim().slice(0, 300),
   };
   values.key = keyOf(values.name);

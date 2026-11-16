@@ -105,16 +105,16 @@ test('notify tick', async (t) => {
 
   // 8:00 AM: Katie's morning reminders. Sam's morning is 9:00. Mia turned reminders off.
   await tick(at('08:00'), send);
-  assert.deepEqual(to('Trash day'), [katie.id]);
+  assert.deepEqual(to('Trash Day'), [katie.id]);
   assert.deepEqual(to('Gift'), [katie.id]);
   assert.deepEqual(to('Quiet'), []);
   assert.deepEqual(to('Done'), []);
   assert.deepEqual(to('Elsewhere'), [out.id]); // only its own household
-  assert.deepEqual(to('Call vet'), []);
+  assert.deepEqual(to('Call Vet'), []);
 
   // 9:00 AM: Sam's morning, plus the dentist an hour ahead for both people with events on.
   await tick(at('09:00'), send);
-  assert.deepEqual(to('Trash day'), [katie.id, sam.id].sort());
+  assert.deepEqual(to('Trash Day'), [katie.id, sam.id].sort());
   assert.deepEqual(to('Dentist'), [katie.id, sam.id].sort());
   assert.equal(sent.find((s) => s.title === 'Dentist').body, 'Today at 10:00 AM · Main St');
   const link = new URL(sent.find((s) => s.title === 'Dentist').url, 'http://x');
@@ -128,17 +128,17 @@ test('notify tick', async (t) => {
 
   // 5:00 PM: the timed reminder, only to the person chosen.
   await tick(at('17:00'), send);
-  assert.deepEqual(to('Call vet'), [sam.id]);
+  assert.deepEqual(to('Call Vet'), [sam.id]);
 
   // Editing the time makes a new notification.
   await Reminder.updateOne({ _id: timed._id }, { $set: { time: '18:00' } });
   await tick(at('18:00'), send);
-  assert.equal(to('Call vet').length, 2);
+  assert.equal(to('Call Vet').length, 2);
 
   // Missed by more than an hour: skipped, not sent late.
   await Reminder.create({ ...base, text: 'Late one', date: '2026-11-14', time: '12:00' });
   await tick(at('18:30'), send);
-  assert.deepEqual(to('Late one'), []);
+  assert.deepEqual(to('Late One'), []);
 
   // Nobody with a device: nothing to do.
   await PushSubscription.deleteMany({});

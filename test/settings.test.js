@@ -152,6 +152,6 @@ test('settings', async (t) => {
   assert.doesNotMatch(page.text, /value="Email"/);
   assert.match((await katie('/settings/s/info')).text, /value="Hours"/);
   // Renaming a type keeps its fields.
-  await katie('/settings/lists/infoTypes', { method: 'POST', form: { action: 'rename', value: 'Contacts', name: 'People we call' } });
-  assert.match((await sam('/s/info/new?type=' + encodeURIComponent('People we call'))).text, /value="Hours"/);
+  await katie('/settings/lists/infoTypes', { method: 'POST', form: { action: 'rename', value: 'Contacts', name: 'People We Call' } });
+  assert.match((await sam('/s/info/new?type=' + encodeURIComponent('People We Call'))).text, /value="Hours"/i);
 });

@@ -73,23 +73,23 @@ test('what can I cook', async (t) => {
   assert.equal(page.status, 200);
   // Omelet first: it uses the milk that's about to expire, and salt counts as "usually have".
   const order = [...page.text.matchAll(/<span class="row-title">([^<]+)<\/span>/g)].map((m) => m[1]);
-  assert.deepEqual(order.slice(0, 2), ['Omelet', 'Chicken soup']);
-  assert.match(page.text, /Have 3 of 3 · Everything’s here/);
+  assert.deepEqual(order.slice(0, 2), ['Omelet', 'Chicken Soup']);
+  assert.match(page.text, /Have all 3/);
   assert.match(page.text, /Uses Milk \(expires tomorrow\)/);
-  assert.match(page.text, /Have 1 of 3 · Need carrots, onion/);
-  assert.match(page.text, /Have 0 of 1 · Need bread/, 'bread is out');
+  assert.match(page.text, /Have 1 of 3 · Missing 2<\/span><span class="row-meta">Missing: carrots, onion/);
+  assert.match(page.text, /Have 0 of 1 · Missing 1<\/span><span class="row-meta">Missing: bread/, 'bread is out');
   assert.doesNotMatch(page.text, /id="web"/, 'online only when asked');
   // A craving narrows it; unticking narrows what counts.
   page = await katie('/s/recipes/cook?go=1&craving=soup&use=chicken');
-  assert.match(page.text, /Chicken soup/);
+  assert.match(page.text, /Chicken soup/i);
   assert.doesNotMatch(page.text, /Omelet/);
   page = await katie('/s/recipes/cook?go=1&use=eggs');
-  assert.match(page.text, /Have 2 of 3 · Need milk/);
+  assert.match(page.text, /Have 2 of 3 · Missing 1<\/span><span class="row-meta">Missing: milk/);
 
   // Online without a key: TheMealDB, merged by ingredient.
   page = await katie('/s/recipes/cook?go=1&use=milk&use=eggs&online=1');
   assert.match(page.text, /Rice Pudding/);
-  assert.match(page.text, /Uses Milk, Eggs/);
+  assert.match(page.text, /Uses Milk, Eggs/i);
   assert.match(page.text, /TheMealDB/);
   // "See it" puts it on the recipe form to check.
   page = await katie('/s/recipes/cook/save', { method: 'POST', form: { source: 'mealdb', id: '52772' } });
@@ -128,7 +128,7 @@ test('what can I cook with Spoonacular', async (t) => {
   await katie('/login', { method: 'POST', form: { email: 'katie@test.dev', password: PW } });
   let page = await katie('/s/recipes/cook?go=1&also=milk&craving=sweet&online=1');
   assert.match(page.text, /Milk Rice/);
-  assert.match(page.text, /30 min · Uses milk · Need cinnamon/);
+  assert.match(page.text, /30 min · Have 1 of 2 · Missing 1<\/span>\s*<span class="row-meta">Missing: cinnamon/);
   assert.match(page.text, /Powered by/);
   page = await katie('/s/recipes/cook/save', { method: 'POST', form: { source: 'spoonacular', id: '641' } });
   assert.match(page.text, /value="Milk Rice"/);

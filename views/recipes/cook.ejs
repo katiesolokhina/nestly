@@ -27,7 +27,7 @@
       <div class="row cook-row">
         <a class="row-body row-link" href="/s/recipes/<%= m.recipe._id %>">
           <span class="row-title"><%= m.recipe.title %></span>
-          <span class="row-meta">Have <%= m.got %> of <%= m.total %><%= m.missing.length ? ' · Need ' + m.missing.slice(0, 4).join(', ') + (m.missing.length > 4 ? ' +' + (m.missing.length - 4) : '') : ' · Everything’s here' %></span>
+          <span class="row-meta"><%= m.counts %></span><% if (m.missingText) { %><span class="row-meta"><%= m.missingText %></span><% } %>
           <% if (m.uses.length) { %><span class="row-meta late">Uses <%= m.uses.map((u) => u.name + ' (' + u.text.toLowerCase() + ')').join(', ') %></span><% } %>
         </a>
         <% if (mealsOn) { %><a class="btn btn-ghost" href="/s/meals/new?recipe=<%= m.recipe._id %>">Plan it<span class="sr-only"> (<%= m.recipe.title %>)</span></a><% } %>
@@ -44,7 +44,9 @@
         <div class="row cook-row">
           <div class="row-body">
             <span class="row-title"><%= r.title %></span>
-            <span class="row-meta"><%= [r.minutes ? r.minutes + ' min' : '', r.have.length ? 'Uses ' + r.have.slice(0, 4).join(', ') : '', r.missing.length ? 'Need ' + r.missing.slice(0, 4).join(', ') + (r.missing.length > 4 ? ' +' + (r.missing.length - 4) : '') : ''].filter(Boolean).join(' · ') %></span>
+            <% const tot = r.have.length + r.missing.length; %>
+            <span class="row-meta"><%= [r.minutes ? r.minutes + ' min' : '', r.missing.length || r.source === 'spoonacular' ? (r.missing.length ? 'Have ' + r.have.length + ' of ' + tot + ' · Missing ' + r.missing.length : 'Have all ' + tot) : r.have.length ? 'Uses ' + r.have.slice(0, 4).join(', ') : ''].filter(Boolean).join(' · ') %></span>
+            <% if (r.missing.length) { %><span class="row-meta">Missing: <%= r.missing.slice(0, 4).join(', ') %><%= r.missing.length > 4 ? ' +' + (r.missing.length - 4) + ' more' : '' %></span><% } %>
           </div>
           <% if (canAdd) { %><form method="post" action="/s/recipes/cook/save"><input type="hidden" name="source" value="<%= r.source %>"><input type="hidden" name="id" value="<%= r.id %>"><input type="hidden" name="query" value="<%= query %>"><button class="btn btn-ghost" type="submit">See it<span class="sr-only"> (<%= r.title %>)</span></button></form><% } %>
         </div>

@@ -35,7 +35,7 @@ test('plan meals around what expires', async (t) => {
   let page = await katie('/');
   assert.match(page.text, /<h2>Use soon<\/h2>/);
   assert.match(page.text, /Spinach<\/span><span class="row-meta">Expires in 2 days/i);
-  assert.match(page.text, /Spinach soup<\/span><span class="row-meta">Uses Spinach · need 1/);
+  assert.match(page.text, /Spinach Soup<\/span><span class="row-meta">Uses Spinach · Have 1 of 2 · Missing 1/);
   // Shopping for the soup: onion is missing (ticked, first); spinach is home (unticked).
   page = await katie(`/s/shopping/ingredients?recipe=${app.seeded.soupId}`);
   assert.match(page.text, /1 to buy · 1 in the pantry/);
@@ -46,8 +46,8 @@ test('plan meals around what expires', async (t) => {
   page = await katie('/s/meals');
   assert.match(page.text, /Use soon/);
   assert.match(page.text, /Spinach \(expires in 2 days\)/);
-  assert.match(page.text, /Spinach soup/);
-  assert.match(page.text, /Uses Spinach · Need onion/);
+  assert.match(page.text, /Spinach soup/i);
+  assert.match(page.text, /Uses Spinach · Have 1 of 2 · Missing 1<\/span><span class="row-meta">Missing: onion/);
   assert.doesNotMatch(page.text.slice(page.text.indexOf('Use soon'), page.text.indexOf('Use soon') + 3000), /Toast/, 'only recipes that use what expires');
   // Plan it for a day.
   const day = addDays(today, 1) <= addDays(today, 6) ? addDays(today, 1) : today;

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // Something the household keeps at home, and whether there's enough of it.
 const pantrySchema = new mongoose.Schema(
@@ -7,7 +8,7 @@ const pantrySchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     key: { type: String, required: true }, // same as the shopping list's, so the two stay linked
     status: { type: String, enum: ['have', 'low', 'out'], default: 'have' },
     spot: { type: String, default: 'Other' }, // Pantry, Fridge, Freezer...
@@ -18,6 +19,8 @@ const pantrySchema = new mongoose.Schema(
     amount: { type: String, trim: true, maxlength: 40, default: '' }, // each one: "1 gallon"
     expires: { type: String, default: '' }, // YYYY-MM-DD use-by date, optional
     autoShop: { type: Boolean, default: true }, // Low or Out puts it on the shopping list
+    // Food (used for recipes)? null: decided by its spot (Settings → Pantry → Not food).
+    food: { type: Boolean, default: null },
     note: { type: String, trim: true, maxlength: 300, default: '' },
     photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null }, // what it looks like (the brand you buy)
     statusBy: { type: String, default: '' },

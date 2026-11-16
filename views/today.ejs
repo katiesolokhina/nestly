@@ -36,11 +36,11 @@
         <section class="card full">
           <div class="row-h"><h2>Use soon</h2><a class="link-btn" href="<%= useSoon.plan ? '/s/meals' : '/s/recipes/cook' %>"><%= useSoon.plan ? 'Plan meals' : 'Ideas' %></a></div>
           <% if (!useSoon.items.length) { %><p class="muted small center">Nothing expires in the next <%= useSoon.soonDays %> <%= useSoon.soonDays === 1 ? 'day' : 'days' %>.</p><% } %>
-          <% useSoon.items.forEach((i) => { %><a class="row row-link" href="<%= i.href %>"><span class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta<%= i.late ? ' late' : '' %>"><%= i.meta %></span></span></a><% }) %>
+          <% useSoon.items.forEach((i) => { %><div class="row"><a class="row-body row-link" href="<%= i.href %>"><span class="row-title"><%= i.name %></span><span class="row-meta<%= i.late ? ' late' : '' %>"><%= i.meta %></span></a></div><% }) %>
           <% if (useSoon.more) { %><a class="link-btn" href="/s/pantry?show=soon">And <%= useSoon.more %> more</a><% } %>
           <% if (useSoon.recipes.length) { %>
             <p class="label">Recipes that use them</p>
-            <% useSoon.recipes.forEach((r) => { %><a class="row row-link" href="<%= r.href %>"><span class="row-body"><span class="row-title"><%= r.title %></span><span class="row-meta"><%= r.meta %></span></span><span class="chev" aria-hidden="true">›</span></a><% }) %>
+            <% useSoon.recipes.forEach((r) => { %><div class="row"><a class="row-body row-link" href="<%= r.href %>"><span class="row-title"><%= r.title %></span><span class="row-meta"><%= r.uses %> · <%= r.counts %></span><% if (r.missing) { %><span class="row-meta"><%= r.missing %></span><% } %></a></div><% }) %>
           <% } else if (useSoon.items.length) { %><p class="muted small">None of your recipes use these. <a href="/s/recipes/cook">Find ideas</a>.</p><% } %>
         </section>
       <% } else if (w.k === 'upcoming') { %>

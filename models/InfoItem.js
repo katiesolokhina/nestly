@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { titleCase } = require('../lib/titlecase');
 
 // Something worth knowing about the home: the Wi-Fi, the plumber's number, the fridge's model.
 // Fields are flexible, so any type the household adds can hold what it needs.
@@ -19,7 +20,7 @@ const infoSchema = new mongoose.Schema(
     byName: { type: String, required: true },
     private: { type: Boolean, default: false },
     type: { type: String, default: 'Other' },
-    title: { type: String, required: true, trim: true, maxlength: 80 },
+    title: { type: String, required: true, trim: true, maxlength: 80, set: titleCase },
     fields: { type: [fieldSchema], default: [] },
     notes: { type: String, trim: true, maxlength: 5000, default: '' },
     fileIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Upload' }], default: [] },
