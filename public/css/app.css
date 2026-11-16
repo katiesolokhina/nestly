@@ -416,3 +416,17 @@ span.check { cursor: default; }
 .plan-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; padding: 10px 0; border-top: 1px solid var(--off); }
 .plan-row .row-body { grid-column: 1 / -1; }
 .plan-row select { min-width: 0; }
+/* Settings lists: drag to rearrange, edit mode, bulk add */
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.list-head-actions { display: flex; align-items: center; gap: 14px; }
+.drag-list { list-style: none; margin: 0; padding: 0; }
+.drag-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--off); min-height: 48px; background: var(--surface); }
+.drag-row .drag-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.drag-row .list-actions { gap: 0; }
+.drag-row form { margin: 0; }
+.drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 44px; color: var(--muted); cursor: grab; touch-action: none; flex: none; }
+.drag-row.dragging { box-shadow: 0 6px 18px rgba(0, 0, 0, .14); border-radius: 12px; position: relative; z-index: 1; }
+.drag-row.dragging .drag-handle { cursor: grabbing; }
+.edit-row { display: flex; align-items: center; gap: 8px; }
+.edit-row input[type="text"] { flex: 1; min-width: 0; }
+.add textarea { flex: 1; min-width: 0; min-height: 44px; resize: none; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.4; overflow: hidden; }

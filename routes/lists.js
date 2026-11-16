@@ -5,6 +5,7 @@ const { LISTS, categoryColor, reminderColor, PALETTE, HEX } = require('../lib/li
 const { logActivity } = require('../lib/activity');
 const CatalogItem = require('../models/CatalogItem');
 const { keyOf, addToCatalog } = require('../lib/catalog');
+const { applyStarter } = require('../lib/starter');
 
 const router = express.Router();
 router.use('/settings/lists', requireAuth, requirePerm('settings'));
@@ -48,6 +49,23 @@ router.post('/settings/lists/usually-have', async (req, res, next) => {
   }
 });
 
+// Settings → Pantry: the starter aisles, spots, and aisle → spot map (only what's missing).
+router.post('/settings/lists/starter', async (req, res, next) => {
+  try {
+    const h = req.household;
+    if (h.features.pantry === false || req.perms.level('pantry') !== 'edit') return res.status(404).send('Not found');
+    const aisles = h.features.shopping !== false && req.perms.level('shopping') === 'edit';
+    const { addedSpots, addedAisles, mapped } = applyStarter(h, { aisles });
+    await h.save();
+    const parts = [addedAisles.length && `${addedAisles.length} aisle${addedAisles.length === 1 ? '' : 's'}`, addedSpots.length && `${addedSpots.length} spot${addedSpots.length === 1 ? '' : 's'}`, mapped && `${mapped} aisle mapping${mapped === 1 ? '' : 's'}`].filter(Boolean);
+    req.session.flash = parts.length ? `Added ${parts.join(', ')}. Remove any you don’t use.` : 'You already have everything in the starter set.';
+    if (parts.length) await logActivity(req.user, { section: SECTION, text: `${req.user.name} added the starter set (${parts.join(', ')})` });
+    res.redirect('/settings/s/pantry');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Settings → Pantry: saved items that go straight into the pantry when bought.
 router.post('/settings/lists/auto-pantry', async (req, res, next) => {
   try {
@@ -85,6 +103,9 @@ router.post('/settings/lists/reminder-color', async (req, res, next) => {
   }
 });
 
+// Splits "Bakery, Deli" or a pasted list (one per line) into entries.
+const splitNames = (v) => String(v || '').split(/[,\n\r;]+/).map((n) => n.trim().slice(0, 40)).filter(Boolean);
+
 router.post('/settings/lists/:key', async (req, res, next) => {
   try {
     const { household, user } = req;
@@ -94,18 +115,33 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     const list = [...household[key]];
     const cfg = LISTS[key];
     const label = cfg.title.toLowerCase();
-    const { action, value } = req.body;
-    const name = String(req.body.name || '').trim().slice(0, 40);
+    const b = req.body || {};
+    const { action, value } = b;
+    const name = String(b.name || '').trim().slice(0, 40);
     const i = list.indexOf(value);
-    const fail = (msg) => { req.session.flash = msg; res.redirect(pageFor(key)); };
+    const quick = req.get('X-Requested-With') === 'fetch';
+    const fail = (msg, back = pageFor(key)) => { if (quick) return res.status(422).json({ error: msg }); req.session.flash = msg; return res.redirect(back); };
+    const same = (x, y) => x.toLowerCase() === y.toLowerCase();
 
     // Colors are stored by name, so they follow renames and go away with removals.
     const colors = (household.eventColors || []).map((c) => ({ name: c.name, color: c.color }));
     const setColor = (n, color) => { const c = colors.find((x) => x.name === n); if (c) c.color = color; else colors.push({ name: n, color }); };
+    const dropColor = (n) => { const at = colors.findIndex((c) => c.name === n); if (at >= 0) colors.splice(at, 1); };
+    // Renames and removals reach every item that uses the entry.
+    const rename = async (from, to) => {
+      if (key === 'eventCats') { const kept = (colors.find((c) => c.name === from) || {}).color || categoryColor(household, from); dropColor(from); setColor(to, kept); }
+      await swap(household, key, from, to);
+      follow(household, key, from, to);
+    };
+    const remove = async (v) => {
+      if (key === 'eventCats') dropColor(v);
+      await swap(household, key, v, cfg.fallback);
+      follow(household, key, v, null);
+    };
 
     if (action === 'color') {
       if (key !== 'eventCats' || i < 0) return res.status(404).send('Not found');
-      const color = String(req.body.color || '');
+      const color = String(b.color || '');
       if (!HEX.test(color)) return fail('Choose a color.');
       setColor(value, color.toLowerCase());
       household.eventColors = colors;
@@ -114,33 +150,62 @@ router.post('/settings/lists/:key', async (req, res, next) => {
       return res.redirect(pageFor(key));
     }
 
+    let done = '';
     if (action === 'add') {
-      if (!name) return fail('Enter a name.');
-      if (list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
-      list.push(name);
-      if (key === 'eventCats') setColor(name, PALETTE[(list.length - 1) % PALETTE.length]);
-      await logActivity(user, { section: SECTION, text: `${user.name} added ${name} to ${label}` });
+      // One or many: "Bakery, Deli, Snacks", or one per line. Ones already there are skipped.
+      const names = [];
+      splitNames(b.name).forEach((n) => { if (!list.some((v) => same(v, n)) && !names.some((v) => same(v, n))) names.push(n); });
+      if (!names.length) return fail(splitNames(b.name).length ? `${splitNames(b.name).join(', ')} ${splitNames(b.name).length === 1 ? 'is' : 'are'} already in ${label}.` : 'Enter a name.');
+      if (list.length + names.length > 100) return fail(`That’s more than 100 ${label}.`);
+      names.forEach((n) => { list.push(n); if (key === 'eventCats') setColor(n, PALETTE[(list.length - 1) % PALETTE.length]); });
+      const skipped = splitNames(b.name).length - names.length;
+      done = `Added ${names.join(', ')}.${skipped ? ` Skipped ${skipped} already there.` : ''}`;
+      await logActivity(user, { section: SECTION, text: `${user.name} added ${names.join(', ')} to ${label}` });
+    } else if (action === 'order') {
+      // Drag to rearrange: the whole list in its new order.
+      const order = [].concat(b.value || []).map(String);
+      if (order.length !== list.length || !list.every((v) => order.includes(v))) return fail('The list changed. Reload and try again.');
+      list.splice(0, list.length, ...order);
+    } else if (action === 'sort') {
+      list.sort((x, y) => x.localeCompare(y, 'en', { sensitivity: 'base', numeric: true }));
+      done = `Sorted ${label} A–Z.`;
+      await logActivity(user, { section: SECTION, text: `${user.name} sorted ${label} A–Z` });
+    } else if (action === 'edit') {
+      // Edit mode: every entry's name, which to remove, and (categories) colors, saved at once.
+      const back = `${pageFor(key).replace('#', `?edit=${key}#`)}`;
+      const orig = [].concat(b.orig || []).map(String);
+      const names = [].concat(b.names || []).map((n) => String(n).trim().slice(0, 40));
+      const gone = new Set([].concat(b.remove || []).map(String));
+      const cols = [].concat(b.colors || []).map(String);
+      if (orig.length !== list.length || !list.every((v) => orig.includes(v))) return fail('The list changed. Reload and try again.', back);
+      const rows = orig.map((o, n) => ({ from: o, to: names[n] || '', drop: gone.has(o), color: cols[n] }));
+      const kept = rows.filter((r) => !r.drop);
+      if (!kept.length) return fail('Keep at least one.', back);
+      if (kept.some((r) => !r.to)) return fail('Every name needs something in it (or tick Remove).', back);
+      const dup = kept.find((r, n) => kept.some((x, m) => m < n && same(x.to, r.to)));
+      if (dup) return fail(`${dup.to} is in the list twice.`, back);
+      const changes = [];
+      for (const r of rows.filter((x) => x.drop)) { await remove(r.from); changes.push(`removed ${r.from}`); }
+      // Renames go through placeholders first, so swapping two names doesn't merge them.
+      const moving = kept.filter((r) => r.to !== r.from);
+      for (const [n, r] of moving.entries()) await rename(r.from, `\u0000${n}`);
+      for (const [n, r] of moving.entries()) { await rename(`\u0000${n}`, r.to); changes.push(`renamed ${r.from} to ${r.to}`); }
+      if (key === 'eventCats') kept.forEach((r) => { if (HEX.test(r.color || '') && r.color.toLowerCase() !== categoryColor(household, r.from).toLowerCase()) { setColor(r.to, r.color.toLowerCase()); changes.push(`changed the color for ${r.to}`); } });
+      list.splice(0, list.length, ...kept.map((r) => r.to));
+      done = changes.length ? `Saved ${label}.` : 'Nothing changed.';
+      if (changes.length) await logActivity(user, { section: SECTION, text: `${user.name} ${changes.join(', ')} in ${label}` });
     } else if (i < 0) {
       return fail('That is no longer in the list.');
     } else if (action === 'rename') {
       if (!name) return fail('Enter a name.');
-      if (name !== value && list.some((v) => v.toLowerCase() === name.toLowerCase())) return fail(`${name} is already in ${label}.`);
+      if (name !== value && list.some((v) => same(v, name))) return fail(`${name} is already in ${label}.`);
       list[i] = name;
-      if (key === 'eventCats') {
-        const kept = categoryColor(household, value);
-        const at = colors.findIndex((c) => c.name === value);
-        if (at >= 0) colors.splice(at, 1);
-        setColor(name, kept);
-      }
-      await swap(household, key, value, name);
-      follow(household, key, value, name);
+      await rename(value, name);
       await logActivity(user, { section: SECTION, text: `${user.name} renamed ${value} to ${name}` });
     } else if (action === 'remove') {
       if (list.length === 1) return fail('Keep at least one.');
       list.splice(i, 1);
-      if (key === 'eventCats') { const at = colors.findIndex((c) => c.name === value); if (at >= 0) colors.splice(at, 1); }
-      await swap(household, key, value, cfg.fallback);
-      follow(household, key, value, null);
+      await remove(value);
       await logActivity(user, { section: SECTION, text: `${user.name} removed ${value} from ${label}` });
     } else if (action === 'up' || action === 'down') {
       const j = action === 'up' ? i - 1 : i + 1;
@@ -148,11 +213,13 @@ router.post('/settings/lists/:key', async (req, res, next) => {
     }
     // Pin today's colors before the list changes, so reordering never shifts anyone's colors.
     if (key === 'eventCats') {
-      household[key].forEach((n) => { if (!colors.some((c) => c.name === n)) colors.push({ name: n, color: categoryColor(household, n) }); });
+      household[key].forEach((n) => { if (!colors.some((c) => c.name === n) && !n.startsWith('\u0000')) colors.push({ name: n, color: categoryColor(household, n) }); });
       household.eventColors = colors.filter((c) => list.includes(c.name));
     }
     household[key] = list;
     await household.save();
+    if (quick) return res.status(204).end();
+    if (done) req.session.flash = done;
     res.redirect(pageFor(key));
   } catch (err) {
     next(err);

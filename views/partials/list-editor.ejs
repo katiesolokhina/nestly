@@ -1,26 +1,52 @@
-<%# One editable list (stores, categories...). Needs: l, and for event categories colorOf, reminderColor, showReminders. %>
+<%# One editable list (stores, categories...). Needs: l, editing, and for event categories colorOf, reminderColor, showReminders. %>
+<% const cats = l.key === 'eventCats'; %>
     <section class="card" id="<%= l.key %>">
-      <h2><%= l.title %></h2>
-      <% l.values.forEach((v, i) => { %>
-        <div class="list-row">
-          <form class="rename" method="post" action="/settings/lists/<%= l.key %>"><input type="hidden" name="value" value="<%= v %>"><input type="text" name="name" maxlength="40" value="<%= v %>" aria-label="Rename <%= v %>"><button class="link-btn" type="submit" name="action" value="rename">Save<span class="sr-only"> <%= v %></span></button></form>
-          <form class="list-actions" method="post" action="/settings/lists/<%= l.key %>"><input type="hidden" name="value" value="<%= v %>">
-            <% if (l.key === 'eventCats') { %><label class="color-pick"><span class="sr-only">Color for <%= v %></span><input type="color" name="color" value="<%= colorOf(v) %>" data-color-submit></label><button class="link-btn" type="submit" name="action" value="color" data-color-save>Save color<span class="sr-only"> for <%= v %></span></button><% } %>
-            <button class="mini" type="submit" name="action" value="up" aria-label="Move <%= v %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button>
-            <button class="mini" type="submit" name="action" value="down" aria-label="Move <%= v %> down"<%= i === l.values.length - 1 ? ' disabled' : '' %>>↓</button>
-            <button class="link-btn link-danger" type="submit" name="action" value="remove">Remove<span class="sr-only"> <%= v %></span></button>
-          </form>
+      <% if (editing === l.key) { %>
+        <h2><%= l.title %></h2>
+        <form class="stack" method="post" action="/settings/lists/<%= l.key %>">
+          <input type="hidden" name="action" value="edit">
+          <% l.values.forEach((v, i) => { %>
+            <div class="edit-row">
+              <input type="hidden" name="orig" value="<%= v %>">
+              <% if (cats) { %><label class="color-pick"><span class="sr-only">Color for <%= v %></span><input type="color" name="colors" value="<%= colorOf(v) %>"></label><% } %>
+              <input type="text" name="names" maxlength="40" value="<%= v %>" aria-label="Name for <%= v %>">
+              <label class="inline-check"><input type="checkbox" name="remove" value="<%= v %>"> Remove<span class="sr-only"> <%= v %></span></label>
+            </div>
+          <% }) %>
+          <p class="hint"><%= l.removeNote || 'Removing one moves its items to ' + l.fallback + '.' %> Renaming updates everything that uses it.</p>
+          <div class="btn-row"><button class="btn btn-primary" type="submit">Save</button><a class="btn btn-ghost" href="?#<%= l.key %>">Cancel</a></div>
+        </form>
+      <% } else { %>
+        <div class="list-head">
+          <h2><%= l.title %></h2>
+          <div class="list-head-actions">
+            <% if (l.values.length > 1) { %><form method="post" action="/settings/lists/<%= l.key %>" data-confirm="Sort <%= l.title.toLowerCase() %> A–Z? This replaces the current order."><button class="link-btn" type="submit" name="action" value="sort">Sort A–Z</button></form><% } %>
+            <a class="link-btn" href="?edit=<%= l.key %>#<%= l.key %>">Edit<span class="sr-only"> <%= l.title.toLowerCase() %></span></a>
+          </div>
         </div>
-      <% }) %>
-      <% if (l.key === 'eventCats' && showReminders) { %>
-        <div class="list-row">
-          <form class="list-actions" method="post" action="/settings/lists/reminder-color">
-            <label class="color-pick"><span class="sr-only">Color for reminders</span><input type="color" name="color" value="<%= reminderColor %>" data-color-submit></label>
-            <span class="row-title reminder-label">Reminders</span>
-            <button class="link-btn" type="submit" data-color-save>Save color<span class="sr-only"> for reminders</span></button>
-          </form>
-        </div>
+        <ul class="drag-list" data-drag-list="<%= l.key %>" aria-label="<%= l.title %>">
+          <% l.values.forEach((v, i) => { %>
+            <li class="drag-row" data-value="<%= v %>">
+              <span class="drag-handle" data-drag-handle hidden aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+              <% if (cats) { %><form method="post" action="/settings/lists/<%= l.key %>"><input type="hidden" name="value" value="<%= v %>"><input type="hidden" name="action" value="color"><label class="color-pick"><span class="sr-only">Color for <%= v %></span><input type="color" name="color" value="<%= colorOf(v) %>" data-color-submit></label><button class="link-btn" type="submit" data-color-save>Save color<span class="sr-only"> for <%= v %></span></button></form><% } %>
+              <span class="row-title drag-name"><%= v %></span>
+              <form class="list-actions" method="post" action="/settings/lists/<%= l.key %>"><input type="hidden" name="value" value="<%= v %>">
+                <button class="mini" type="submit" name="action" value="up" aria-label="Move <%= v %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button>
+                <button class="mini" type="submit" name="action" value="down" aria-label="Move <%= v %> down"<%= i === l.values.length - 1 ? ' disabled' : '' %>>↓</button>
+              </form>
+            </li>
+          <% }) %>
+        </ul>
+        <% if (cats && showReminders) { %>
+          <div class="list-row">
+            <form class="list-actions" method="post" action="/settings/lists/reminder-color">
+              <label class="color-pick"><span class="sr-only">Color for reminders</span><input type="color" name="color" value="<%= reminderColor %>" data-color-submit></label>
+              <span class="row-title reminder-label">Reminders</span>
+              <button class="link-btn" type="submit" data-color-save>Save color<span class="sr-only"> for reminders</span></button>
+            </form>
+          </div>
+        <% } %>
+        <p class="hint">Drag <span aria-hidden="true">⠿</span> or use the arrows to reorder. Edit to rename or remove several at once.<% if (cats) { %> Tap a color to change it. Uncategorized events are gray.<% } %></p>
+        <form class="add" method="post" action="/settings/lists/<%= l.key %>"><textarea name="name" rows="1" maxlength="2000" aria-label="Add <%= l.title.toLowerCase() %>, separated by commas" placeholder="Add <%= l.title.toLowerCase() %>: one, two, three" data-grow></textarea><button class="btn btn-primary" type="submit" name="action" value="add">Add</button></form>
       <% } %>
-      <p class="hint"><%= l.removeNote || 'Removing one moves its items to ' + l.fallback + '.' %><% if (l.key === 'eventCats') { %> Tap a color to change it. Uncategorized events are gray.<% } %></p>
-      <form class="add" method="post" action="/settings/lists/<%= l.key %>"><input type="text" name="name" maxlength="40" aria-label="Add a <%= l.one %>" placeholder="Add a <%= l.one %>"><button class="btn btn-primary" type="submit" name="action" value="add">Add</button></form>
     </section>

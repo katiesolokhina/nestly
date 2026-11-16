@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: title + ' settings', scripts: ['color-submit', 'rows'] }) %>
+<%- include('../partials/top', { title: title + ' settings', scripts: ['color-submit', 'rows', 'list-drag', 'confirm'] }) %>
 <main class="stack">
   <%- include('../partials/settings-head', { heading: title, sub: 'For everyone in ' + household.name + '.', back }) %>
   <% const sel = (name, options, value, label) => { %>
@@ -111,6 +111,11 @@
   <% } %>
 
   <% if (pantry) { %>
+    <section class="card stack" id="starter">
+      <h2>Starter set</h2>
+      <p class="hint">Adds common shopping aisles (in store order), pantry spots, and where each aisle’s things are kept. Only what’s missing is added; nothing you have changes.</p>
+      <form method="post" action="/settings/lists/starter"><button class="btn btn-ghost" type="submit">Add the starter set</button></form>
+    </section>
     <section class="card stack" id="auto">
       <h2>Skip the details</h2>
       <p class="hint">These go straight into the pantry when bought (as <%= names.have %>, no date), without waiting in Put away. Remove one to be asked again.</p>

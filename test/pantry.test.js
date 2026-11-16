@@ -245,6 +245,18 @@ test('pantry', async (t) => {
   assert.match((await katie('/settings/s/pantry')).text, /Pantry spots/);
   await katie('/settings/lists/pantrySpots', { method: 'POST', form: { action: 'remove', value: 'Fridge' } });
   assert.match((await katie('/s/pantry')).text, /Other/);
+  // Starter set: adds what's missing (Fridge again), keeps the rest, maps unmapped aisles.
+  await katie('/settings/lists/starter', { method: 'POST' });
+  await withDb(app.uri, async () => {
+    const h = await Household.findOne({ name: 'Home' }).lean();
+    assert.ok(['Fridge', 'Snacks', 'Medicine cabinet'].every((s) => h.pantrySpots.includes(s)));
+    assert.ok(h.aisles.includes('Bakery'));
+    assert.equal(h.aisleSpots.find((m) => m.aisle === 'Frozen').spot, h.pantrySpots.find((x) => x !== 'Fridge' && x === h.aisleSpots.find((m) => m.aisle === 'Frozen').spot), 'Frozen keeps the mapping set earlier');
+    assert.equal(h.aisleSpots.find((m) => m.aisle === 'Bakery').spot, 'Bread box');
+    assert.equal(h.aisleSpots.filter((m) => m.aisle === 'Frozen').length, 1);
+  });
+  await katie('/settings/lists/starter', { method: 'POST' });
+  assert.match((await katie('/settings/s/pantry')).text, /already have everything/);
 
   // Swipe delete and undo.
   await katie(`/s/pantry/${ids.Rice}/delete`, { method: 'POST', form: { query: '' } });

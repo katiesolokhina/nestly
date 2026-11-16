@@ -394,6 +394,39 @@ test('sections', async (t) => {
     assert.match((await sam('/activity')).text, /Katie removed Costco Plano from stores/);
     assert.doesNotMatch((await other('/s/shopping/new')).text, /Aldi/, 'lists belong to one household');
     assert.equal((await katie('/settings/lists/made-up', { method: 'POST', form: { action: 'add', name: 'x' } })).status, 404);
+    const stores = async () => (await withDb(app.uri, () => User.findById(app.seeded.katieId).lean().then((u) => Household.findById(u.householdId).lean()))).stores;
+    // Bulk add: commas or new lines; ones already there are skipped.
+    await katie('/settings/lists/stores', { method: 'POST', form: { action: 'add', name: 'Kroger, Trader Joe’s\nHEB, aldi' } });
+    let st = await stores();
+    assert.ok(['Kroger', 'Trader Joe’s', 'HEB'].every((s) => st.includes(s)));
+    assert.equal(st.filter((s) => s.toLowerCase() === 'aldi').length, 1);
+    assert.match((await katie('/settings/s/shopping')).text, /Skipped \d already there/);
+    // Drag: the whole order at once (fetch gets 204); a stale order is refused.
+    const reversed = [...st].reverse();
+    const r = await katie('/settings/lists/stores', { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, form: reversed.map((v) => ['value', v]).concat([['action', 'order']]) });
+    assert.equal(r.status, 204);
+    assert.deepEqual(await stores(), reversed);
+    assert.equal((await katie('/settings/lists/stores', { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, form: [['action', 'order'], ['value', 'Aldi']] })).status, 422);
+    // Sort A–Z.
+    await katie('/settings/lists/stores', { method: 'POST', form: { action: 'sort' } });
+    st = await stores();
+    assert.deepEqual(st, [...st].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
+    // Edit mode: rename two (swapping names), remove one, all in one save.
+    assert.match((await katie('/settings/s/shopping?edit=stores')).text, /name="action" value="edit"/);
+    await withDb(app.uri, async () => ShoppingItem.updateMany({ key: 'eggs' }, { $set: { store: 'Kroger' } }));
+    const form = [['action', 'edit']];
+    st.forEach((v) => { form.push(['orig', v]); form.push(['names', v === 'Kroger' ? 'HEB' : v === 'HEB' ? 'Kroger' : v]); });
+    form.push(['remove', 'Target']);
+    await katie('/settings/lists/stores', { method: 'POST', form });
+    const after = await stores();
+    assert.ok(!after.includes('Target'));
+    assert.equal(after.indexOf('HEB'), st.indexOf('Kroger'));
+    assert.equal((await withDb(app.uri, () => ShoppingItem.findOne({ key: 'eggs', bought: false }).lean())).store, 'HEB', 'items follow the swap');
+    // Two with the same name are refused, nothing saved.
+    const dupe = [['action', 'edit']];
+    after.forEach((v) => { dupe.push(['orig', v]); dupe.push(['names', v === 'HEB' ? 'Kroger' : v]); });
+    assert.match((await katie('/settings/lists/stores', { method: 'POST', form: dupe })).location, /edit=stores/);
+    assert.deepEqual(await stores(), after);
   });
 
   await t.test('a turned-off section blocks its pages and leaves Today', async () => {

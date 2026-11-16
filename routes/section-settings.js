@@ -76,6 +76,7 @@ router.get('/settings/s/:key', async (req, res, next) => {
       active: 'settings',
       key,
       pantry,
+      editing: String(req.query.edit || ''),
       title: sectionName(h, key),
       back: req.query.from === 'section' ? `/s/${key}` : '/settings',
       notice: req.query.saved ? 'Saved.' : null,
