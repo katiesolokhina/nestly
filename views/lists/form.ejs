@@ -1,0 +1,32 @@
+<% const T = TYPES[item.type]; %>
+<%- include('../partials/top', { title: item._id ? 'Edit list' : 'New list', scripts: ['confirm'] }) %>
+<main class="stack">
+  <div class="head"><h1><%= item._id ? 'Edit ' + T.label.toLowerCase() : 'New: ' + T.label.toLowerCase() %></h1><a class="link-btn" href="<%= item._id ? '/s/lists/' + item._id : '/s/lists' %>">Cancel</a></div>
+  <form class="card stack" method="post" action="/s/lists<%= item._id ? '/' + item._id : '' %>">
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <% if (!item._id) { %><input type="hidden" name="type" value="<%= item.type %>"><% } %>
+    <div class="field"><label for="title"><%= item.type === 'note' ? 'Title' : 'Name' %></label><input id="title" name="title" type="text" maxlength="80" required value="<%= item.title %>" placeholder="<%= { places: 'Date nights, Road trip ideas', projects: 'Garden, Crafts', watch: 'Family movie night', wishlist: 'Birthday', packing: 'Beach trip', checklist: 'Moving to-dos', note: 'Gate codes, Party ideas' }[item.type] %>"></div>
+    <% if (item.type === 'wishlist') { %>
+      <div class="field"><label for="ownerId">Whose wishlist</label><select id="ownerId" name="ownerId"><% members.forEach((m) => { %><option value="<%= m._id %>"<%= String(item.ownerId) === String(m._id) ? ' selected' : '' %>><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %></option><% }) %></select>
+      <span class="hint">Everyone else can mark “I’m getting this”, and <%= 'its owner' %> never sees who’s getting what.</span></div>
+    <% } %>
+    <% if (item.type === 'packing') { %>
+      <div class="fields">
+        <div class="field"><label for="date">Trip starts</label><input id="date" name="date" type="date" value="<%= item.date %>"></div>
+        <div class="field"><label for="endDate">Ends</label><input id="endDate" name="endDate" type="date" value="<%= item.endDate %>"></div>
+      </div>
+    <% } %>
+    <% if (item.type === 'note') { %>
+      <div class="field"><label for="body">Note</label><textarea id="body" name="body" rows="10" maxlength="10000"><%= item.body %></textarea></div>
+    <% } else if (!item._id) { %>
+      <div class="field"><label for="items"><%= T.add %> <span class="muted">(optional, one per line)</span></label><textarea id="items" name="items" rows="4" maxlength="20000"></textarea></div>
+    <% } %>
+    <label class="check-row">Pin to the top<input type="checkbox" name="pinned"<%= item.pinned ? ' checked' : '' %>></label>
+    <% if (perms.private && (!item._id || String(item.createdBy) === user.id)) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %>
+    <button class="btn btn-primary btn-block" type="submit"><%= item._id ? 'Save' : 'Make it' %></button>
+  </form>
+  <% if (item._id) { %>
+    <form method="post" action="/s/lists/<%= item._id %>/delete" data-confirm="Delete <%= item.title %>? You can undo it from Activity."><button class="btn btn-danger btn-block" type="submit">Delete list</button></form>
+  <% } %>
+</main>
+<%- include('../partials/bottom') %>

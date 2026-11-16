@@ -3,6 +3,7 @@
   <div class="head"><div><h1><%= item.title %></h1><p class="sub"><%= when %></p></div><a class="link-btn" href="/s/calendar?day=<%= day %>">Back</a></div>
   <div class="card">
     <div class="row"><div class="row-body"><span class="row-meta">When</span><span class="row-title"><%= time %></span><% if (repeat) { %><span class="row-meta"><%= repeat %></span><% } %><span class="row-meta">Notify: <%= alert %></span></div><% if (item.private) { %><span class="tag lilac">Only me</span><% } %></div>
+    <div class="row"><div class="row-body"><span class="row-meta">For</span><span class="row-title"><%= forNames.length ? forNames.join(', ') : 'Everyone' %></span></div></div>
     <% if (item.location) { %><div class="row"><div class="row-body"><span class="row-meta">Where</span><span class="row-title"><%= item.location %></span></div><a class="link-btn" href="<%= maps %>" target="_blank" rel="noopener noreferrer">Open in Maps</a></div><% } %>
     <% if (item.category !== 'Uncategorized') { %><div class="row"><div class="row-body"><span class="row-meta">Category</span><span class="row-title"><span class="cat-dot inline" style="background:<%= color %>" aria-hidden="true"></span><%= item.category %></span></div></div><% } %>
     <% if (item.details) { %><div class="row"><div class="row-body"><span class="row-meta">Details</span><span class="details-text"><%= item.details %></span></div></div><% } %>

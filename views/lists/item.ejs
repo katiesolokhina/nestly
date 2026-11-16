@@ -1,0 +1,25 @@
+<%- include('../partials/top', { title: item.text }) %>
+<main class="stack">
+  <div class="head"><h1>Edit <%= T.one %></h1><a class="link-btn" href="/s/lists/<%= list._id %>">Cancel</a></div>
+  <form class="card stack" method="post" action="/s/lists/<%= list._id %>/items/<%= item._id %>">
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="text">Name</label><input id="text" name="text" type="text" maxlength="160" required value="<%= item.text %>"></div>
+    <% if (list.type === 'places') { %><div class="field"><label for="address">Address</label><input id="address" name="address" type="text" maxlength="200" value="<%= item.address %>" placeholder="Street, city, or the place’s name"></div><% } %>
+    <% if (list.type === 'watch') { %>
+      <div class="fields">
+        <div class="field"><label for="kind">Movie or show</label><select id="kind" name="kind"><option value="">—</option><option value="movie"<%= item.kind === 'movie' ? ' selected' : '' %>>Movie</option><option value="show"<%= item.kind === 'show' ? ' selected' : '' %>>Show</option></select></div>
+        <div class="field"><label for="where">Where to watch</label><input id="where" name="where" type="text" maxlength="60" value="<%= item.where %>" placeholder="Netflix, theater…"></div>
+      </div>
+      <fieldset class="group"><legend>Who wants to watch it</legend>
+        <% members.forEach((m) => { %><label class="check-row"><%= m.name %><input type="checkbox" name="wantIds" value="<%= m._id %>"<%= (item.wantIds || []).some((id) => String(id) === String(m._id)) ? ' checked' : '' %>></label><% }) %>
+      </fieldset>
+    <% } %>
+    <% if (list.type === 'wishlist') { %><div class="field"><label for="price">Price</label><input id="price" name="price" type="text" maxlength="20" value="<%= item.price %>" placeholder="$25"></div><% } %>
+    <% if (list.type === 'packing') { %><div class="field"><label for="qty">How many</label><input id="qty" name="qty" type="text" maxlength="20" value="<%= item.qty %>" placeholder="3"></div><% } %>
+    <div class="field"><label for="link">Link</label><input id="link" name="link" type="url" maxlength="1000" value="<%= item.link %>" placeholder="https://"></div>
+    <div class="field"><label for="note">Notes</label><textarea id="note" name="note" rows="3" maxlength="500"><%= item.note %></textarea></div>
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+  <form method="post" action="/s/lists/<%= list._id %>/items/<%= item._id %>/delete"><button class="btn btn-danger btn-block" type="submit">Remove</button></form>
+</main>
+<%- include('../partials/bottom') %>

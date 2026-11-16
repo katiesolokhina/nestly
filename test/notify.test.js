@@ -98,6 +98,7 @@ test('notify tick', async (t) => {
   await Reminder.create({ ...base, text: 'Done', date: '2026-11-14', done: true });
   await Reminder.create({ householdId: other._id, createdBy: out._id, byName: 'Out', text: 'Elsewhere', date: '2026-11-14' });
   const dentist = await Event.create({ ...base, title: 'Dentist', date: '2026-11-14', time: '10:00', location: 'Main St', alert: 'default' });
+  await Event.create({ ...base, title: 'Sam Practice', date: '2026-11-14', time: '10:00', alert: 'default', forIds: [sam._id] });
 
   const sent = [];
   const send = async (userId, payload) => { sent.push({ to: String(userId), ...payload }); return 1; };
@@ -116,6 +117,7 @@ test('notify tick', async (t) => {
   await tick(at('09:00'), send);
   assert.deepEqual(to('Trash Day'), [katie.id, sam.id].sort());
   assert.deepEqual(to('Dentist'), [katie.id, sam.id].sort());
+  assert.deepEqual(to('Sam Practice'), [sam.id], 'only who it’s for');
   assert.equal(sent.find((s) => s.title === 'Dentist').body, 'Today at 10:00 AM · Main St');
   const link = new URL(sent.find((s) => s.title === 'Dentist').url, 'http://x');
   assert.equal(link.pathname, `/h/${home._id}`); // opens the right household first

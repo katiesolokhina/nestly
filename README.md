@@ -106,6 +106,14 @@ One sign-in can belong to several households. Each person's role (admin or membe
 
 Accounts from before this change get their membership automatically when the server starts.
 
+## Lists
+
+One section for everything that isn't groceries: **Places to go** (address, map, "Plan it" on the calendar, been there), **Projects**, **To watch** (movie or show, where to stream, watching, who wants to see it), **Wishlist** (others mark "I'm getting this"; the wishlist's owner never sees it, not in Activity or the download either), **Packing** (trip dates, untick all, copy for the next trip, add the trip to the calendar), **Checklist**, and **Note**. Lists can be pinned or Only me.
+
+## Feedback
+
+Settings → Report a bug or suggest a feature. Set `OWNER_EMAILS` in `.env` to your account email to see every household's feedback (household admins see their own). New feedback is emailed to `FEEDBACK_EMAIL` (or `OWNER_EMAILS`) when SMTP is set up.
+
 ## Cooking and planning
 
 - **What can I cook?** (Recipes): your recipes ranked by what's in the pantry, with what expires soon first, plus recipes found online. Online search uses Spoonacular when `SPOONACULAR_KEY` is set in `.env` (free key at spoonacular.com/food-api, 50 searches a day), and TheMealDB otherwise (free, no key, smaller). Results are cached for an hour. Saving one opens it in the recipe form first.

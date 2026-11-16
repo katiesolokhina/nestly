@@ -1,0 +1,24 @@
+<%- include('partials/top', { title: 'Feedback' }) %>
+<main class="stack">
+  <%- include('partials/settings-head', { heading: 'Report a bug or suggest a feature', sub: 'Goes straight to whoever runs Nestly.', back: '/settings' }) %>
+  <% if (canReview) { %><a class="card row menu-row" href="/feedback/inbox"><span class="row-body"><span class="row-title">Feedback inbox</span><span class="row-meta"><%= fresh ? fresh + ' new' : 'Nothing new' %></span></span><span class="chev" aria-hidden="true">›</span></a><% } %>
+  <form class="card stack" method="post" action="/feedback">
+    <fieldset class="group">
+      <legend>What is it?</legend>
+      <% Object.entries(KINDS).forEach(([k, label]) => { %><label class="check-row"><%= label %><input type="radio" name="kind" value="<%= k %>"<%= kind === k ? ' checked' : '' %>></label><% }) %>
+    </fieldset>
+    <div class="field"><label for="text">Tell us</label><textarea id="text" name="text" rows="6" maxlength="2000" required placeholder="What happened, and what you expected. Or the idea, and what it would help with."></textarea></div>
+    <% if (from) { %><input type="hidden" name="page" value="<%= from %>"><p class="hint">Sent with the page you came from: <%= from %></p><% } %>
+    <p class="hint">Bug reports include your browser and phone type, to help find the problem.</p>
+    <button class="btn btn-primary btn-block" type="submit">Send</button>
+  </form>
+  <% if (mine.length) { %>
+    <section class="card">
+      <h2>What you’ve sent</h2>
+      <% mine.forEach((f) => { %>
+        <div class="row"><div class="row-body"><span class="row-title"><%= f.text.length > 90 ? f.text.slice(0, 90) + '…' : f.text %></span><span class="row-meta"><%= f.kindName %> · <%= f.day %></span><% if (f.reply) { %><span class="row-meta">Reply: <%= f.reply %></span><% } %></div><span class="tag<%= f.status === 'done' ? ' good' : f.status === 'planned' ? ' lilac' : '' %>"><%= f.statusName %></span></div>
+      <% }) %>
+    </section>
+  <% } %>
+</main>
+<%- include('partials/bottom') %>

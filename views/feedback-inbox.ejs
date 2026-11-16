@@ -1,0 +1,24 @@
+<%- include('partials/top', { title: 'Feedback inbox' }) %>
+<main class="stack">
+  <%- include('partials/settings-head', { heading: 'Feedback inbox', sub: owner ? 'From every household.' : 'From ' + household.name + '.', back: '/feedback' }) %>
+  <nav class="chips" aria-label="Show">
+    <a class="chip<%= !show ? ' on' : '' %>" href="/feedback/inbox">Open</a>
+    <% Object.entries(STATUS).forEach(([k, label]) => { %><a class="chip<%= show === k ? ' on' : '' %>" href="/feedback/inbox?status=<%= k %>"><%= label %></a><% }) %>
+  </nav>
+  <% if (!items.length) { %><div class="card"><p class="muted small center">Nothing here.</p></div><% } %>
+  <% items.forEach((f) => { %>
+    <section class="card stack" id="f-<%= f._id %>">
+      <div class="row-h"><span class="tag<%= f.kind === 'bug' ? '' : ' lilac' %>"><%= f.kind === 'bug' ? 'Bug' : 'Idea' %></span><span class="row-meta"><%= f.byName %><%= f.home ? ' · ' + f.home : '' %> · <%= f.day %></span></div>
+      <p class="pre-wrap"><%= f.text %></p>
+      <% if (f.page) { %><p class="row-meta">Page: <a href="<%= f.page %>"><%= f.page %></a></p><% } %>
+      <% if (f.device) { %><p class="row-meta small">Device: <%= f.device %></p><% } %>
+      <form class="stack" method="post" action="/feedback/<%= f._id %>">
+        <input type="hidden" name="back" value="<%= show ? '?status=' + show : '' %>">
+        <div class="field"><label for="st-<%= f._id %>">Status</label><select id="st-<%= f._id %>" name="status"><% Object.entries(STATUS).forEach(([k, label]) => { %><option value="<%= k %>"<%= f.status === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
+        <div class="field"><label for="re-<%= f._id %>">Reply (they’ll see it)</label><input id="re-<%= f._id %>" name="reply" type="text" maxlength="1000" value="<%= f.reply %>"></div>
+        <button class="btn btn-ghost" type="submit">Save</button>
+      </form>
+    </section>
+  <% }) %>
+</main>
+<%- include('partials/bottom') %>

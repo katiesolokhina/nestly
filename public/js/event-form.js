@@ -44,16 +44,33 @@ document.querySelectorAll('form[data-event-form]').forEach((form) => {
     }
     if (custom) custom.hidden = alert.value !== 'custom';
   };
-  // Birthdays and holidays: picking the category switches "How often" to Yearly, unless someone
-  // already chose how often. Picking another category undoes only what this did.
+  // Who it's for: Everyone hides the list of people.
+  const forAll = form.querySelector('[data-for-all]');
+  const forPeople = form.querySelector('[data-for-people]');
+  const updateFor = () => { if (forAll && forPeople) forPeople.hidden = forAll.checked; };
+  if (forAll) forAll.addEventListener('change', () => {
+    updateFor();
+  });
+  if (forPeople) forPeople.addEventListener('change', () => { if (forAll && forPeople.querySelector('input:checked')) forAll.checked = false; });
+  if (forAll) forAll.addEventListener('click', () => { if (forAll.checked) forPeople.querySelectorAll('input').forEach((i) => { i.checked = false; }); });
+
+  // Birthdays and holidays: picking the category makes it yearly, all day, and for everyone, unless
+  // someone already chose those. Picking another category undoes only what this did.
   const cat = form.querySelector('[data-category]');
-  let auto = false;
+  const auto = { repeat: false, allDay: false };
   if (cat) {
-    repeat.addEventListener('change', () => { auto = false; });
+    repeat.addEventListener('change', () => { auto.repeat = false; });
+    allDay.addEventListener('change', () => { auto.allDay = false; });
     cat.addEventListener('change', () => {
       const yearly = cat.selectedOptions[0] && cat.selectedOptions[0].hasAttribute('data-yearly');
-      if (yearly && repeat.value === 'none') { repeat.value = 'yearly'; auto = true; }
-      else if (!yearly && auto) { repeat.value = 'none'; auto = false; }
+      if (yearly) {
+        if (repeat.value === 'none') { repeat.value = 'yearly'; auto.repeat = true; }
+        if (!allDay.checked) { allDay.checked = true; auto.allDay = true; }
+        if (forAll && !forAll.checked) { forAll.checked = true; forPeople.querySelectorAll('input').forEach((i) => { i.checked = false; }); updateFor(); }
+      } else {
+        if (auto.repeat) { repeat.value = 'none'; auto.repeat = false; }
+        if (auto.allDay) { allDay.checked = false; auto.allDay = false; }
+      }
     });
   }
   form.addEventListener('change', () => { update(); updateAlert(); });

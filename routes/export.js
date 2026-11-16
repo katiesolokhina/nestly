@@ -22,12 +22,15 @@ const SECTIONS = [
   ['repeatingBills', 'BillSeries', true],
   ['pantry', 'PantryItem', true],
   ['homeInfo', 'InfoItem', true],
+  ['lists', 'List', true],
   ['chores', 'Chore', false],
   ['choresDone', 'ChoreDone', false],
   ['rewardRequests', 'RewardClaim', false],
   ['files', 'Upload', true],
 ];
 const tidy = (doc) => { const { __v, householdId, ...rest } = doc; return rest; };
+// Your own wishlist comes without who's getting what.
+const surprise = (l, user) => (l.type === 'wishlist' && String(l.ownerId || l.createdBy) === String(user._id) ? { ...l, items: (l.items || []).map(({ claimedBy, claimedName, ...i }) => i) } : l);
 
 router.get('/settings/export', (req, res) => {
   res.render('settings/export', { active: 'settings' });
@@ -49,7 +52,7 @@ router.get('/settings/export/download', async (req, res, next) => {
       exportedBy: req.user.name,
       household: tidy({ ...h, _id: h._id }),
       people: people.map((p) => ({ name: p.name, email: p.email, role: roleName(req.household, p.role), memberSince: p.memberSince, turnedOff: Boolean(p.disabled) })),
-      ...Object.fromEntries(SECTIONS.map(([key], i) => [key, lists[i].map(tidy)])),
+      ...Object.fromEntries(SECTIONS.map(([key], i) => [key, lists[i].map(tidy).map((d) => (key === 'lists' ? surprise(d, req.user) : d))])),
       activity: activity.map(({ _id, ...a }) => a),
     };
     const day = new Date().toISOString().slice(0, 10);

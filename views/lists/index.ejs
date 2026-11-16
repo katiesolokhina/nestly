@@ -1,0 +1,28 @@
+<%- include('../partials/top', { title: secName('lists') }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= secName('lists') %></h1><p class="sub">Places, projects, shows, wishlists, packing, and notes.</p></div></div>
+  <% if (canEdit('lists')) { %>
+    <section class="card">
+      <h2 class="small-h">New</h2>
+      <div class="type-grid">
+        <% Object.entries(TYPES).forEach(([k, t]) => { %><a class="type-btn" href="/s/lists/new?type=<%= k %>"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="<%= ICONS[t.icon] %>"></path></svg><span><%= t.label %></span></a><% }) %>
+      </div>
+    </section>
+  <% } %>
+  <div class="chips" role="group" aria-label="Show">
+    <a class="chip<%= !type ? ' on' : '' %>" href="/s/lists">All</a>
+    <% Object.entries(TYPES).filter(([k]) => counts[k]).forEach(([k, t]) => { %><a class="chip<%= type === k ? ' on' : '' %>" href="/s/lists?type=<%= k %>"><%= t.label %>&nbsp;<span class="muted">· <%= counts[k] %></span></a><% }) %>
+  </div>
+  <div class="card">
+    <% if (!lists.length) { %><p class="muted small center"><%= type ? 'None of these yet.' : 'No lists yet. Start one above.' %></p><% } %>
+    <% lists.forEach((l) => { %>
+      <a class="row menu-row" href="/s/lists/<%= l._id %>">
+        <span class="menu-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="<%= ICONS[TYPES[l.type].icon] %>"></path></svg></span>
+        <span class="row-body"><span class="row-title"><%= l.title %></span><span class="row-meta"><%= l.meta %></span></span>
+        <% if (l.private) { %><span class="tag lilac">Only me</span><% } else if (l.pinned) { %><span class="tag">Pinned</span><% } %>
+        <span class="chev" aria-hidden="true">›</span>
+      </a>
+    <% }) %>
+  </div>
+</main>
+<%- include('../partials/bottom') %>

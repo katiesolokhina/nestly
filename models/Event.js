@@ -20,6 +20,8 @@ const eventSchema = new mongoose.Schema(
     days: { type: [Number], default: [] }, // weekly: 0 = Sunday ... 6 = Saturday
     until: { type: String, default: '' }, // last day it can repeat, or empty for forever
     category: { type: String, default: 'Uncategorized' },
+    // Who it's for: only they get its notifications. Empty means everyone.
+    forIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     // Set per event: 'none', or minutes before the start ('120' = 2 hours). See lib/alerts.js.
     alert: { type: String, default: '60', match: /^(none|default|\d{1,5})$/ },
     details: { type: String, trim: true, maxlength: 1000, default: '' },

@@ -8,7 +8,7 @@
       <div class="field"><label for="date">Starts</label><input id="date" name="date" type="date" required value="<%= item.date %>" data-start-date></div>
       <div class="field"><label for="endDate">Ends</label><input id="endDate" name="endDate" type="date" min="<%= item.date %>" value="<%= item.endDate || item.date %>" data-end-date></div>
     </div>
-    <label class="check-row">All day<input type="checkbox" name="allDay" data-all-day<%= item._id && !item.time ? ' checked' : '' %>></label>
+    <label class="check-row">All day<input type="checkbox" name="allDay" data-all-day<%= item.allDay ? ' checked' : '' %>></label>
     <div class="fields" data-times>
       <div class="field"><label for="time">Start time</label><input id="time" name="time" type="time" value="<%= item.time %>"></div>
       <div class="field"><label for="endTime">End time</label><input id="endTime" name="endTime" type="time" value="<%= item.endTime %>"></div>
@@ -56,6 +56,15 @@
       <span class="hint">A photo or PDF, up to 10 MB.</span>
     </div>
     <div class="field"><label for="details">Details</label><textarea id="details" name="details" maxlength="1000" rows="3"><%= item.details %></textarea></div>
+    <% const forAll = !(item.forIds || []).length; %>
+    <fieldset class="group" data-for>
+      <legend>Who it’s for</legend>
+      <p class="hint">Only they get notified. Everyone else still sees it on the calendar<%= perms.private ? ' (unless it’s Only me)' : '' %>.</p>
+      <label class="check-row">Everyone<input type="checkbox" name="forAll" data-for-all<%= forAll ? ' checked' : '' %>></label>
+      <div class="stack" data-for-people<%= forAll ? ' hidden' : '' %>>
+        <% members.forEach((m) => { %><label class="check-row"><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %><input type="checkbox" name="forIds" value="<%= m._id %>"<%= (item.forIds || []).some((id) => String(id) === String(m._id)) ? ' checked' : '' %>></label><% }) %>
+      </div>
+    </fieldset>
 <% if (perms.private) { %>    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>

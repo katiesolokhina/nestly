@@ -50,6 +50,11 @@ router.get('/search', requireAuth, async (req, res, next) => {
         (b) => ({ title: b.name, meta: `${money(b.cents, cur)} · ${b.paid ? 'Paid' : `Due ${shortDay(b.dueDate)}`}`, href: `/s/bills/${b._id}` })],
       ['chores', 'Chores', () => M('Chore').find({ ...own, ...any('title', 'details', 'room') }).limit(LIMIT).lean(),
         (c) => ({ title: c.title, meta: c.room, href: `/s/chores/${c._id}/edit` })],
+      ['lists', 'Lists', () => M('List').find({ ...scope, ...any('title', 'body', 'items.text', 'items.note') }).limit(LIMIT).lean(),
+        (l) => {
+          const hit = (l.items || []).find((x) => re.test(x.text) || re.test(x.note || ''));
+          return { title: l.title, meta: hit && !re.test(l.title) ? `Has ${hit.text}` : l.type === 'note' ? 'Note' : `${(l.items || []).length} on the list`, href: `/s/lists/${l._id}` };
+        }],
       ['info', 'Home info', () => M('InfoItem').find({
         ...scope,
         $and: [{ $or: [{ title: re }, { notes: re }, { type: re }, { fields: { $elemMatch: { kind: { $ne: 'secret' }, $or: [{ label: re }, { value: re }] } } }] }],

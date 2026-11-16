@@ -15,6 +15,7 @@ router.use('/s/calendar', requireAuth, requireSection('calendar'));
 const SECTION = 'Calendar';
 const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
 const alerts = require('../lib/alerts');
+const { membersOf: householdMembers } = require('../lib/members');
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isHttp = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 const withFile = parseFiles(['file']);
@@ -49,6 +50,8 @@ function readForm(req) {
     category: pick(req.household, 'eventCats', b.category),
     details: String(b.details || '').trim().slice(0, 1000),
     private: b.private === 'on' && req.perms.private,
+    // Who it's for: Everyone (empty), or the people ticked.
+    forIds: b.forAll === 'on' ? [] : [...new Set([].concat(b.forIds || []).map(String))].filter((id) => mongoose.isValidObjectId(id)),
   };
   const chosen = alerts.readAlert(b, !time);
   values.alert = chosen.alert || '60';
@@ -68,7 +71,9 @@ async function formView(req, item, error) {
   const file = item.fileId ? await Upload.findById(item.fileId).lean() : null;
   // After a failed save, keep what was typed into Custom.
   const typed = (req.body || {}).alert === 'custom' ? { value: 'custom', amount: String(req.body.alertAmount || ''), unit: String(req.body.alertUnit || 'hours') } : null;
-  return { active: 'calendar', item, error: error || null, file, dayNames: DAY_NAMES, alertChoices: alerts.choices(), alertPick: typed || alerts.picked({ ...item, time: item._id && !item.time ? '' : item.time || '09:00' }) };
+  const allDay = item._id ? !item.time : Boolean(item.allDay);
+  const members = await householdMembers(req.user.householdId);
+  return { active: 'calendar', item: { ...item, allDay }, members, error: error || null, file, dayNames: DAY_NAMES, alertChoices: alerts.choices(), alertPick: typed || alerts.picked({ ...item, time: allDay ? '' : item.time || '09:00' }) };
 }
 
 // Attaches, replaces, or removes the event's file, and keeps its privacy in step with the event.
@@ -141,7 +146,16 @@ router.get('/s/calendar/new', async (req, res, next) => {
     const date = isDate(req.query.date) ? req.query.date : todayIn(req.user.timezone);
     // Adding from a filtered calendar starts in that category.
     const category = req.household.eventCats.includes(req.query.category) ? req.query.category : req.household.eventCats.includes(req.household.eventCat) ? req.household.eventCat : 'Uncategorized';
-    const item = { _id: null, title: '', date, endDate: '', time: '', endTime: '', location: '', link: '', fileId: null, repeat: YEARLY.test(category) ? 'yearly' : 'none', interval: 1, days: [], until: '', category, alert: req.household.eventAlert || '60', details: '', private: false };
+    // Birthdays and holidays: every year, all day, for everyone. Otherwise the household's default.
+    const yearly = YEARLY.test(category);
+    // From a list ("Plan it", "Add trip to calendar"): name, place, link, and dates come along.
+    const q = req.query;
+    const fromList = { title: String(q.title || '').slice(0, 120), location: String(q.location || '').slice(0, 200), link: /^https?:\/\//i.test(String(q.link || '')) ? String(q.link).slice(0, 1000) : '', endDate: isDate(q.endDate) && q.endDate >= date ? q.endDate : '' };
+    const item = {
+      _id: null, title: fromList.title, date, endDate: fromList.endDate, time: '', endTime: '', location: fromList.location, link: fromList.link, fileId: null, repeat: yearly ? 'yearly' : 'none', interval: 1, days: [], until: '', category,
+      allDay: yearly || q.allDay === '1', alert: yearly ? req.household.eventAlertAllDay || '0' : req.household.eventAlert || '60', details: '', private: false,
+      forIds: !yearly && req.household.eventFor ? [req.user._id] : [],
+    };
     res.render('calendar/form', await formView(req, item));
   } catch (err) {
     next(err);
@@ -178,6 +192,7 @@ router.get('/s/calendar/:id', async (req, res, next) => {
       active: 'calendar', item, day, file,
       when: longDay(day), time: timeText(item, day), repeat: repeatText(item), color: categoryColor(req.household, item.category),
       alert: alerts.alertText(item),
+      forNames: (item.forIds || []).length ? (await householdMembers(req.user.householdId)).filter((m) => item.forIds.some((id) => String(id) === String(m._id))).map((m) => m.name) : [],
       maps: item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : '',
     });
   } catch (err) {

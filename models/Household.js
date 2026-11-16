@@ -81,6 +81,7 @@ const householdSchema = new mongoose.Schema(
     activityKeepMonths: { type: Number, enum: [0, 1, 3, 6, 12, 24], default: 0 },
     // New-item defaults (Settings → Defaults); '' / false means off.
     shopTag: { type: String, default: '' },
+    eventFor: { type: Boolean, default: false }, // new events are for whoever adds them
     shopMethod: { type: String, default: '' },
     shopPrivate: { type: Boolean, default: false },
     recipeCat: { type: String, default: '' },
