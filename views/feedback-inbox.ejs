@@ -5,6 +5,7 @@
     <a class="chip<%= !show ? ' on' : '' %>" href="/feedback/inbox">Open</a>
     <% Object.entries(STATUS).forEach(([k, label]) => { %><a class="chip<%= show === k ? ' on' : '' %>" href="/feedback/inbox?status=<%= k %>"><%= label %></a><% }) %>
   </nav>
+  <% if (items.length) { %><a class="btn btn-ghost" href="/feedback/inbox/export<%= show ? '?status=' + show : '' %>" download>Download <%= items.length %> as Excel</a><% } %>
   <% if (!items.length) { %><div class="card"><p class="muted small center">Nothing here.</p></div><% } %>
   <% items.forEach((f) => { %>
     <section class="card stack" id="f-<%= f._id %>">

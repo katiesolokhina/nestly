@@ -57,11 +57,13 @@ router.get('/s/meals', async (req, res, next) => {
           .filter((s) => s.slot !== 'Other' || s.meals.length),
       };
     });
-    // Use soon: what in the pantry expires by the end of this week, and saved recipes that use it
+    // Use soon: what in the pantry expires by the end of this week (or within the household's
+    // "expiring soon" days, so late in the week still looks ahead), and saved recipes that use it
     // (not already planned this week). One tap puts one on a day.
     let suggest = null;
     if (end >= today && req.sees('pantry') && recipesOn(req) && req.perms.level('meals') === 'edit') {
-      const { items, usual } = await atHome(req, { soonUntil: end });
+      const ahead = addDays(today, req.household.pantrySoonDays || 3);
+      const { items, usual } = await atHome(req, { soonUntil: ahead > end ? ahead : end });
       const soon = items.filter((i) => i.soon);
       const planned = new Set(raw.filter((m) => m.recipeId).map((m) => String(m.recipeId)));
       const all = await Recipe.find(visible(req.user), { title: 1, category: 1, tags: 1, ingredients: 1 }).lean();

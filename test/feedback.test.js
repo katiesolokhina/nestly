@@ -53,4 +53,15 @@ test('feedback', async (t) => {
   assert.doesNotMatch((await katie('/feedback/inbox')).text, /Pantry crashes/, 'done leaves the open list');
   assert.match((await katie('/feedback/inbox?status=done')).text, /Pantry crashes/);
   await withDb(app.uri, async () => assert.match((await Feedback.findById(id).lean()).device, /node|undici|\w/i));
+
+  // Excel: follows the inbox filter; members can't.
+  assert.match((await owner('/feedback/inbox')).text, /href="\/feedback\/inbox\/export" download>Download 1 as Excel/);
+  const fs = require('node:fs');
+  const res = await owner('/feedback/inbox/export?status=done', { raw: true });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /spreadsheetml/);
+  assert.match(res.headers.get('content-disposition'), /nestly-feedback-done-\d{4}-\d{2}-\d{2}\.xlsx/);
+  assert.equal(res.buffer.subarray(0, 2).toString(), 'PK');
+  if (process.env.XLSX_OUT) fs.writeFileSync(process.env.XLSX_OUT, res.buffer);
+  assert.equal((await sam('/feedback/inbox/export')).status, 404);
 });

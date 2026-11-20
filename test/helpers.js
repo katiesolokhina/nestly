@@ -60,7 +60,7 @@ async function startApp({ name, port, seed, env = {} }) {
 // form: an object, or [[key, value], …] for repeated keys like checkboxes.
 function client(base) {
   let cookie = '';
-  return async (urlPath, { method = 'GET', form, origin = base, headers = {} } = {}) => {
+  return async (urlPath, { method = 'GET', form, origin = base, headers = {}, raw = false } = {}) => {
     const res = await fetch(base + urlPath, {
       method,
       redirect: 'manual',
@@ -74,6 +74,7 @@ function client(base) {
     });
     const setCookie = res.headers.get('set-cookie');
     if (setCookie) cookie = setCookie.split(';')[0];
+    if (raw) return { status: res.status, location: res.headers.get('location'), headers: res.headers, buffer: Buffer.from(await res.arrayBuffer()) };
     return { status: res.status, location: res.headers.get('location'), headers: res.headers, text: await res.text() };
   };
 }

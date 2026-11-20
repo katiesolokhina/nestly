@@ -10,6 +10,7 @@ const Household = require('../models/Household');
 const { sendMail, mailOn } = require('../lib/mail');
 const { sendToUser } = require('../lib/push');
 const { shortDay } = require('../lib/dates');
+const { buildXlsx } = require('../lib/xlsx');
 
 const router = express.Router();
 router.use('/feedback', requireAuth);
@@ -71,6 +72,37 @@ router.get('/feedback/inbox', async (req, res, next) => {
     const items = (await Feedback.find(filter).sort({ createdAt: -1 }).limit(200).lean()).map(view);
     const homes = isOwner(req.user) ? new Map((await Household.find({ _id: { $in: [...new Set(items.map((i) => String(i.householdId)))] } }, { name: 1 }).lean()).map((h) => [String(h._id), h.name])) : new Map();
     res.render('feedback-inbox', { active: 'settings', items: items.map((i) => ({ ...i, home: homes.get(String(i.householdId)) || '' })), show, STATUS, owner: isOwner(req.user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Excel download of what the inbox is showing (same filter), with blank Priority and Notes
+// columns to work in.
+router.get('/feedback/inbox/export', async (req, res, next) => {
+  try {
+    if (!canReview(req)) return res.status(404).send('Not found');
+    const show = Object.keys(STATUS).includes(req.query.status) ? req.query.status : '';
+    const filter = { ...scopeFor(req), ...(show ? { status: show } : { status: { $in: ['new', 'planned'] } }) };
+    const items = await Feedback.find(filter).sort({ createdAt: -1 }).limit(5000).lean();
+    const homes = new Map((await Household.find({ _id: { $in: [...new Set(items.map((i) => String(i.householdId)))] } }, { name: 1 }).lean()).map((h) => [String(h._id), h.name]));
+    const tz = req.user.timezone || 'America/Chicago';
+    const when = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(d).replace(',', '');
+    const file = buildXlsx({
+      sheetName: 'Feedback',
+      columns: [
+        { title: 'ID', width: 26 }, { title: 'Date', width: 17 }, { title: 'Type', width: 8 }, { title: 'Status', width: 12 },
+        { title: 'Feedback', width: 60, wrap: true }, { title: 'From', width: 14 }, { title: 'Household', width: 16 },
+        { title: 'Page', width: 24 }, { title: 'Device', width: 40, wrap: true }, { title: 'Reply', width: 40, wrap: true },
+        { title: 'Priority', width: 10 }, { title: 'Notes', width: 40, wrap: true },
+      ],
+      rows: items.map((f) => [String(f._id), when(f.createdAt), f.kind === 'idea' ? 'Idea' : 'Bug', STATUS[f.status], f.text, f.byName, homes.get(String(f.householdId)) || '', f.page, f.device, f.reply, '', '']),
+    });
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="nestly-feedback-${show || 'open'}-${day}.xlsx"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(file);
   } catch (err) {
     next(err);
   }
