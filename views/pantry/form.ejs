@@ -14,14 +14,16 @@
       <legend>How many, by use-by date</legend>
       <p class="hint">One line per date. Leave the date blank for things that don’t expire.</p>
       <% const rows = item.status === 'out' ? [] : item.batches; %>
-      <% [...rows, { count: '', expires: '' }].forEach((b, i) => { %>
+      <% [...rows, { count: '', expires: '', bought: '' }].forEach((b, i) => { %>
         <div class="batch-row" data-batch-row>
+          <input type="hidden" name="bBought" value="<%= b.bought || '' %>">
           <label class="sr-only" for="bc-<%= i %>">How many</label>
           <input id="bc-<%= i %>" class="batch-count" name="bCount" type="number" min="0" max="999" inputmode="numeric" placeholder="#" value="<%= b.count %>">
           <span class="batch-x" aria-hidden="true">×</span>
           <label class="sr-only" for="be-<%= i %>">Use by</label>
           <input id="be-<%= i %>" name="bExpires" type="date" value="<%= b.expires %>">
           <button class="link-btn batch-clear" type="button" data-clear-date hidden>No date</button>
+          <% if (b.bought) { %><span class="batch-bought hint">Bought <%= shortDay(b.bought) %></span><% } %>
         </div>
       <% }) %>
       <p class="hint">The empty line adds more with another date. Set a count to 0 to remove that line.</p>

@@ -1,6 +1,12 @@
 <%- include('../partials/top', { title: 'People', scripts: ['share-link', 'confirm'] }) %>
 <main class="stack">
   <%- include('../partials/settings-head', { heading: 'People', sub: household.name }) %>
+  <% if (member.role === 'admin') { %>
+    <form class="card add" method="post" action="/settings/household/name" aria-label="Household name">
+      <input type="text" name="name" maxlength="60" required value="<%= household.name %>" aria-label="Household name">
+      <button class="btn btn-ghost" type="submit">Rename</button>
+    </form>
+  <% } %>
   <section class="card" id="household" aria-labelledby="hh">
     <h2 id="hh">People</h2>
     <% if (link) { %>

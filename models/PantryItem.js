@@ -14,7 +14,8 @@ const pantrySchema = new mongoose.Schema(
     spot: { type: String, default: 'Other' }, // Pantry, Fridge, Freezer...
     // How many there are, by use-by date: [{ count: 2, expires: '2026-11-25' }, { count: 1, expires: '' }].
     // count and expires below follow from these (total, and the soonest date), for lists and alerts.
-    batches: { type: [{ count: { type: Number, min: 1, max: 999 }, expires: { type: String, default: '' } }], default: undefined },
+    // bought: when that batch was bought (YYYY-MM-DD), filled in from Shopping or the day it was added.
+    batches: { type: [{ count: { type: Number, min: 1, max: 999 }, expires: { type: String, default: '' }, bought: { type: String, default: '' } }], default: undefined },
     count: { type: Number, min: 0, max: 999, default: 1 }, // how many (2 milks); −1 as they're used
     amount: { type: String, trim: true, maxlength: 40, default: '' }, // each one: "1 gallon"
     expires: { type: String, default: '' }, // YYYY-MM-DD use-by date, optional

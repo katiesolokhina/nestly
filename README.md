@@ -106,6 +106,17 @@ One sign-in can belong to several households. Each person's role (admin or membe
 
 Accounts from before this change get their membership automatically when the server starts.
 
+## Maintenance page
+
+While Nestly restarts (or is down), nginx can show `public/maintenance.html` instead of a gateway error. In the site's `server { … }` block:
+
+```
+error_page 502 503 504 /maintenance.html;
+location = /maintenance.html { root /var/www/nestly/public; internal; }
+```
+
+Then `sudo nginx -t && sudo systemctl reload nginx`. The page checks again every 20 seconds.
+
 ## Lists
 
 One section for everything that isn't groceries: **Places to go** (address, map, "Plan it" on the calendar, been there), **Projects**, **To watch** (movie or show, where to stream, watching, who wants to see it), **Wishlist** (others mark "I'm getting this"; the wishlist's owner never sees it, not in Activity or the download either), **Packing** (trip dates, untick all, copy for the next trip, add the trip to the calendar), **Checklist**, and **Note**. Lists can be pinned or Only me.

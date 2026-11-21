@@ -49,7 +49,33 @@ app.use(
 );
 
 app.use((req, res, next) => { res.locals.theme = ''; next(); });
+app.locals.shortDay = require('./lib/dates').shortDay;
 app.use(sameOrigin);
+app.use(require('./lib/once').once);
+
+// Friendly pages for "not found" and errors. Routes send 404 'Not found'; a browser gets a page.
+const PAGES = {
+  404: { heading: 'We can’t find that', message: 'It may have been deleted, moved, or made private.', report: false },
+  500: { heading: 'Something went wrong', message: 'That didn’t work. Try again in a moment.', report: true },
+};
+const FALLBACK = { 404: 'Not found', 500: 'Something went wrong.' };
+function errorPage(req, res, code) {
+  const send = res.plainSend || res.send.bind(res);
+  res.status(code);
+  if (req.accepts(['html', 'json']) !== 'html' || req.path.startsWith('/api/')) return send(FALLBACK[code]);
+  const ref = String(req.get('Referer') || '');
+  const back = ref.startsWith(`${req.protocol}://${req.get('host')}/`) && !ref.endsWith(req.originalUrl) ? ref : '';
+  return res.render('error', { code, ...PAGES[code], path: req.originalUrl.slice(0, 200), back }, (err, html) => {
+    if (err) console.error(err);
+    res.type(err ? 'text' : 'html');
+    return send(err ? FALLBACK[code] : html);
+  });
+}
+app.use((req, res, next) => {
+  res.plainSend = res.send.bind(res);
+  res.send = (body) => (res.statusCode === 404 && body === 'Not found' ? errorPage(req, res, 404) : res.plainSend(body));
+  next();
+});
 
 app.get('/health', async (req, res) => {
   // /health?db=1 times a few round trips to the database. Under ~20 ms is the same region;
@@ -95,10 +121,12 @@ app.use(require('./routes/settings'));
 app.use(require('./routes/family'));
 app.use(require('./routes/roles'));
 
+// Anything no route answered, and errors: friendly pages.
 app.use((req, res) => res.status(404).send('Not found'));
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).send('Something went wrong.');
+  if (res.headersSent) return next(err);
+  return errorPage(req, res, 500);
 });
 
 connectDB(process.env.MONGODB_URI)

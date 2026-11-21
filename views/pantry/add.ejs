@@ -15,6 +15,7 @@
       <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
       <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
     </div>
+    <div class="field"><label for="bought">Bought</label><input id="bought" name="bought" type="date" value="<%= item.bought %>" max="<%= todayDate %>"></div>
     <div class="btn-row">
       <button class="btn btn-primary" type="submit"><%= from ? 'Put away' : 'Save' %></button>
       <% if (code || again) { %><button class="btn btn-ghost" type="submit" name="again" value="1">Save, scan next</button><% } %>

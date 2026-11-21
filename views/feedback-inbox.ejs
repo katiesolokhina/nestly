@@ -1,7 +1,7 @@
 <%- include('partials/top', { title: 'Feedback inbox' }) %>
 <main class="stack">
   <%- include('partials/settings-head', { heading: 'Feedback inbox', sub: owner ? 'From every household.' : 'From ' + household.name + '.', back: '/feedback' }) %>
-  <nav class="chips" aria-label="Show">
+  <nav class="chips chips-scroll" aria-label="Show">
     <a class="chip<%= !show ? ' on' : '' %>" href="/feedback/inbox">Open</a>
     <% Object.entries(STATUS).forEach(([k, label]) => { %><a class="chip<%= show === k ? ' on' : '' %>" href="/feedback/inbox?status=<%= k %>"><%= label %></a><% }) %>
   </nav>

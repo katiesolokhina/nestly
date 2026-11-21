@@ -50,6 +50,24 @@ async function signOutIfNoHomes(userId) {
   if (!left) await Promise.all([deleteUserSessions(userId), AccessToken.deleteMany({ kind: 'reset', userId })]);
 }
 
+// ---------- The household's name (admins) ----------
+router.post('/settings/household/name', requireAdmin, async (req, res, next) => {
+  try {
+    const name = String((req.body || {}).name || '').trim().slice(0, 60);
+    if (!name) { req.session.flash = 'Enter a name for the household.'; return res.redirect('/settings/people'); }
+    const before = req.household.name;
+    if (name !== before) {
+      req.household.name = name;
+      await req.household.save();
+      await logActivity(req.user, { section: 'Settings', text: `${req.user.name} renamed the household from ${before} to ${name}` });
+    }
+    req.session.flash = 'Household name saved.';
+    res.redirect('/settings/people');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- Invites ----------
 router.post('/settings/household/invites', async (req, res, next) => {
   try {

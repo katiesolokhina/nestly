@@ -1,17 +1,17 @@
-<%- include('../partials/top', { title: secName('lists') }) %>
+<%- include('../partials/top', { title: secName('lists'), scripts: ['chip-scroll'] }) %>
 <main class="stack">
   <div class="head"><div><h1><%= secName('lists') %></h1><p class="sub">Places, projects, shows, wishlists, packing, and notes.</p></div></div>
   <% if (canEdit('lists')) { %>
-    <section class="card">
-      <h2 class="small-h">New</h2>
-      <div class="type-grid">
+    <section>
+      <h2 class="small-h">New list</h2>
+      <div class="type-grid" role="group" aria-label="New list">
         <% Object.entries(TYPES).forEach(([k, t]) => { %><a class="type-btn" href="/s/lists/new?type=<%= k %>"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="<%= ICONS[t.icon] %>"></path></svg><span><%= t.label %></span></a><% }) %>
       </div>
     </section>
   <% } %>
-  <div class="chips" role="group" aria-label="Show">
-    <a class="chip<%= !type ? ' on' : '' %>" href="/s/lists">All</a>
-    <% Object.entries(TYPES).filter(([k]) => counts[k]).forEach(([k, t]) => { %><a class="chip<%= type === k ? ' on' : '' %>" href="/s/lists?type=<%= k %>"><%= t.label %>&nbsp;<span class="muted">· <%= counts[k] %></span></a><% }) %>
+  <div class="chips chips-scroll" role="group" aria-label="Show" data-chip-scroll>
+    <a class="chip<%= !type ? ' on' : '' %>" href="/s/lists"<%- !type ? ' aria-current="true"' : '' %>>All</a>
+    <% Object.entries(TYPES).filter(([k]) => counts[k]).forEach(([k, t]) => { %><a class="chip<%= type === k ? ' on' : '' %>" href="/s/lists?type=<%= k %>"<%- type === k ? ' aria-current="true"' : '' %>><%= t.label %>&nbsp;<span class="muted">· <%= counts[k] %></span></a><% }) %>
   </div>
   <div class="card">
     <% if (!lists.length) { %><p class="muted small center"><%= type ? 'None of these yet.' : 'No lists yet. Start one above.' %></p><% } %>
