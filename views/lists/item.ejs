@@ -1,15 +1,41 @@
-<%- include('../partials/top', { title: item.text }) %>
+<%- include('../partials/top', { title: item.text, scripts: ['toggle-group'] }) %>
 <main class="stack">
   <div class="head"><h1>Edit <%= T.one %></h1><a class="link-btn" href="/s/lists/<%= list._id %>">Cancel</a></div>
   <form class="card stack" method="post" action="/s/lists/<%= list._id %>/items/<%= item._id %>">
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="text">Name</label><input id="text" name="text" type="text" maxlength="160" required value="<%= item.text %>"></div>
-    <% if (list.type === 'places') { %><div class="field"><label for="address">Address</label><input id="address" name="address" type="text" maxlength="200" value="<%= item.address %>" placeholder="Street, city, or the place’s name"></div><% } %>
+    <% if (list.type === 'places') { %>
+      <div class="field"><label for="address">Address</label><input id="address" name="address" type="text" maxlength="200" value="<%= item.address %>" placeholder="Street, city, or the place’s name"></div>
+      <div class="fields">
+        <div class="field"><label for="startDate">Starts <span class="muted">(optional)</span></label><input id="startDate" name="startDate" type="date" value="<%= item.startDate %>"></div>
+        <div class="field"><label for="endDate">Ends</label><input id="endDate" name="endDate" type="date" value="<%= item.endDate %>"></div>
+      </div>
+      <fieldset class="group" data-toggle-group>
+        <label class="check-row">Every year (seasonal)<input type="checkbox" name="seasonal" data-toggle<%= item.seasonal ? ' checked' : '' %>></label>
+        <div class="month-grid" data-toggled<%= item.seasonal ? '' : ' hidden' %>>
+          <% MONTHS.forEach((m, n) => { %><label class="month-chip"><input type="checkbox" name="months" value="<%= n + 1 %>"<%= (item.months || []).includes(n + 1) ? ' checked' : '' %>><span><%= m.slice(0, 3) %></span></label><% }) %>
+        </div>
+        <p class="hint" data-toggled<%= item.seasonal ? '' : ' hidden' %>>Out of season, it moves to its own group and comes back on its own.</p>
+      </fieldset>
+      <fieldset class="group" data-toggle-group>
+        <label class="check-row">Tickets needed<input type="checkbox" name="tickets" data-toggle<%= item.tickets ? ' checked' : '' %>></label>
+        <div class="fields" data-toggled<%= item.tickets ? '' : ' hidden' %>>
+          <div class="field"><label for="price">Price</label><input id="price" name="price" type="text" maxlength="20" value="<%= item.price %>" placeholder="$25 each"></div>
+          <div class="field"><label for="ticketLink">Where to buy</label><input id="ticketLink" name="ticketLink" type="url" maxlength="1000" value="<%= item.ticketLink %>" placeholder="https://"></div>
+        </div>
+      </fieldset>
+      <div class="field"><label for="hours">Hours</label><input id="hours" name="hours" type="text" maxlength="120" value="<%= item.hours %>" placeholder="Thu–Sun 5–10 pm"></div>
+    <% } %>
     <% if (list.type === 'watch') { %>
       <div class="fields">
         <div class="field"><label for="kind">Movie or show</label><select id="kind" name="kind"><option value="">—</option><option value="movie"<%= item.kind === 'movie' ? ' selected' : '' %>>Movie</option><option value="show"<%= item.kind === 'show' ? ' selected' : '' %>>Show</option></select></div>
-        <div class="field"><label for="where">Where to watch</label><input id="where" name="where" type="text" maxlength="60" value="<%= item.where %>" placeholder="Netflix, theater…"></div>
+        <div class="field"><label for="where">Where to watch</label><select id="where" name="where"><option value="">—</option><% const svc = household.watchServices || []; [...svc, ...(item.where && !svc.includes(item.where) ? [item.where] : [])].forEach((s) => { %><option<%= item.where === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
       </div>
+      <div class="fields">
+        <div class="field"><label for="whereOther">Or somewhere else</label><input id="whereOther" name="whereOther" type="text" maxlength="60" placeholder="Type a service"></div>
+        <div class="field"><label for="release">Release date</label><input id="release" name="release" type="date" value="<%= item.release %>"></div>
+      </div>
+      <p class="hint">Edit the list of services in Settings → <%= secName('lists') %>.</p>
       <fieldset class="group"><legend>Who wants to watch it</legend>
         <% members.forEach((m) => { %><label class="check-row"><%= m.name %><input type="checkbox" name="wantIds" value="<%= m._id %>"<%= (item.wantIds || []).some((id) => String(id) === String(m._id)) ? ' checked' : '' %>></label><% }) %>
       </fieldset>

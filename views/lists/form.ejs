@@ -10,6 +10,9 @@
       <div class="field"><label for="ownerId">Whose wishlist</label><select id="ownerId" name="ownerId"><% members.forEach((m) => { %><option value="<%= m._id %>"<%= String(item.ownerId) === String(m._id) ? ' selected' : '' %>><%= m.name %><%= String(m._id) === user.id ? ' (you)' : '' %></option><% }) %></select>
       <span class="hint">Everyone else can mark “I’m getting this”, and <%= 'its owner' %> never sees who’s getting what.</span></div>
     <% } %>
+    <% if (item.type === 'watch') { %>
+      <div class="field"><label for="kind">New ones are</label><select id="kind" name="kind"><option value="">Movies or shows</option><option value="movie"<%= item.kind === 'movie' ? ' selected' : '' %>>Movies</option><option value="show"<%= item.kind === 'show' ? ' selected' : '' %>>Shows</option></select></div>
+    <% } %>
     <% if (item.type === 'packing') { %>
       <div class="fields">
         <div class="field"><label for="date">Trip starts</label><input id="date" name="date" type="date" value="<%= item.date %>"></div>

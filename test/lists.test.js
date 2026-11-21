@@ -108,4 +108,62 @@ test('lists', async (t) => {
   await katie(`/activity/${undo[1]}/undo`, { method: 'POST', form: { back: '/s/lists' } });
   assert.ok(await one('Date Nights'));
   await withDb(app.uri, async () => assert.ok(await Activity.exists({ section: 'Lists' })));
+
+  // Places: dates, seasonal, tickets, hours; over or out of season moves to its own group.
+  const { addDays } = require('../lib/dates');
+  const { localToday } = require('./helpers');
+  const today = localToday();
+  const month = Number(today.slice(5, 7));
+  const other = (month % 12) + 1 === month ? 1 : (month % 12) + 1; // next month
+  await katie('/s/lists', { method: 'POST', form: { type: 'places', title: 'Holiday fun', items: 'Light show\nIce rink\nFair\nPumpkin patch' } });
+  const fun = await listId('Holiday Fun');
+  l = await one('Holiday Fun');
+  const [show, rink, fair, patch] = l.items;
+  await katie(`/s/lists/${fun}/items/${show._id}`, { method: 'POST', form: { text: 'Light show', startDate: addDays(today, -3), endDate: addDays(today, 4), tickets: 'on', price: '$25', ticketLink: 'https://tickets.example.com', hours: 'Thu–Sun 5–10 pm' } });
+  await katie(`/s/lists/${fun}/items/${rink._id}`, { method: 'POST', form: { text: 'Ice rink', startDate: addDays(today, 10) } });
+  await katie(`/s/lists/${fun}/items/${fair._id}`, { method: 'POST', form: { text: 'Fair', startDate: addDays(today, -30), endDate: addDays(today, -2) } });
+  await katie(`/s/lists/${fun}/items/${patch._id}`, { method: 'POST', form: [['text', 'Pumpkin patch'], ['seasonal', 'on'], ['months', String(other)]] });
+  assert.match((await katie(`/s/lists/${fun}/items/${patch._id}`, { method: 'POST', form: { text: 'Pumpkin patch', seasonal: 'on' } })).text, /Pick the months/);
+  page = await katie(`/s/lists/${fun}`);
+  assert.match(page.text, /row-meta late">Ends in 4 days/);
+  assert.match(page.text, /Tickets \$25 · Thu–Sun 5–10 pm/);
+  assert.match(page.text, /href="https:\/\/tickets\.example\.com"[^>]*>Tickets/);
+  assert.match(page.text, /Starts /);
+  const over = page.text.slice(page.text.indexOf('Over or out of season'));
+  assert.match(over, /Fair<\/span>[\s\S]*Ended /);
+  assert.match(over, /Pumpkin Patch<\/span>[\s\S]*Back in /);
+  assert.match(page.text, /Plan it/);
+  // Sort: ending soonest puts the light show first.
+  await katie(`/s/lists/${fun}/sort`, { method: 'POST', form: { sort: 'soonest' } });
+  page = await katie(`/s/lists/${fun}`);
+  assert.ok(page.text.indexOf('Light Show') < page.text.indexOf('Ice Rink'));
+  await katie(`/s/lists/${fun}/sort`, { method: 'POST', form: { sort: 'az' } });
+  page = await katie(`/s/lists/${fun}`);
+  assert.ok(page.text.indexOf('Ice Rink') < page.text.indexOf('Light Show'));
+
+  // Watch: default kind for new ones, services from Settings, release dates, sort by release.
+  await katie('/s/lists', { method: 'POST', form: { type: 'watch', title: 'Shows', kind: 'show', items: 'Severance\nThe Bear' } });
+  const shows = await listId('Shows');
+  l = await one('Shows');
+  assert.deepEqual(l.items.map((i) => i.kind), ['show', 'show']);
+  assert.match((await katie(`/s/lists/${shows}/items/${l.items[0]._id}`)).text, /<option>Apple TV\+<\/option>/);
+  await katie('/settings/lists/watchServices', { method: 'POST', form: { action: 'add', name: 'Crunchyroll' } });
+  assert.match((await katie('/settings/s/lists')).text, /Where to watch/);
+  await katie(`/s/lists/${shows}/items/${l.items[0]._id}`, { method: 'POST', form: { text: 'Severance', kind: 'show', where: 'Apple TV+', release: addDays(today, 30) } });
+  await katie(`/s/lists/${shows}/items/${l.items[1]._id}`, { method: 'POST', form: { text: 'The Bear', kind: 'show', where: '', whereOther: 'Hulu Live', release: addDays(today, -100) } });
+  page = await katie(`/s/lists/${shows}`);
+  assert.match(page.text, /Show · Apple TV\+ · Out /);
+  assert.match(page.text, /Hulu Live · Released /);
+  await katie(`/s/lists/${shows}/sort`, { method: 'POST', form: { sort: 'release' } });
+  page = await katie(`/s/lists/${shows}`);
+  assert.ok(page.text.indexOf('The Bear') < page.text.indexOf('Severance'));
+
+  // Search: the index finds lists by what's on them; a list searches its items.
+  page = await katie('/s/lists?q=severance');
+  assert.match(page.text, /Shows<\/span><span class="row-meta">Has Severance/);
+  assert.doesNotMatch(page.text, /Holiday Fun/);
+  page = await katie(`/s/lists/${fun}?q=rink`);
+  assert.match(page.text, /Ice Rink/);
+  assert.doesNotMatch(page.text, /Light Show/);
+  assert.match((await katie('/s/lists?order=az')).text, /Beach Trip[\s\S]*Birthday/);
 });

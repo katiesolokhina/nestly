@@ -47,7 +47,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 13px; font-weight: 600; }
-input[type="email"], input[type="password"], input[type="text"], input:not([type]), select {
+input[type="email"], input[type="password"], input[type="text"], input[type="url"], input[type="tel"], input:not([type]), select {
   min-height: 44px; width: 100%; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px;
   background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; /* stops iOS zooming on focus */
 }
@@ -457,3 +457,13 @@ span.check { cursor: default; }
 .tag.prio-medium { background: #FFF1B8; color: #6B5300; }
 .tag.prio-low { background: #E2F0D9; color: #2F5D1E; }
 .chip.on .muted { color: inherit; opacity: .85; }
+.search-row { display: flex; gap: 8px; align-items: center; }
+.search-row .grow, .search-row input[type="search"] { flex: 1; min-width: 0; }
+.search-row .grow input { width: 100%; }
+.search-row select { width: auto; flex: none; }
+.month-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.month-chip { position: relative; }
+.month-chip input { position: absolute; opacity: 0; inset: 0; }
+.month-chip span { display: grid; place-items: center; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+.month-chip input:checked + span { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.month-chip input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }

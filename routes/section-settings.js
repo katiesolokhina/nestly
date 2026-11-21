@@ -12,7 +12,7 @@ const { rolesOf } = require('../lib/perms');
 
 const router = express.Router();
 router.use('/settings/s', requireAuth, requirePerm('settings'));
-const KEYS = ['shopping', 'remember', 'calendar', 'meals', 'recipes', 'pantry', 'bills', 'chores', 'info'];
+const KEYS = ['shopping', 'remember', 'calendar', 'meals', 'recipes', 'pantry', 'bills', 'chores', 'info', 'lists'];
 const listsFor = (key) => Object.keys(LISTS).filter((k) => LISTS[k].feature === key);
 const pick = (v, options, fallback) => (options.map(String).includes(String(v)) ? v : fallback);
 

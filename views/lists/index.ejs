@@ -1,6 +1,6 @@
-<%- include('../partials/top', { title: secName('lists'), scripts: ['chip-scroll'] }) %>
+<%- include('../partials/top', { title: secName('lists'), scripts: ['chip-scroll', 'auto-submit'] }) %>
 <main class="stack">
-  <div class="head"><div><h1><%= secName('lists') %></h1><p class="sub">Places, projects, shows, wishlists, packing, and notes.</p></div></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('lists') %><%- include('../partials/gear', { key: 'lists' }) %></h1><p class="sub">Places, projects, shows, wishlists, packing, and notes.</p></div></div>
   <% if (canEdit('lists')) { %>
     <section>
       <h2 class="small-h">New list</h2>
@@ -13,8 +13,13 @@
     <a class="chip<%= !type ? ' on' : '' %>" href="/s/lists"<%- !type ? ' aria-current="true"' : '' %>>All</a>
     <% Object.entries(TYPES).filter(([k]) => counts[k]).forEach(([k, t]) => { %><a class="chip<%= type === k ? ' on' : '' %>" href="/s/lists?type=<%= k %>"<%- type === k ? ' aria-current="true"' : '' %>><%= t.label %>&nbsp;<span class="muted">· <%= counts[k] %></span></a><% }) %>
   </div>
+  <form class="search-row" method="get" action="/s/lists" role="search" data-auto-submit>
+    <% if (type) { %><input type="hidden" name="type" value="<%= type %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" placeholder="Search lists and what’s on them" aria-label="Search lists">
+    <select name="order" aria-label="Order"><option value="recent"<%= order === 'recent' ? ' selected' : '' %>>Recent</option><option value="az"<%= order === 'az' ? ' selected' : '' %>>A–Z</option><option value="type"<%= order === 'type' ? ' selected' : '' %>>By type</option></select>
+  </form>
   <div class="card">
-    <% if (!lists.length) { %><p class="muted small center"><%= type ? 'None of these yet.' : 'No lists yet. Start one above.' %></p><% } %>
+    <% if (!lists.length) { %><p class="muted small center"><%= q ? 'Nothing matches “' + q + '”.' : type ? 'None of these yet.' : 'No lists yet. Start one above.' %></p><% } %>
     <% lists.forEach((l) => { %>
       <a class="row menu-row" href="/s/lists/<%= l._id %>">
         <span class="menu-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="<%= ICONS[TYPES[l.type].icon] %>"></path></svg></span>

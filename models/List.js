@@ -14,6 +14,15 @@ const itemSchema = new mongoose.Schema(
     address: { type: String, trim: true, maxlength: 200, default: '' }, // places
     kind: { type: String, enum: ['', 'movie', 'show'], default: '' }, // watch
     where: { type: String, trim: true, maxlength: 60, default: '' }, // watch: Netflix, Max...
+    release: { type: String, default: '' }, // watch: release date, YYYY-MM-DD
+    // Places: when it's on, whether it comes back every year (in these months), tickets, hours.
+    startDate: { type: String, default: '' },
+    endDate: { type: String, default: '' },
+    seasonal: { type: Boolean, default: false },
+    months: { type: [Number], default: [] }, // 1-12
+    tickets: { type: Boolean, default: false },
+    ticketLink: { type: String, trim: true, maxlength: 1000, default: '' },
+    hours: { type: String, trim: true, maxlength: 120, default: '' },
     watching: { type: Boolean, default: false }, // watch: started it
     wantIds: { type: [mongoose.Schema.Types.ObjectId], default: [] }, // watch: who wants to see it
     price: { type: String, trim: true, maxlength: 20, default: '' }, // wishlist
@@ -40,6 +49,8 @@ const listSchema = new mongoose.Schema(
     date: { type: String, default: '' }, // packing: the trip, YYYY-MM-DD
     endDate: { type: String, default: '' },
     pinned: { type: Boolean, default: false },
+    kind: { type: String, enum: ['', 'movie', 'show'], default: '' }, // watch: what new items start as
+    sort: { type: String, default: '' }, // how the list is shown (see lib/tolists SORTS)
     items: { type: [itemSchema], default: [] },
   },
   { timestamps: true }

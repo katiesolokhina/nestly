@@ -1,4 +1,4 @@
-<%- include('../partials/top', { title: list.title, scripts: ['confirm', 'list-drag'] }) %>
+<%- include('../partials/top', { title: list.title, scripts: ['confirm', 'list-drag', 'auto-submit'] }) %>
 <main class="stack">
   <div class="head">
     <div><p class="muted small"><a href="/s/lists?type=<%= list.type %>"><%= T.label %></a><%= list.type === 'wishlist' && list.ownerName ? ' · ' + list.ownerName + '’s' : '' %><%= list.private ? ' · Only me' : '' %></p><h1><%= list.title %></h1>
@@ -10,6 +10,14 @@
     <section class="card"><% if (list.body) { %><p class="pre-wrap"><%= list.body %></p><% } else { %><p class="muted small center">Empty. Tap Edit to write.</p><% } %></section>
   <% } else { %>
     <% if (list.type === 'wishlist' && isOwner) { %><p class="hint">Others can see this and mark what they’re getting. You won’t see who’s getting what.</p><% } %>
+    <% if (list.items.length > 6 || q) { %>
+      <div class="search-row">
+        <form method="get" action="/s/lists/<%= list._id %>" role="search" class="grow"><input type="search" name="q" value="<%= q %>" placeholder="Search this list" aria-label="Search this list"></form>
+        <form method="post" action="/s/lists/<%= list._id %>/sort" data-auto-submit><select name="sort" aria-label="Order"><% sorts.forEach(([k, label]) => { %><option value="<%= k %>"<%= sort === k ? ' selected' : '' %>><%= label %></option><% }) %></select><noscript><button class="btn btn-ghost" type="submit">Sort</button></noscript></form>
+      </div>
+    <% } else if (sorts.length > 3 && list.items.length > 1) { %>
+      <form class="search-row" method="post" action="/s/lists/<%= list._id %>/sort" data-auto-submit><select name="sort" aria-label="Order"><% sorts.forEach(([k, label]) => { %><option value="<%= k %>"<%= sort === k ? ' selected' : '' %>><%= label %></option><% }) %></select><noscript><button class="btn btn-ghost" type="submit">Sort</button></noscript></form>
+    <% } %>
     <section class="card">
       <h2 class="small-h"><%= T.undone %> <span class="muted">· <%= open.length %></span></h2>
       <% if (canEdit('lists')) { %>
@@ -21,6 +29,12 @@
       <% if (!open.length) { %><p class="muted small center"><%= done.length ? 'All ' + T.done.toLowerCase() + '!' : 'Nothing yet.' %></p><% } %>
       <% open.forEach((i) => { %><%- include('row', { i }) %><% }) %>
     </section>
+    <% if (later.length) { %>
+      <section class="card">
+        <h2 class="small-h">Over or out of season <span class="muted">· <%= later.length %></span></h2>
+        <% later.forEach((i) => { %><%- include('row', { i }) %><% }) %>
+      </section>
+    <% } %>
     <% if (done.length) { %>
       <section class="card">
         <div class="row-h"><h2 class="small-h"><%= T.done %> <span class="muted">· <%= done.length %></span></h2>

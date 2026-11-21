@@ -3,11 +3,13 @@
   <% if (canEdit('lists')) { %><form method="post" action="/s/lists/<%= list._id %>/items/<%= i._id %>/toggle"><button class="check<%= i.done ? ' on' : '' %>" type="submit" aria-label="<%= i.done ? 'Untick' : 'Tick off' %> <%= i.text %>"><i><%= i.done ? '✓' : '' %></i></button></form><% } %>
   <a class="row-body row-link" href="/s/lists/<%= list._id %>/items/<%= i._id %>">
     <span class="row-title"><%= i.text %><%= i.qty ? ' × ' + i.qty : '' %></span>
-    <% const meta = [i.kind === 'movie' ? 'Movie' : i.kind === 'show' ? 'Show' : '', i.where, i.watching ? 'Watching' : '', i.price, i.address, i.wanters && i.wanters.length ? 'Wanted by ' + i.wanters.join(', ') : '', i.done && i.doneDay ? T.done + ' ' + i.doneDay : '', i.note].filter(Boolean); %>
+    <% if (i.place && i.place.text && !i.done) { %><span class="row-meta<%= i.place.ending ? ' late' : '' %>"><%= i.place.text %></span><% } %>
+    <% const meta = [i.kind === 'movie' ? 'Movie' : i.kind === 'show' ? 'Show' : '', i.where, i.releaseText, i.watching ? 'Watching' : '', i.tickets ? 'Tickets' + (i.price ? ' ' + i.price : '') : i.price, i.hours, i.address, i.wanters && i.wanters.length ? 'Wanted by ' + i.wanters.join(', ') : '', i.done && i.doneDay ? T.done + ' ' + i.doneDay : '', i.note].filter(Boolean); %>
     <% if (meta.length) { %><span class="row-meta"><%= meta.join(' · ') %></span><% } %>
     <% if (i.claim) { %><span class="row-meta good-text"><%= i.claim %></span><% } %>
   </a>
   <div class="row-actions">
+    <% if (i.ticketLink) { %><a class="link-btn" href="<%= i.ticketLink %>" target="_blank" rel="noopener noreferrer">Tickets</a><% } %>
     <% if (i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Link</a><% } %>
     <% if (list.type === 'places' && i.maps) { %><a class="link-btn" href="<%= i.maps %>" target="_blank" rel="noopener noreferrer">Map</a><% } %>
     <% if (list.type === 'places' && !i.done && canEdit('calendar')) { %><a class="link-btn" href="<%= i.plan %>">Plan it</a><% } %>

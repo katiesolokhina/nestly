@@ -20,6 +20,8 @@ const householdSchema = new mongoose.Schema(
     billCats: { type: [String], default: ['Housing', 'Utilities', 'Internet & phone', 'Subscriptions', 'Insurance', 'Car'] },
     pantrySpots: { type: [String], default: ['Pantry', 'Fridge', 'Freezer', 'Spices', 'Bathroom', 'Cleaning'] },
     // Spots whose things aren't food, so recipes and "use soon" leave them out.
+    // Where to watch (Lists → To watch); editable in Settings → Lists.
+    watchServices: { type: [String], default: ['Netflix', 'Hulu', 'Disney+', 'Max', 'Prime Video', 'Apple TV+', 'Peacock', 'Paramount+', 'YouTube', 'Theater'] },
     nonFoodSpots: { type: [String], default: ['Cleaning', 'Bathroom', 'Laundry', 'Medicine cabinet', 'Pet supplies', 'Bulk storage', 'Under sink'] },
     // Where things bought from each shopping aisle are kept: [{ aisle, spot }]. Unset aisles are guessed.
     aisleSpots: { type: [{ _id: false, aisle: String, spot: String }], default: [] },
