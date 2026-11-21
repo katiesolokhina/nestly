@@ -1,0 +1,24 @@
+<%- include('partials/top', { title: 'Check the upload' }) %>
+<main class="stack">
+  <%- include('partials/settings-head', { heading: 'Check the upload', sub: pending.rows + ' rows read' + (pending.unknown ? ', ' + pending.unknown + ' not found (another household’s, or deleted)' : '') + '.', back: '/feedback/inbox' }) %>
+  <% if (!pending.changes.length) { %><div class="card"><p class="muted small center">Nothing to change: the file matches the inbox.</p></div><% } %>
+  <% const label = (k, v) => k === 'status' ? STATUS[v] : k === 'priority' ? (PRIORITY[v] || 'none') : (v ? '“' + (v.length > 60 ? v.slice(0, 60) + '…' : v) + '”' : 'empty'); %>
+  <% if (pending.changes.length) { %>
+    <section class="card">
+      <h2><%= pending.changes.length %> to update</h2>
+      <% pending.changes.forEach((c) => { %>
+        <div class="row"><div class="row-body"><span class="row-title"><%= c.text %></span><span class="row-meta"><%= c.byName %></span>
+          <% Object.entries(c.set).forEach(([k, v]) => { %><span class="row-meta"><strong><%= k.charAt(0).toUpperCase() + k.slice(1) %>:</strong> <%= label(k, c.before[k]) %> → <%= label(k, v) %></span><% }) %>
+        </div></div>
+      <% }) %>
+    </section>
+  <% } %>
+  <% if (pending.skipped.length) { %>
+    <section class="card"><h2>Left as they are</h2><% pending.skipped.forEach((s) => { %><p class="row-meta"><%= s %></p><% }) %><p class="hint">Status can be New, Planned, Done, Not planned, or Archived; Priority Low, Medium, High, or Urgent.</p></section>
+  <% } %>
+  <form class="btn-row" method="post" action="/feedback/inbox/import/apply">
+    <% if (pending.changes.length) { %><button class="btn btn-primary" type="submit" name="action" value="apply">Apply <%= pending.changes.length %> change<%= pending.changes.length === 1 ? '' : 's' %></button><% } %>
+    <button class="btn btn-ghost" type="submit" name="action" value="cancel"><%= pending.changes.length ? 'Cancel' : 'Back' %></button>
+  </form>
+</main>
+<%- include('partials/bottom') %>

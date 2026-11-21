@@ -448,3 +448,12 @@ span.check { cursor: default; }
 .error-code { font-size: 44px; font-weight: 700; color: var(--primary); margin: 0; line-height: 1; }
 .btn-row.center { justify-content: center; }
 .batch-bought { grid-column: 1 / -1; margin-top: -4px; }
+/* Feedback inbox */
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.shots { display: flex; gap: 8px; flex-wrap: wrap; }
+.shots .file-thumb { width: 84px; height: 84px; }
+.tag.prio-urgent { background: #F8D7DA; color: #8A1C25; }
+.tag.prio-high { background: #FFE5CC; color: #8A4A0F; }
+.tag.prio-medium { background: #FFF1B8; color: #6B5300; }
+.tag.prio-low { background: #E2F0D9; color: #2F5D1E; }
+.chip.on .muted { color: inherit; opacity: .85; }

@@ -1,25 +1,47 @@
-<%- include('partials/top', { title: 'Feedback inbox' }) %>
+<%- include('partials/top', { title: 'Feedback inbox', scripts: ['chip-scroll', 'auto-submit', 'confirm'] }) %>
 <main class="stack">
   <%- include('partials/settings-head', { heading: 'Feedback inbox', sub: owner ? 'From every household.' : 'From ' + household.name + '.', back: '/feedback' }) %>
-  <nav class="chips chips-scroll" aria-label="Show">
-    <a class="chip<%= !show ? ' on' : '' %>" href="/feedback/inbox">Open</a>
-    <% Object.entries(STATUS).forEach(([k, label]) => { %><a class="chip<%= show === k ? ' on' : '' %>" href="/feedback/inbox?status=<%= k %>"><%= label %></a><% }) %>
+  <nav class="chips chips-scroll" aria-label="Show" data-chip-scroll>
+    <% Object.entries(SHOW).forEach(([k, label]) => { %><a class="chip<%= q.show === k ? ' on' : '' %>" href="/feedback/inbox?<%= qs({ status: k }) %>"<%- q.show === k ? ' aria-current="true"' : '' %>><%= label %>&nbsp;<span class="muted">· <%= counts[k] || 0 %></span></a><% }) %>
   </nav>
-  <% if (items.length) { %><a class="btn btn-ghost" href="/feedback/inbox/export<%= show ? '?status=' + show : '' %>" download>Download <%= items.length %> as Excel</a><% } %>
+  <form class="card filters" method="get" action="/feedback/inbox" data-auto-submit>
+    <% if (q.show !== 'open') { %><input type="hidden" name="status" value="<%= q.show %>"><% } %>
+    <div class="field"><label for="f-kind">Type</label><select id="f-kind" name="kind"><option value="">Bugs and ideas</option><option value="bug"<%= q.kind === 'bug' ? ' selected' : '' %>>Bugs</option><option value="idea"<%= q.kind === 'idea' ? ' selected' : '' %>>Ideas</option></select></div>
+    <div class="field"><label for="f-who">From</label><select id="f-who" name="who"><option value="">Everyone</option><% senders.forEach((s) => { %><option value="<%= s.id %>"<%= q.who === s.id ? ' selected' : '' %>><%= s.name %></option><% }) %></select></div>
+    <% if (owner && homes.length > 1) { %><div class="field"><label for="f-home">Household</label><select id="f-home" name="home"><option value="">All</option><% homes.forEach((h) => { %><option value="<%= h.id %>"<%= q.home === h.id ? ' selected' : '' %>><%= h.name %></option><% }) %></select></div><% } %>
+    <div class="field"><label for="f-sort">Sort</label><select id="f-sort" name="sort"><% Object.entries(SORTS).forEach(([k, label]) => { %><option value="<%= k %>"<%= q.sort === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
+    <noscript><button class="btn btn-ghost" type="submit">Show</button></noscript>
+  </form>
+  <div class="btn-row">
+    <% if (items.length) { %><a class="btn btn-ghost" href="/feedback/inbox/export?<%= qs({}) %>" download>Download <%= items.length %> as Excel</a><% } %>
+    <a class="btn btn-ghost" href="#import">Upload Excel</a>
+  </div>
   <% if (!items.length) { %><div class="card"><p class="muted small center">Nothing here.</p></div><% } %>
   <% items.forEach((f) => { %>
     <section class="card stack" id="f-<%= f._id %>">
-      <div class="row-h"><span class="tag<%= f.kind === 'bug' ? '' : ' lilac' %>"><%= f.kind === 'bug' ? 'Bug' : 'Idea' %></span><span class="row-meta"><%= f.byName %><%= f.home ? ' · ' + f.home : '' %> · <%= f.day %></span></div>
+      <div class="row-h"><span><span class="tag<%= f.kind === 'bug' ? '' : ' lilac' %>"><%= f.kind === 'bug' ? 'Bug' : 'Idea' %></span><% if (f.priority) { %> <span class="tag prio-<%= f.priority %>"><%= f.priorityName %></span><% } %><% if (f.theirName) { %> <span class="tag">Them: <%= f.theirName %></span><% } %></span><span class="row-meta"><%= f.byName %><%= f.home ? ' · ' + f.home : '' %> · <%= f.day %></span></div>
       <p class="pre-wrap"><%= f.text %></p>
+      <% if (f.shots && f.shots.length) { %><div class="shots"><% f.shots.forEach((s, n) => { %><a href="/feedback/<%= f._id %>/shots/<%= n %>" target="_blank" rel="noopener"><img class="file-thumb" src="/feedback/<%= f._id %>/shots/<%= n %>" alt="Screenshot <%= n + 1 %>" loading="lazy"></a><% }) %></div><% } %>
       <% if (f.page) { %><p class="row-meta">Page: <a href="<%= f.page %>"><%= f.page %></a></p><% } %>
       <% if (f.device) { %><p class="row-meta small">Device: <%= f.device %></p><% } %>
       <form class="stack" method="post" action="/feedback/<%= f._id %>">
-        <input type="hidden" name="back" value="<%= show ? '?status=' + show : '' %>">
-        <div class="field"><label for="st-<%= f._id %>">Status</label><select id="st-<%= f._id %>" name="status"><% Object.entries(STATUS).forEach(([k, label]) => { %><option value="<%= k %>"<%= f.status === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
-        <div class="field"><label for="re-<%= f._id %>">Reply (they’ll see it)</label><input id="re-<%= f._id %>" name="reply" type="text" maxlength="1000" value="<%= f.reply %>"></div>
-        <button class="btn btn-ghost" type="submit">Save</button>
+        <input type="hidden" name="back" value="<%= back %>">
+        <div class="fields">
+          <div class="field"><label for="st-<%= f._id %>">Status</label><select id="st-<%= f._id %>" name="status"><% Object.entries(STATUS).forEach(([k, label]) => { %><option value="<%= k %>"<%= f.status === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
+          <div class="field"><label for="pr-<%= f._id %>">Priority</label><select id="pr-<%= f._id %>" name="priority"><option value="">—</option><% Object.entries(PRIORITY).forEach(([k, label]) => { %><option value="<%= k %>"<%= f.priority === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
+        </div>
+        <div class="field"><label for="re-<%= f._id %>">Reply <span class="muted">(they’ll see it)</span></label><input id="re-<%= f._id %>" name="reply" type="text" maxlength="1000" value="<%= f.reply %>"></div>
+        <div class="field"><label for="no-<%= f._id %>">Notes <span class="muted">(only reviewers see these)</span></label><textarea id="no-<%= f._id %>" name="notes" rows="2" maxlength="2000"><%= f.notes %></textarea></div>
+        <div class="btn-row"><button class="btn btn-ghost" type="submit">Save</button>
+          <% if (f.status === 'archived') { %><button class="btn btn-ghost" type="submit" name="action" value="unarchive">Unarchive</button><% } else { %><button class="btn btn-ghost" type="submit" name="action" value="archive">Archive</button><% } %></div>
       </form>
     </section>
   <% }) %>
+  <form class="card stack" id="import" method="post" action="/feedback/inbox/import" enctype="multipart/form-data">
+    <h2>Upload Excel</h2>
+    <p class="hint">Upload a file downloaded from here after editing it. Rows are matched by ID; Status, Priority, Reply, and Notes are read. You’ll see every change before anything is saved.</p>
+    <input name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required aria-label="Excel file">
+    <button class="btn btn-primary" type="submit">Check the file</button>
+  </form>
 </main>
 <%- include('partials/bottom') %>

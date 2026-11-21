@@ -55,7 +55,7 @@ test('feedback', async (t) => {
   await withDb(app.uri, async () => assert.match((await Feedback.findById(id).lean()).device, /node|undici|\w/i));
 
   // Excel: follows the inbox filter; members can't.
-  assert.match((await owner('/feedback/inbox')).text, /href="\/feedback\/inbox\/export" download>Download 1 as Excel/);
+  assert.match((await owner('/feedback/inbox')).text, /href="\/feedback\/inbox\/export\?" download>Download 1 as Excel/);
   const fs = require('node:fs');
   const res = await owner('/feedback/inbox/export?status=done', { raw: true });
   assert.equal(res.status, 200);
@@ -64,4 +64,67 @@ test('feedback', async (t) => {
   assert.equal(res.buffer.subarray(0, 2).toString(), 'PK');
   if (process.env.XLSX_OUT) fs.writeFileSync(process.env.XLSX_OUT, res.buffer);
   assert.equal((await sam('/feedback/inbox/export')).status, 404);
+
+  // Sending with how much it matters and a screenshot (multipart).
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082', 'hex');
+  const fd = new FormData();
+  fd.append('kind', 'bug'); fd.append('text', 'Calendar shows the wrong day'); fd.append('theirPriority', 'blocking');
+  fd.append('shots', new Blob([png], { type: 'image/png' }), 'shot.png');
+  await sam('/feedback', { method: 'POST', formData: fd });
+  const cal = await withDb(app.uri, () => Feedback.findOne({ text: /wrong day/ }).lean());
+  assert.equal(cal.theirPriority, 'blocking');
+  assert.equal(cal.shots.length, 1);
+  assert.equal((await sam(`/feedback/${cal._id}/shots/0`, { raw: true })).status, 200, 'the sender sees it');
+  assert.equal((await katie(`/feedback/${cal._id}/shots/0`, { raw: true })).status, 200, 'their admin too');
+  assert.equal((await lee(`/feedback/${cal._id}/shots/0`, { raw: true })).status, 404, 'another household’s admin can’t');
+  // Too many screenshots are refused with a message.
+  const many = new FormData();
+  many.append('kind', 'bug'); many.append('text', 'four shots');
+  for (let i = 0; i < 4; i += 1) many.append('shots', new Blob([png], { type: 'image/png' }), `s${i}.png`);
+  assert.match((await sam('/feedback', { method: 'POST', formData: many })).text, /Up to 3 screenshots/);
+
+  // Priority, notes, sorting, filters, archive.
+  await katie(`/feedback/${cal._id}`, { method: 'POST', form: { status: 'planned', priority: 'urgent', notes: 'timezone bug', reply: '' } });
+  let inbox = await katie('/feedback/inbox?sort=priority');
+  assert.match(inbox.text, /prio-urgent">Urgent/);
+  assert.match(inbox.text, /Them: Blocking me/);
+  assert.match(inbox.text, /timezone bug/);
+  assert.doesNotMatch((await sam('/feedback')).text, /timezone bug/, 'notes stay private');
+  assert.doesNotMatch((await katie('/feedback/inbox?kind=idea')).text, /wrong day/);
+  assert.match((await katie(`/feedback/inbox?who=${cal.userId}`)).text, /wrong day/);
+  await katie(`/feedback/${cal._id}`, { method: 'POST', form: { action: 'archive' } });
+  assert.doesNotMatch((await katie('/feedback/inbox?status=all')).text, /wrong day/);
+  assert.match((await katie('/feedback/inbox?status=archived')).text, /wrong day/);
+  assert.match((await sam('/feedback')).text, /Closed/);
+  await katie(`/feedback/${cal._id}`, { method: 'POST', form: { action: 'unarchive' } });
+
+  // Excel round trip: download, edit (status, priority, reply, notes), upload, preview, apply.
+  const { readXlsx } = require('../lib/xlsx-read');
+  const { buildXlsx } = require('../lib/xlsx');
+  const dl = await katie('/feedback/inbox/export?status=all', { raw: true });
+  const sheet = readXlsx(dl.buffer)[0].rows;
+  const head = sheet[0];
+  assert.deepEqual(head.slice(0, 6), ['ID', 'Date', 'Type', 'Status', 'Priority', 'Their priority']);
+  const row = sheet.find((r) => r[6] === 'Calendar shows the wrong day');
+  row[head.indexOf('Status')] = 'done';
+  row[head.indexOf('Priority')] = '2 High';
+  row[head.indexOf('Reply')] = 'Fixed it';
+  const other = sheet.find((r) => r[6] === 'Pantry crashes when I scan');
+  if (other) other[head.indexOf('Priority')] = 'whenever';
+  const edited = buildXlsx({ sheetName: 'Feedback', columns: head.map((title) => ({ title })), rows: sheet.slice(1) });
+  const up = new FormData();
+  up.append('file', new Blob([edited]), 'edited.xlsx');
+  assert.match((await katie('/feedback/inbox/import', { method: 'POST', formData: up })).location, /\/feedback\/inbox\/import$/);
+  const preview = await katie('/feedback/inbox/import');
+  assert.match(preview.text, /1 to update/);
+  assert.match(preview.text, /Status:<\/strong> New → Done/);
+  assert.match(preview.text, /Priority:<\/strong> Urgent → High/);
+  assert.match(preview.text, /priority “whenever” not understood/);
+  await withDb(app.uri, async () => assert.equal((await Feedback.findById(cal._id).lean()).status, 'new', 'nothing saved before Apply'));
+  await katie('/feedback/inbox/import/apply', { method: 'POST', form: { action: 'apply' } });
+  await withDb(app.uri, async () => {
+    const after = await Feedback.findById(cal._id).lean();
+    assert.deepEqual([after.status, after.priority, after.reply], ['done', 'high', 'Fixed it']);
+  });
+  assert.equal((await sam('/feedback/inbox/import', { method: 'POST', formData: up })).status, 404);
 });
