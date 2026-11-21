@@ -1,7 +1,7 @@
 // One search across every section this person can see. Hidden Home info values are never
 // searched, and other people's "Only me" items never show up.
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePage } = require('../middleware/auth');
 const { visible } = require('../lib/changes');
 const { todayIn, dayLabel, shortDay } = require('../lib/dates');
 const { money } = require('../lib/bills');
@@ -13,7 +13,7 @@ const M = (name) => require(`../models/${name}`);
 const LIMIT = 8;
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-router.get('/search', requireAuth, async (req, res, next) => {
+router.get('/search', requireAuth, requirePage('search'), async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim().slice(0, 60);
     if (q.length < 2) return res.render('search', { active: 'search', q, groups: [], total: 0 });

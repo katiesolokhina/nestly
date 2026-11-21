@@ -68,7 +68,7 @@ router.get('/s/pantry', async (req, res, next) => {
       .filter((g) => g.items.length);
     const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
     res.render('pantry/list', {
-      active: 'pantry', groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(s.boughtAt.toISOString().slice(0, 10))].filter(Boolean).join(' · ') })),
+      active: 'pantry', groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
       lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {

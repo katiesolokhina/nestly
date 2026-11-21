@@ -3,7 +3,7 @@
   <div class="head">
     <div><a class="back-link" href="/s/lists">‹ Back</a><h1><%= list.title %></h1><p class="muted small"><%= T.label %><%= list.type === 'wishlist' && list.ownerName ? ' · ' + list.ownerName + '’s' : '' %><%= list.private ? ' · Only me' : '' %></p>
       <% if (list.type === 'packing' && list.date) { %><p class="sub"><%= tripText %></p><% } %></div>
-    <% if (canEdit('lists')) { %><a class="btn btn-ghost" href="/s/lists/<%= list._id %>/edit">Edit</a><% } %>
+    <% if (can('lists', 'edit', list)) { %><a class="btn btn-ghost" href="/s/lists/<%= list._id %>/edit">Edit</a><% } %>
   </div>
 
   <% if (list.type === 'note') { %>
@@ -20,7 +20,7 @@
     <% } %>
     <section class="card">
       <h2 class="small-h"><%= T.undone %> <span class="muted">· <%= open.length %></span></h2>
-      <% if (canEdit('lists')) { %>
+      <% if (can('lists', 'add')) { %>
         <form class="add" id="add" method="post" action="/s/lists/<%= list._id %>/items">
           <textarea name="text" rows="1" maxlength="8000" aria-label="<%= T.add %>" placeholder="<%= T.add %><%= ['packing', 'checklist'].includes(list.type) ? ': one, two, three' : '' %>" data-grow></textarea>
           <button class="btn btn-primary" type="submit">Add</button>
@@ -38,13 +38,13 @@
     <% if (done.length) { %>
       <section class="card">
         <div class="row-h"><h2 class="small-h"><%= T.done %> <span class="muted">· <%= done.length %></span></h2>
-          <% if (!showDone) { %><a class="link-btn" href="?done=1">Show</a><% } else if (canEdit('lists') && list.type !== 'packing') { %><form method="post" action="/s/lists/<%= list._id %>/clear-done" data-confirm="Remove the <%= done.length %> <%= T.done.toLowerCase() %> from the list?"><button class="link-btn" type="submit">Clear</button></form><% } %></div>
+          <% if (!showDone) { %><a class="link-btn" href="?done=1">Show</a><% } else if (can('lists', 'delete', list) && list.type !== 'packing') { %><form method="post" action="/s/lists/<%= list._id %>/clear-done" data-confirm="Remove the <%= done.length %> <%= T.done.toLowerCase() %> from the list?"><button class="link-btn" type="submit">Clear</button></form><% } %></div>
         <% if (showDone) { done.forEach((i) => { %><%- include('row', { i }) %><% }) } %>
       </section>
     <% } %>
   <% } %>
 
-  <% if (canEdit('lists')) { %>
+  <% if (can('lists', 'add') || can('lists', 'tick')) { %>
     <div class="btn-row wrap">
       <% if (list.type === 'packing') { %>
         <% if (done.length) { %><form method="post" action="/s/lists/<%= list._id %>/reset" data-confirm="Untick everything for the next trip?"><button class="btn btn-ghost" type="submit">Untick all</button></form><% } %>

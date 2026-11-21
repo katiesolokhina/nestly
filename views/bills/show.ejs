@@ -11,7 +11,7 @@
 
   <% if (bill.link && !bill.paid) { %><a class="btn btn-ghost btn-block" href="<%= bill.link %>" target="_blank" rel="noopener noreferrer">Pay online</a><% } %>
 
-  <% if (!bill.paid) { %>
+  <% if (!bill.paid && can('bills', 'pay')) { %>
     <form class="card" method="post" action="/s/bills/<%= bill._id %>/paid" enctype="multipart/form-data">
       <h2>Mark paid</h2>
       <div class="fields">

@@ -53,7 +53,7 @@ router.get('/s/shopping', async (req, res, next) => {
     const cur = currency(req.household);
     const store = household.stores.includes(req.query.store) ? req.query.store : '';
     const tag = household.tags.includes(req.query.tag) ? req.query.tag : '';
-    const shopping = req.query.mode === 'shop';
+    const shopping = req.query.mode === 'shop' && req.perms.can('shopping', 'shop');
     const selecting = !shopping && req.query.select === '1';
 
     const filter = { ...visible(user), clearedAt: null };

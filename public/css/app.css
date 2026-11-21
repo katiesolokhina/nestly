@@ -330,7 +330,7 @@ input[type="email"].info-value, input[type="tel"] { min-height: 44px; width: 100
 .card.menu-row, a.card.row { flex-direction: row; align-items: center; text-decoration: none; color: inherit; }
 .perm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; }
 .perm-name { font-size: 15px; font-weight: 600; min-width: 0; }
-.perm-seg { flex: 0 0 auto; width: 210px; }
+.perm-seg { flex: 0 1 auto; width: 270px; max-width: 72%; }
 .perm-seg .seg-item { min-height: 36px; font-size: 13px; cursor: pointer; }
 .perm-seg .seg-item:focus-within { outline: 2px solid var(--primary); outline-offset: 1px; }
 @media (max-width: 360px) { .perm-row { flex-direction: column; align-items: stretch; } .perm-seg { width: auto; } }
@@ -475,3 +475,8 @@ span.check { cursor: default; }
 .hint.block { display: block; font-weight: 400; margin-top: 2px; }
 .back-link { display: inline-block; font-size: 14px; font-weight: 600; color: var(--primary); text-decoration: none; margin-bottom: 2px; min-height: 32px; line-height: 32px; }
 .save-state { align-self: center; font-size: 13px; color: var(--muted); } .save-state.bad { color: var(--danger); }
+.perm-block { border-top: 1px solid var(--off); padding-top: 6px; }
+.perm-block:first-of-type { border-top: 0; }
+.perm-custom { margin: 4px 0 10px; padding: 6px 12px; border-radius: 12px; background: var(--off); display: grid; gap: 2px; }
+.perm-custom .field { margin-top: 4px; }
+.check-gap { flex: none; width: 44px; margin-left: -9px; }

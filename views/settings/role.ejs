@@ -5,22 +5,41 @@
     <div class="field"><label for="name">Role name</label><input id="name" name="name" type="text" maxlength="24" required value="<%= role.name %>"></div>
     <fieldset class="group">
       <legend>Sections</legend>
-      <p class="hint">Hidden: they don’t see it at all, or get its notifications. View: they can look but not change anything. Edit: add, change, and delete.</p>
+      <p class="hint">Hidden: they don’t see it or get its notifications. View: look only. Edit: everything. Custom: pick what they can do.</p>
       <% sections.forEach((s) => { const lvl = role.sections[s.key] || 'edit'; %>
-        <div class="perm-row">
-          <span class="perm-name"><%= s.label %></span>
-          <div class="seg perm-seg" role="radiogroup" aria-label="<%= s.label %>">
-            <% [['hidden', 'Hidden'], ['view', 'View'], ['edit', 'Edit']].forEach(([v, l]) => { %>
-              <label class="seg-item<%= lvl === v ? ' on' : '' %>"><input class="sr-only" type="radio" name="s_<%= s.key %>" value="<%= v %>"<%= lvl === v ? ' checked' : '' %>><%= l %></label>
-            <% }) %>
+        <div class="perm-block" data-perm="<%= s.key %>">
+          <div class="perm-row">
+            <span class="perm-name"><%= s.label %></span>
+            <div class="seg perm-seg" role="radiogroup" aria-label="<%= s.label %>">
+              <% [['hidden', 'Hidden'], ['view', 'View'], ['edit', 'Edit'], ...(s.actions.length ? [['custom', 'Custom']] : [])].forEach(([v, l]) => { %>
+                <label class="seg-item<%= lvl === v ? ' on' : '' %>"><input class="sr-only" type="radio" name="s_<%= s.key %>" value="<%= v %>"<%= lvl === v ? ' checked' : '' %>><%= l %></label>
+              <% }) %>
+            </div>
           </div>
+          <% if (s.actions.length) { %>
+            <div class="perm-custom" data-custom<%= lvl === 'custom' ? '' : ' hidden' %>>
+              <% s.actions.forEach(([a, label]) => { %><label class="check-row"><%= label %><input type="checkbox" name="c_<%= s.key %>_<%= a %>"<%= s.custom[a] ? ' checked' : '' %>></label><% }) %>
+              <% [['edit', 'Change things'], ['delete', 'Delete things']].forEach(([a, label]) => { %>
+                <div class="field"><label for="c_<%= s.key %>_<%= a %>"><%= label %></label><select id="c_<%= s.key %>_<%= a %>" name="c_<%= s.key %>_<%= a %>"><% SCOPES.forEach(([v, l]) => { %><option value="<%= v %>"<%= (s.custom[a] || 'none') === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
+              <% }) %>
+            </div>
+          <% } %>
         </div>
       <% }) %>
     </fieldset>
     <fieldset class="group">
+      <legend>Pages</legend>
+      <% Object.entries(PAGES).forEach(([k, l]) => { %><label class="check-row"><%= l %><input type="checkbox" name="p_<%= k %>"<%= role.pages[k] !== false ? ' checked' : '' %>></label><% }) %>
+    </fieldset>
+    <fieldset class="group">
+      <legend>On their Today page</legend>
+      <p class="hint">Cards they can have. They can still turn their own off in Customize.</p>
+      <% cards.forEach((w) => { %><label class="check-row"><%= w.name %><input type="checkbox" name="cards" value="<%= w.k %>"<%= role.todayHidden.includes(w.k) ? '' : ' checked' %>></label><% }) %>
+    </fieldset>
+    <fieldset class="group">
       <legend>Other permissions</legend>
       <% Object.entries(EXTRA).forEach(([k, l]) => { %><label class="check-row"><%= l %><input type="checkbox" name="<%= k %>"<%= role[k] ? ' checked' : '' %>></label><% }) %>
-      <p class="hint">Only admins can manage people, roles, and which sections are on.</p>
+      <p class="hint">Only admins can manage people, roles, which sections are on, and households (delete, copy).</p>
     </fieldset>
     <button class="btn btn-primary btn-block" type="submit">Save <%= role.name %></button>
   </form>

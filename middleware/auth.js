@@ -6,6 +6,7 @@ const { homesOf } = require('../lib/members');
 const { sectionName } = require('../lib/prefs');
 const { permsFor, roleName, roleOf } = require('../lib/perms');
 const { SECTIONS } = require('../lib/sections');
+const { classify, check } = require('../lib/actions');
 const { bottomBar } = require('../lib/sections');
 
 // Loads the signed-in user and their household, or sends them to /login.
@@ -47,6 +48,8 @@ async function requireAuth(req, res, next) {
       viewing = { role: viewAs.role, name: roleName(household, viewAs.role) };
       member.role = viewAs.role;
       member.unmarkModified('role'); // saving pins or the Today layout must never save this role
+      // The Households page, too, sees this household with the viewed role.
+      homes.forEach((h) => { if (String(h.householdId) === String(household._id)) h.role = viewAs.role; });
     }
     req.user = user;
     req.household = household;
@@ -67,6 +70,8 @@ async function requireAuth(req, res, next) {
     res.locals.perms = perms;
     res.locals.sees = req.sees;
     res.locals.canEdit = (key) => perms.level(key) === 'edit';
+    res.locals.can = (key, action, doc) => perms.can(key, action, doc);
+    res.locals.canPage = (key) => perms.page(key);
     res.locals.roleLabel = roleName(household, member.role);
     res.locals.homes = homes;
     res.locals.secName = (key) => sectionName(household, key);
@@ -105,8 +110,22 @@ const requireSection = (key) => (req, res, next) => {
     req.session.flash = `Your role can look at ${sectionName(req.household, key)} but not change it.`;
     return res.redirect(`/s/${key}`);
   }
+  // Custom: what this change is (add, check off, delete someone else's…) and whether it's allowed.
+  if (req.perms && req.perms.mode(key) === 'custom' && req.method === 'POST') {
+    const what = classify(key, req.method, req.baseUrl + req.path, req.body || {});
+    return check(key, req.perms.custom(key), req.user, what).then((cant) => {
+      if (!cant) return next();
+      const msg = `Your role can’t ${cant} in ${sectionName(req.household, key)}.`;
+      if (req.get('X-Requested-With') === 'fetch' || req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: msg });
+      req.session.flash = msg;
+      return res.redirect(303, `/s/${key}`);
+    }, next);
+  }
   next();
 };
+
+// An app page a role can be kept off (Spending, Search...). Use after requireAuth.
+const requirePage = (key) => (req, res, next) => (req.perms && req.perms.page(key) ? next() : res.status(404).send('Not found'));
 
 // A permission from someone's role (Admin has them all): invite, settings, activity, private.
 const requirePerm = (name) => (req, res, next) => (req.perms && req.perms[name] ? next() : res.status(404).send('Not found'));
@@ -120,4 +139,4 @@ function sameOrigin(req, res, next) {
   return res.status(403).send('Forbidden');
 }
 
-module.exports = { requireAuth, requireAdmin, requireSection, requirePerm, sameOrigin };
+module.exports = { requireAuth, requireAdmin, requireSection, requirePerm, requirePage, sameOrigin };

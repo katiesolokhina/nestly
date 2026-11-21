@@ -40,7 +40,12 @@ const householdSchema = new mongoose.Schema(
         _id: false,
         key: { type: String, required: true },
         name: { type: String, trim: true, maxlength: 24, required: true },
-        sections: Object.fromEntries(SECTIONS.map((s) => [s.key, { type: String, enum: ['hidden', 'view', 'edit'], default: 'edit' }])),
+        sections: Object.fromEntries(SECTIONS.map((s) => [s.key, { type: String, enum: ['hidden', 'view', 'edit', 'custom'], default: 'edit' }])),
+        // For sections set to custom: { shopping: { add: true, check: false, edit: 'own', ... } } (lib/actions)
+        custom: { type: mongoose.Schema.Types.Mixed, default: {} },
+        // App pages this role can't open (lib/perms PAGES): { spending: false }
+        pages: { type: mongoose.Schema.Types.Mixed, default: {} },
+        todayHidden: { type: [String], default: [] }, // Today cards this role doesn't get
         invite: { type: Boolean, default: false },
         settings: { type: Boolean, default: false },
         activity: { type: Boolean, default: true },

@@ -28,7 +28,7 @@
     <% rewards.forEach((r) => { %>
       <div class="row">
         <div class="row-body"><span class="row-title"><%= r.name %></span><span class="row-meta"><%= r.cost %> points</span></div>
-        <% if (me) { %><form method="post" action="/s/chores/rewards/<%= r._id %>/claim"><button class="btn btn-ghost" type="submit"<%= me.points < r.cost ? ' disabled' : '' %>>Get it<span class="sr-only"> (<%= r.name %>)</span></button></form><% } %>
+        <% if (me && can('chores', 'rewards')) { %><form method="post" action="/s/chores/rewards/<%= r._id %>/claim"><button class="btn btn-ghost" type="submit"<%= me.points < r.cost ? ' disabled' : '' %>>Get it<span class="sr-only"> (<%= r.name %>)</span></button></form><% } %>
       </div>
     <% }) %>
     <% if (canDecide) { %><a class="link-btn" href="/settings/s/chores#rewards">Edit rewards and points</a><% } %>

@@ -6,7 +6,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePage } = require('../middleware/auth');
 const Feedback = require('../models/Feedback');
 const Household = require('../models/Household');
 const Upload = require('../models/Upload');
@@ -80,7 +80,7 @@ const sorter = (sort) => (a, b) => {
 const queryString = (o) => new URLSearchParams(Object.entries(o).filter(([k, v]) => v && !(k === 'status' && v === 'open') && !(k === 'sort' && v === 'new'))).toString();
 
 // ---------- Sending ----------
-router.get('/feedback', async (req, res, next) => {
+router.get('/feedback', requirePage('feedback'), async (req, res, next) => {
   try {
     const mine = (await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean()).map((f) => view(f, req.user.timezone));
     const fresh = canReview(req) ? await Feedback.countDocuments({ ...scopeFor(req), status: 'new' }) : 0;
@@ -90,7 +90,7 @@ router.get('/feedback', async (req, res, next) => {
   }
 });
 
-router.post('/feedback', sendLimit, parsed(shotParser), async (req, res, next) => {
+router.post('/feedback', requirePage('feedback'), sendLimit, parsed(shotParser), async (req, res, next) => {
   try {
     const b = req.body || {};
     const text = String(b.text || '').trim().slice(0, 2000);

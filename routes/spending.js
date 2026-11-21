@@ -1,6 +1,6 @@
 // Spending: where the money went, from shopping prices and paid bills.
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePage } = require('../middleware/auth');
 const { visible } = require('../lib/changes');
 const { spending } = require('../lib/spending');
 const { money } = require('../lib/bills');
@@ -9,7 +9,7 @@ const { todayIn, monthLabel, shiftMonth } = require('../lib/dates');
 
 const router = express.Router();
 
-router.get('/spending', requireAuth, async (req, res, next) => {
+router.get('/spending', requireAuth, requirePage('spending'), async (req, res, next) => {
   try {
     const shopping = req.sees('shopping');
     const bills = req.sees('bills');

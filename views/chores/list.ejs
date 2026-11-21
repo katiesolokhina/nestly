@@ -22,7 +22,7 @@
         <% g.items.forEach((c) => { %>
           <div class="swipe" data-swipe>
           <div class="row">
-            <% if (canEdit('chores')) { %><form method="post" action="/s/chores/<%= c._id %>/done" data-quick="bought"><input type="hidden" name="due" value="<%= c.due %>"><input type="hidden" name="query" value="<%= query %>"><button class="check" type="submit" aria-label="Mark <%= c.title %> done"><i></i></button></form><% } %>
+            <% if (can('chores', 'done')) { %><form method="post" action="/s/chores/<%= c._id %>/done" data-quick="bought"><input type="hidden" name="due" value="<%= c.due %>"><input type="hidden" name="query" value="<%= query %>"><button class="check" type="submit" aria-label="Mark <%= c.title %> done"><i></i></button></form><% } %>
             <a class="row-body row-link" href="/s/chores/<%= c._id %>/edit"><span class="row-title"><%= c.title %></span><span class="row-meta<%= c.late ? ' late' : '' %>"><%= c.meta %></span></a>
             <% if (c.pts) { %><span class="tag lilac"><%= c.pts %> pt<%= c.pts === 1 ? '' : 's' %></span><% } %>
           </div>

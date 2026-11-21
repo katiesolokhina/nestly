@@ -12,6 +12,7 @@
       </div>
     <% }) %>
   </div>
+  <% if (canPage('households')) { %>
   <form class="card" method="post" action="/households">
     <h2>Start a new household</h2>
     <p class="row-meta">You’ll be its admin, and can invite people from Settings. Each household has its own lists, bills, and sections.</p>
@@ -19,6 +20,7 @@
     <button class="btn btn-primary btn-block" type="submit">Start household</button>
     <% if (member.role === 'admin') { %><p class="hint center">Or <a href="/households/copy">copy <%= household.name %></a>, choosing what comes along.</p><% } %>
   </form>
+  <% } %>
   <% const leavable = rows.filter((h) => h.canLeave); if (rows.length > 1) { %>
     <section class="card">
       <h2>Leave or delete a household</h2>

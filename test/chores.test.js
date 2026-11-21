@@ -137,7 +137,8 @@ test('chores', async (t) => {
   page = await katie('/s/chores/points');
   assert.match(page.text, /Waiting for a yes/);
   const claimId = await withDb(app.uri, async () => String((await RewardClaim.findOne().lean())._id));
-  assert.equal((await mia(`/s/chores/claims/${claimId}/give`, { method: 'POST' })).status, 404, 'a Child can’t approve');
+  assert.ok([303, 404].includes((await mia(`/s/chores/claims/${claimId}/give`, { method: 'POST' })).status), 'a Child can’t approve');
+  await withDb(app.uri, async () => assert.equal((await RewardClaim.findById(claimId).lean()).status, 'asked'));
   await katie(`/s/chores/claims/${claimId}/decline`, { method: 'POST' });
   assert.match((await mia('/s/chores/points')).text, /You have 6 points/);
   // Remove a reward.

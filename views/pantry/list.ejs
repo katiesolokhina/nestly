@@ -39,11 +39,11 @@
             <div class="row pantry-row status-<%= i.status %>">
               <% if (i.photoId) { %><a class="pantry-thumb" href="/files/<%= i.photoId %>/view?back=/s/pantry"><img src="/files/<%= i.photoId %>" alt="Photo of <%= i.name %>" loading="lazy"></a><% } %>
               <a class="row-body row-link" href="/s/pantry/<%= i._id %>/edit"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %></a>
-              <% if (i.count > 1 && canEdit('pantry')) { %><form method="post" action="/s/pantry/<%= i._id %>/use"><input type="hidden" name="query" value="<%= query %>"><button class="mini use-one" type="submit" aria-label="Used one <%= i.name %> (<%= i.count %> left)">−1</button></form><% } %>
-              <form class="status-seg" method="post" action="/s/pantry/<%= i._id %>/status" aria-label="<%= i.name %>: <%= STATUS[i.status] %>">
+              <% if (i.count > 1 && can('pantry', 'stock')) { %><form method="post" action="/s/pantry/<%= i._id %>/use"><input type="hidden" name="query" value="<%= query %>"><button class="mini use-one" type="submit" aria-label="Used one <%= i.name %> (<%= i.count %> left)">−1</button></form><% } %>
+              <% if (!can('pantry', 'stock')) { %><span class="tag"><%= STATUS[i.status] %></span><% } else { %><form class="status-seg" method="post" action="/s/pantry/<%= i._id %>/status" aria-label="<%= i.name %>: <%= STATUS[i.status] %>">
                 <input type="hidden" name="query" value="<%= query %>">
                 <% Object.entries(STATUS).forEach(([v, l]) => { %><button type="submit" name="status" value="<%= v %>" class="seg-<%= v %><%= i.status === v ? ' on' : '' %>" aria-pressed="<%= i.status === v %>"><%= l %><span class="sr-only"> <%= i.name %></span></button><% }) %>
-              </form>
+              </form><% } %>
             </div>
           </div>
         <% }) %>
