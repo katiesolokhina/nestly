@@ -1,0 +1,17 @@
+<%- include('partials/top', { title: 'Copy household' }) %>
+<main class="stack">
+  <%- include('partials/settings-head', { heading: 'Copy ' + household.name, sub: 'Into a new household, with what you choose.', back: '/households' }) %>
+  <form class="card stack" method="post" action="/households/copy">
+    <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
+    <div class="field"><label for="name">New household’s name</label><input id="name" name="name" type="text" maxlength="60" required value="<%= name %>"></div>
+    <fieldset class="group">
+      <legend>What to copy</legend>
+      <% parts.forEach((p) => { %>
+        <label class="check-row"><span><%= p.label %><% if (p.hint) { %><span class="hint block"><%= p.hint %></span><% } %></span><input type="checkbox" name="parts" value="<%= p.key %>"<%= picked.includes(p.key) ? ' checked' : '' %>></label>
+      <% }) %>
+    </fieldset>
+    <p class="hint">Only you will be in the new household, as its admin. Other people’s “Only me” items stay here; yours come along. Chores become “Anyone”, events are for everyone, and bills aren’t split, since the others aren’t there yet. Nothing here changes.</p>
+    <button class="btn btn-primary btn-block" type="submit">Make the copy</button>
+  </form>
+</main>
+<%- include('partials/bottom') %>

@@ -11,6 +11,20 @@ const { logActivity } = require('../lib/activity');
 const router = express.Router();
 router.use('/settings/roles', requireAuth, requireAdmin);
 
+// View as role: act as that role here until Exit (admins only; anything changed meanwhile is real).
+router.post('/view-as', requireAuth, (req, res) => {
+  const role = String((req.body || {}).role || '');
+  if (req.member.role !== 'admin' || req.viewing || !roleOf(req.household, role)) return res.status(404).send('Not found');
+  req.session.viewAs = { householdId: String(req.household._id), role };
+  req.session.flash = `You’re seeing Nestly as ${roleOf(req.household, role).name}. Changes you make are real. Tap Exit at the top to go back.`;
+  res.redirect('/');
+});
+router.post('/view-as/exit', requireAuth, (req, res) => {
+  delete req.session.viewAs;
+  req.session.flash = 'Back to Admin.';
+  res.redirect('/settings/roles');
+});
+
 const roleList = (h) => rolesOf(h).map((r) => (typeof r.toObject === 'function' ? r.toObject() : { ...r, sections: { ...r.sections } }));
 
 router.get('/settings/roles', async (req, res, next) => {

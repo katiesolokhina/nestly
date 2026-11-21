@@ -467,3 +467,7 @@ span.check { cursor: default; }
 .month-chip span { display: grid; place-items: center; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; font-weight: 600; }
 .month-chip input:checked + span { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 .month-chip input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* View as role */
+.viewing-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--primary); color: var(--on-primary); font-size: 14px; }
+.viewing-bar .btn { background: var(--on-primary); color: var(--primary); min-height: 36px; padding: 0 14px; }
+.hint.block { display: block; font-weight: 400; margin-top: 2px; }

@@ -1,5 +1,6 @@
 // Switching between households, starting a new one, and leaving one.
 const express = require('express');
+const { PARTS, copyHousehold } = require('../lib/copy-household');
 const mongoose = require('mongoose');
 const { requireAuth } = require('../middleware/auth');
 const Household = require('../models/Household');
@@ -112,6 +113,36 @@ router.post('/households', requireAuth, async (req, res, next) => {
     await switchTo(req, home._id);
     await logActivity({ ...req.user.toObject(), householdId: home._id }, { section: 'Settings', text: `${req.user.name} started ${name}` });
     res.redirect('/setup');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Copy this household into a new one, choosing what comes along (admins of this one).
+router.get('/households/copy', requireAuth, (req, res) => {
+  if (req.member.role !== 'admin') return res.status(404).send('Not found');
+  const parts = PARTS.filter((p) => !p.feature || req.household.features[p.feature] !== false);
+  res.render('household-copy', { active: 'settings', parts, error: null, name: `${req.household.name} (copy)`.slice(0, 60), picked: parts.filter((p) => p.on).map((p) => p.key) });
+});
+
+router.post('/households/copy', requireAuth, async (req, res, next) => {
+  try {
+    if (req.member.role !== 'admin') return res.status(404).send('Not found');
+    const b = req.body || {};
+    const allowed = PARTS.filter((p) => !p.feature || req.household.features[p.feature] !== false);
+    const picked = [...new Set([].concat(b.parts || []).map(String))].filter((k) => allowed.some((p) => p.key === k));
+    const name = String(b.name || '').trim().slice(0, 60);
+    const again = (error) => res.status(422).render('household-copy', { active: 'settings', parts: allowed, error, name, picked });
+    if (!name) return again('Give the new household a name.');
+    if (res.locals.homes.length >= 10) return again('You can be in up to 10 households.');
+    const from = req.household;
+    const { home, counts } = await copyHousehold(req.user, from, { name, parts: picked });
+    await switchTo(req, home._id);
+    const total = Object.values(counts).reduce((n, c) => n + c, 0);
+    await logActivity({ ...req.user.toObject(), householdId: home._id }, { section: 'Settings', text: `${req.user.name} made ${name} as a copy of ${from.name}${total ? ` (${total} items)` : ''}` });
+    await logActivity(req.user, { section: 'Settings', text: `${req.user.name} copied ${from.name} into a new household, ${name}` });
+    req.session.flash = `${name} is ready${total ? ` with ${total} things copied` : ''}. You’re its only member; invite people from Settings → People.`;
+    res.redirect(picked.includes('settings') ? '/' : '/setup');
   } catch (err) {
     next(err);
   }

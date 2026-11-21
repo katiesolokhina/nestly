@@ -20,6 +20,11 @@
     <button class="btn btn-primary btn-block" type="submit">Add role</button>
     <p class="hint">It starts with the same permissions as <%= roles[0] ? roles[0].name : 'Member' %>, and you can change them next.</p>
   </form>
+  <form class="card stack" method="post" action="/view-as">
+    <h2>View as a role</h2>
+    <p class="hint">See and use Nestly exactly as that role can, to check what they can open and change. Anything you change while viewing is real. Exit from the bar at the top.</p>
+    <div class="add"><select name="role" aria-label="Role"><% roles.forEach((r) => { %><option value="<%= r.key %>"><%= r.name %></option><% }) %></select><button class="btn btn-ghost" type="submit">View as</button></div>
+  </form>
   <p class="hint">Give someone a role from People, then Manage. Invites can also choose the role someone joins with.</p>
 </main>
 <%- include('../partials/bottom') %>

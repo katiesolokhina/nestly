@@ -4,7 +4,7 @@ const Activity = require('../models/Activity');
 const Membership = require('../models/Membership');
 const { homesOf } = require('../lib/members');
 const { sectionName } = require('../lib/prefs');
-const { permsFor, roleName } = require('../lib/perms');
+const { permsFor, roleName, roleOf } = require('../lib/perms');
 const { SECTIONS } = require('../lib/sections');
 const { bottomBar } = require('../lib/sections');
 
@@ -39,9 +39,20 @@ async function requireAuth(req, res, next) {
       user.householdId = household._id;
       await User.updateOne({ _id: user._id }, { $set: { householdId: household._id } });
     }
+    // "View as role": an admin acting as another role in this household, to see (and do) exactly
+    // what that role can. Only for admins; the real role comes back with Exit.
+    const viewAs = req.session.viewAs;
+    let viewing = null;
+    if (viewAs && member.role === 'admin' && String(viewAs.householdId) === String(household._id) && viewAs.role !== 'admin' && roleOf(household, viewAs.role)) {
+      viewing = { role: viewAs.role, name: roleName(household, viewAs.role) };
+      member.role = viewAs.role;
+      member.unmarkModified('role'); // saving pins or the Today layout must never save this role
+    }
     req.user = user;
     req.household = household;
     req.member = member;
+    req.viewing = viewing;
+    res.locals.viewing = viewing;
     // What this person's role lets them do here. Pages see the household with sections
     // they can't see turned off, so menus, Today, and links leave them out.
     const perms = permsFor(household, member);
