@@ -68,5 +68,8 @@ test('fixes', async (t) => {
   await katie('/s/pantry/add', { method: 'POST', form: { name: 'Eggs', count: '12', bought: '2020-01-05' } });
   await withDb(app.uri, async () => assert.equal((await PantryItem.findOne({ key: 'eggs' }).lean()).batches[0].bought, '2020-01-05'));
   const eggs = await withDb(app.uri, async () => String((await PantryItem.findOne({ key: 'eggs' }))._id));
-  assert.match((await katie(`/s/pantry/${eggs}/edit`)).text, /Bought Jan 5, 2020/);
+  assert.match((await katie(`/s/pantry/${eggs}/edit`)).text, /name="bBought" type="date" value="2020-01-05"/);
+  // The bought date can be changed or cleared on the item.
+  await katie(`/s/pantry/${eggs}`, { method: 'POST', form: [['name', 'Eggs'], ['status', 'have'], ['spot', 'Pantry'], ['bCount', '12'], ['bExpires', ''], ['bBought', ''], ['bCount', ''], ['bExpires', ''], ['bBought', today]] });
+  await withDb(app.uri, async () => assert.deepEqual((await PantryItem.findById(eggs).lean()).batches.map((b) => [b.count, b.bought]), [[12, '']]));
 });

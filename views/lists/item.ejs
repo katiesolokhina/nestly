@@ -31,11 +31,8 @@
         <div class="field"><label for="kind">Movie or show</label><select id="kind" name="kind"><option value="">—</option><option value="movie"<%= item.kind === 'movie' ? ' selected' : '' %>>Movie</option><option value="show"<%= item.kind === 'show' ? ' selected' : '' %>>Show</option></select></div>
         <div class="field"><label for="where">Where to watch</label><select id="where" name="where"><option value="">—</option><% const svc = household.watchServices || []; [...svc, ...(item.where && !svc.includes(item.where) ? [item.where] : [])].forEach((s) => { %><option<%= item.where === s ? ' selected' : '' %>><%= s %></option><% }) %></select></div>
       </div>
-      <div class="fields">
-        <div class="field"><label for="whereOther">Or somewhere else</label><input id="whereOther" name="whereOther" type="text" maxlength="60" placeholder="Type a service"></div>
-        <div class="field"><label for="release">Release date</label><input id="release" name="release" type="date" value="<%= item.release %>"></div>
-      </div>
-      <p class="hint">Edit the list of services in Settings → <%= secName('lists') %>.</p>
+      <div class="field"><label for="release">Release date</label><input id="release" name="release" type="date" value="<%= item.release %>"></div>
+      <p class="hint">Add or change services in Settings → <%= secName('lists') %>.</p>
       <fieldset class="group"><legend>Who wants to watch it</legend>
         <% members.forEach((m) => { %><label class="check-row"><%= m.name %><input type="checkbox" name="wantIds" value="<%= m._id %>"<%= (item.wantIds || []).some((id) => String(id) === String(m._id)) ? ' checked' : '' %>></label><% }) %>
       </fieldset>

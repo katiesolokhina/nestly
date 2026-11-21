@@ -34,7 +34,9 @@ const listOf = (v) => String(v || '').split(',').map((s) => s.trim().toLowerCase
 const isOwner = (user) => listOf(process.env.OWNER_EMAILS).includes(String(user.email || '').toLowerCase());
 const canReview = (req) => isOwner(req.user) || Boolean(req.member && req.member.role === 'admin');
 const scopeFor = (req) => (isOwner(req.user) ? {} : { householdId: req.user.householdId });
-const view = (f) => ({ ...f, day: shortDay(f.createdAt.toISOString().slice(0, 10)), statusName: STATUS[f.status], kindName: KINDS[f.kind], priorityName: PRIORITY[f.priority] || '', theirName: THEIRS[f.theirPriority] || '' });
+// The day it was sent, in the reader's time zone (not UTC, which runs ahead in the evening).
+const localDay = (d, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'America/Chicago' }).format(d);
+const view = (f, tz) => ({ ...f, day: shortDay(localDay(f.createdAt, tz)), statusName: STATUS[f.status], kindName: KINDS[f.kind], priorityName: PRIORITY[f.priority] || '', theirName: THEIRS[f.theirPriority] || '' });
 // Only paths within Nestly are kept as "where it happened".
 const pathOf = (v) => { const s = String(v || ''); return /^\/[\w\-/?=&%.#]*$/.test(s) ? s.slice(0, 300) : ''; };
 
@@ -80,7 +82,7 @@ const queryString = (o) => new URLSearchParams(Object.entries(o).filter(([k, v])
 // ---------- Sending ----------
 router.get('/feedback', async (req, res, next) => {
   try {
-    const mine = (await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean()).map(view);
+    const mine = (await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean()).map((f) => view(f, req.user.timezone));
     const fresh = canReview(req) ? await Feedback.countDocuments({ ...scopeFor(req), status: 'new' }) : 0;
     res.render('feedback', { active: 'settings', mine, KINDS, THEIRS, MAX_SHOTS, kind: req.query.kind === 'idea' ? 'idea' : 'bug', from: pathOf(req.query.from), canReview: canReview(req), fresh, error: null, text: '' });
   } catch (err) {
@@ -94,7 +96,7 @@ router.post('/feedback', sendLimit, parsed(shotParser), async (req, res, next) =
     const text = String(b.text || '').trim().slice(0, 2000);
     const kind = b.kind === 'idea' ? 'idea' : 'bug';
     const again = async (error) => {
-      const mine = (await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean()).map(view);
+      const mine = (await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean()).map((f) => view(f, req.user.timezone));
       return res.status(422).render('feedback', { active: 'settings', mine, KINDS, THEIRS, MAX_SHOTS, kind, from: pathOf(b.page), canReview: canReview(req), fresh: 0, error, text });
     };
     if (req.uploadError) return again(req.uploadError);
@@ -151,7 +153,7 @@ router.get('/feedback/inbox', async (req, res, next) => {
   try {
     if (!canReview(req)) return res.status(404).send('Not found');
     const q = inboxQuery(req);
-    const items = (await Feedback.find(q.filter).limit(1000).lean()).sort(sorter(q.sort)).slice(0, 300).map(view);
+    const items = (await Feedback.find(q.filter).limit(1000).lean()).sort(sorter(q.sort)).slice(0, 300).map((f) => view(f, req.user.timezone));
     const scope = scopeFor(req);
     // Who has sent anything (for the person filter), and households (for the owner).
     const senders = await Feedback.aggregate([{ $match: scope }, { $group: { _id: '$userId', name: { $last: '$byName' } } }, { $sort: { name: 1 } }]);
@@ -295,6 +297,23 @@ router.post('/feedback/inbox/import/apply', async (req, res, next) => {
   }
 });
 
+// Delete for good (duplicates, mistakes), with its screenshots.
+router.post('/feedback/:id/delete', async (req, res, next) => {
+  try {
+    if (!canReview(req) || !mongoose.isValidObjectId(req.params.id)) return res.status(404).send('Not found');
+    const f = await Feedback.findOne({ _id: req.params.id, ...scopeFor(req) });
+    if (!f) return res.status(404).send('Not found');
+    if ((f.shots || []).length) await deleteUploads({ _id: { $in: f.shots } });
+    await f.deleteOne();
+    if (req.get('X-Requested-With') === 'fetch') return res.json({ ok: true, gone: true });
+    req.session.flash = 'Deleted.';
+    const back = typeof (req.body || {}).back === 'string' && /^[\w=&%.-]*$/.test(req.body.back) ? req.body.back : '';
+    res.redirect(`/feedback/inbox${back ? `?${back}` : ''}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- One item: status, priority, reply, notes; archive ----------
 router.post('/feedback/:id', async (req, res, next) => {
   try {
@@ -315,6 +334,8 @@ router.post('/feedback/:id', async (req, res, next) => {
     if (f.status !== before && f.status !== 'archived' && String(f.userId) !== String(req.user._id)) {
       sendToUser(f.userId, { title: `Your ${f.kind === 'idea' ? 'idea' : 'report'}: ${STATUS[f.status]}`, body: f.reply || f.text.slice(0, 120), url: '/feedback', tag: `feedback-${f._id}` }).catch(() => {});
     }
+    // Autosave from the inbox (one field at a time, no page reload).
+    if (req.get('X-Requested-With') === 'fetch') return res.json({ ok: true, status: f.status, statusName: STATUS[f.status], priority: f.priority, priorityName: PRIORITY[f.priority] || '' });
     req.session.flash = b.action === 'archive' ? 'Archived.' : b.action === 'unarchive' ? 'Back in the inbox.' : 'Saved.';
     const back = typeof b.back === 'string' && /^[\w=&%.-]*$/.test(b.back) ? b.back : '';
     res.redirect(`/feedback/inbox${back ? `?${back}` : ''}${b.action === 'archive' ? '' : `#f-${f._id}`}`);

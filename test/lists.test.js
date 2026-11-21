@@ -150,10 +150,10 @@ test('lists', async (t) => {
   await katie('/settings/lists/watchServices', { method: 'POST', form: { action: 'add', name: 'Crunchyroll' } });
   assert.match((await katie('/settings/s/lists')).text, /Where to watch/);
   await katie(`/s/lists/${shows}/items/${l.items[0]._id}`, { method: 'POST', form: { text: 'Severance', kind: 'show', where: 'Apple TV+', release: addDays(today, 30) } });
-  await katie(`/s/lists/${shows}/items/${l.items[1]._id}`, { method: 'POST', form: { text: 'The Bear', kind: 'show', where: '', whereOther: 'Hulu Live', release: addDays(today, -100) } });
+  await katie(`/s/lists/${shows}/items/${l.items[1]._id}`, { method: 'POST', form: { text: 'The Bear', kind: 'show', where: 'Crunchyroll', release: addDays(today, -100) } });
   page = await katie(`/s/lists/${shows}`);
   assert.match(page.text, /Show · Apple TV\+ · Out /);
-  assert.match(page.text, /Hulu Live · Released /);
+  assert.match(page.text, /Crunchyroll · Released /);
   await katie(`/s/lists/${shows}/sort`, { method: 'POST', form: { sort: 'release' } });
   page = await katie(`/s/lists/${shows}`);
   assert.ok(page.text.indexOf('The Bear') < page.text.indexOf('Severance'));

@@ -363,7 +363,7 @@ router.post('/s/lists/:id/items/:itemId', async (req, res, next) => {
     }
     if (list.type === 'watch') {
       values.kind = ['movie', 'show'].includes(b.kind) ? b.kind : '';
-      values.where = str(b.whereOther, 60) || str(b.where, 60);
+      values.where = str(b.where, 60);
       values.release = isDate(b.release) ? b.release : '';
       const ids = new Set([].concat(b.wantIds || []).map(String));
       values.wantIds = (await householdMembers(req.user.householdId)).filter((m) => ids.has(String(m._id))).map((m) => m._id);

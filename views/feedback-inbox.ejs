@@ -1,4 +1,4 @@
-<%- include('partials/top', { title: 'Feedback inbox', scripts: ['chip-scroll', 'auto-submit', 'confirm'] }) %>
+<%- include('partials/top', { title: 'Feedback inbox', scripts: ['chip-scroll', 'auto-submit', 'confirm', 'autosave'] }) %>
 <main class="stack">
   <%- include('partials/settings-head', { heading: 'Feedback inbox', sub: owner ? 'From every household.' : 'From ' + household.name + '.', back: '/feedback' }) %>
   <nav class="chips chips-scroll" aria-label="Show" data-chip-scroll>
@@ -19,12 +19,12 @@
   <% if (!items.length) { %><div class="card"><p class="muted small center">Nothing here.</p></div><% } %>
   <% items.forEach((f) => { %>
     <section class="card stack" id="f-<%= f._id %>">
-      <div class="row-h"><span><span class="tag<%= f.kind === 'bug' ? '' : ' lilac' %>"><%= f.kind === 'bug' ? 'Bug' : 'Idea' %></span><% if (f.priority) { %> <span class="tag prio-<%= f.priority %>"><%= f.priorityName %></span><% } %><% if (f.theirName) { %> <span class="tag">Them: <%= f.theirName %></span><% } %></span><span class="row-meta"><%= f.byName %><%= f.home ? ' · ' + f.home : '' %> · <%= f.day %></span></div>
+      <div class="row-h"><span><span class="tag<%= f.kind === 'bug' ? '' : ' lilac' %>"><%= f.kind === 'bug' ? 'Bug' : 'Idea' %></span> <span class="tag prio-<%= f.priority %>" data-prio-tag<%= f.priority ? '' : ' hidden' %>><%= f.priorityName %></span><% if (f.theirName) { %> <span class="tag">Them: <%= f.theirName %></span><% } %></span><span class="row-meta"><%= f.byName %><%= f.home ? ' · ' + f.home : '' %> · <%= f.day %></span></div>
       <p class="pre-wrap"><%= f.text %></p>
       <% if (f.shots && f.shots.length) { %><div class="shots"><% f.shots.forEach((s, n) => { %><a href="/feedback/<%= f._id %>/shots/<%= n %>" target="_blank" rel="noopener"><img class="file-thumb" src="/feedback/<%= f._id %>/shots/<%= n %>" alt="Screenshot <%= n + 1 %>" loading="lazy"></a><% }) %></div><% } %>
       <% if (f.page) { %><p class="row-meta">Page: <a href="<%= f.page %>"><%= f.page %></a></p><% } %>
       <% if (f.device) { %><p class="row-meta small">Device: <%= f.device %></p><% } %>
-      <form class="stack" method="post" action="/feedback/<%= f._id %>">
+      <form class="stack" method="post" action="/feedback/<%= f._id %>" data-autosave data-no-lock>
         <input type="hidden" name="back" value="<%= back %>">
         <div class="fields">
           <div class="field"><label for="st-<%= f._id %>">Status</label><select id="st-<%= f._id %>" name="status"><% Object.entries(STATUS).forEach(([k, label]) => { %><option value="<%= k %>"<%= f.status === k ? ' selected' : '' %>><%= label %></option><% }) %></select></div>
@@ -32,8 +32,13 @@
         </div>
         <div class="field"><label for="re-<%= f._id %>">Reply <span class="muted">(they’ll see it)</span></label><input id="re-<%= f._id %>" name="reply" type="text" maxlength="1000" value="<%= f.reply %>"></div>
         <div class="field"><label for="no-<%= f._id %>">Notes <span class="muted">(only reviewers see these)</span></label><textarea id="no-<%= f._id %>" name="notes" rows="2" maxlength="2000"><%= f.notes %></textarea></div>
-        <div class="btn-row"><button class="btn btn-ghost" type="submit">Save</button>
-          <% if (f.status === 'archived') { %><button class="btn btn-ghost" type="submit" name="action" value="unarchive">Unarchive</button><% } else { %><button class="btn btn-ghost" type="submit" name="action" value="archive">Archive</button><% } %></div>
+        <div class="btn-row"><button class="btn btn-ghost" type="submit" data-save-button>Save</button>
+          <% if (f.status === 'archived') { %><button class="btn btn-ghost" type="submit" name="action" value="unarchive">Unarchive</button><% } else { %><button class="btn btn-ghost" type="submit" name="action" value="archive">Archive</button><% } %>
+          <span class="save-state" data-save-state aria-live="polite"></span></div>
+      </form>
+      <form method="post" action="/feedback/<%= f._id %>/delete" data-confirm="Delete this for good? It can’t be undone. (Archive keeps it out of the way instead.)">
+        <input type="hidden" name="back" value="<%= back %>">
+        <button class="link-btn link-danger" type="submit">Delete for good</button>
       </form>
     </section>
   <% }) %>

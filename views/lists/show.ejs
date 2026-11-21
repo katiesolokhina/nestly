@@ -1,7 +1,7 @@
 <%- include('../partials/top', { title: list.title, scripts: ['confirm', 'list-drag', 'auto-submit'] }) %>
 <main class="stack">
   <div class="head">
-    <div><p class="muted small"><a href="/s/lists?type=<%= list.type %>"><%= T.label %></a><%= list.type === 'wishlist' && list.ownerName ? ' · ' + list.ownerName + '’s' : '' %><%= list.private ? ' · Only me' : '' %></p><h1><%= list.title %></h1>
+    <div><a class="back-link" href="/s/lists">‹ Back</a><h1><%= list.title %></h1><p class="muted small"><%= T.label %><%= list.type === 'wishlist' && list.ownerName ? ' · ' + list.ownerName + '’s' : '' %><%= list.private ? ' · Only me' : '' %></p>
       <% if (list.type === 'packing' && list.date) { %><p class="sub"><%= tripText %></p><% } %></div>
     <% if (canEdit('lists')) { %><a class="btn btn-ghost" href="/s/lists/<%= list._id %>/edit">Edit</a><% } %>
   </div>

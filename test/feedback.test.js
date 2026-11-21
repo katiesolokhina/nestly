@@ -86,7 +86,7 @@ test('feedback', async (t) => {
   // Priority, notes, sorting, filters, archive.
   await katie(`/feedback/${cal._id}`, { method: 'POST', form: { status: 'planned', priority: 'urgent', notes: 'timezone bug', reply: '' } });
   let inbox = await katie('/feedback/inbox?sort=priority');
-  assert.match(inbox.text, /prio-urgent">Urgent/);
+  assert.match(inbox.text, /prio-urgent" data-prio-tag>Urgent/);
   assert.match(inbox.text, /Them: Blocking me/);
   assert.match(inbox.text, /timezone bug/);
   assert.doesNotMatch((await sam('/feedback')).text, /timezone bug/, 'notes stay private');
@@ -127,4 +127,18 @@ test('feedback', async (t) => {
     assert.deepEqual([after.status, after.priority, after.reply], ['done', 'high', 'Fixed it']);
   });
   assert.equal((await sam('/feedback/inbox/import', { method: 'POST', formData: up })).status, 404);
+
+  // Autosave: one field at a time, answered with JSON (no page reload).
+  const saved = await katie(`/feedback/${cal._id}`, { method: 'POST', form: { priority: 'low' }, headers: { 'X-Requested-With': 'fetch' } });
+  assert.match(saved.headers.get('content-type'), /json/);
+  assert.match(saved.text, /"priorityName":"Low"/);
+  await withDb(app.uri, async () => assert.equal((await Feedback.findById(cal._id).lean()).priority, 'low'));
+  // Delete for good, with its screenshots (reviewers only).
+  assert.equal((await sam(`/feedback/${cal._id}/delete`, { method: 'POST' })).status, 404);
+  assert.match((await katie('/feedback/inbox?status=all')).text, /Delete for good/);
+  await katie(`/feedback/${cal._id}/delete`, { method: 'POST' });
+  await withDb(app.uri, async () => {
+    assert.equal(await Feedback.countDocuments({ _id: cal._id }), 0);
+    assert.equal(await require('../models/Upload').countDocuments({ _id: { $in: cal.shots } }), 0);
+  });
 });

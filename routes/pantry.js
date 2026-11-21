@@ -115,7 +115,7 @@ function readForm(req) {
   const boughts = [].concat(b.bBought == null ? [] : b.bBought);
   const today = todayIn(req.user.timezone);
   values.batches = counts
-    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) ? boughts[i] : today }))
+    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) && boughts[i] <= today ? boughts[i] : '' }))
     .filter((x) => x.count > 0)
     .slice(0, 30);
   if (values.status === 'out') values.batches = [];
@@ -136,7 +136,7 @@ async function readChoice(req, existing) {
 }
 
 const formView = async (req, item, error, existing = []) => ({
-  active: 'pantry', item: { ...item, batches: item.batches && item.batches.length ? item.batches : batchesOf(item) }, error: error || null, STATUS: pantryNames(req.household), existing,
+  active: 'pantry', item: { ...item, batches: item.batches && item.batches.length ? item.batches : batchesOf(item) }, error: error || null, STATUS: pantryNames(req.household), existing, todayDate: todayIn(req.user.timezone),
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
   photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
 });

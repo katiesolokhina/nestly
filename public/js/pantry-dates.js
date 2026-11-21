@@ -17,13 +17,14 @@ document.querySelectorAll('[data-batches]').forEach((box) => {
     if (!last.contains(e.target) || !last.querySelector('[name="bCount"]').value) return;
     const row = last.cloneNode(true);
     const n = rows.length;
-    row.querySelectorAll('input').forEach((i) => { i.value = ''; i.id = i.id.replace(/-\d+$/, `-${n}`); });
+    row.querySelectorAll('input').forEach((i) => { i.value = i.dataset.default || ''; i.id = i.id.replace(/-\d+$/, `-${n}`); });
     row.querySelectorAll('label').forEach((l) => { l.htmlFor = l.htmlFor.replace(/-\d+$/, `-${n}`); });
-    const btn = row.querySelector('[data-clear-date]');
-    const input = row.querySelector('input[type="date"]');
-    btn.hidden = true;
-    btn.addEventListener('click', () => { input.value = ''; btn.hidden = true; input.focus(); });
-    input.addEventListener('change', () => { btn.hidden = !input.value; });
+    row.querySelectorAll('[data-clear-date]').forEach((btn) => {
+      const input = btn.parentElement.querySelector('input[type="date"]');
+      btn.hidden = !input.value;
+      btn.addEventListener('click', () => { input.value = ''; btn.hidden = true; input.focus(); });
+      input.addEventListener('change', () => { btn.hidden = !input.value; });
+    });
     last.after(row);
   });
 });
