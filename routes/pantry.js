@@ -51,6 +51,10 @@ router.get('/s/pantry', async (req, res, next) => {
     // Tags: show things with every picked tag.
     const tags = [...new Set([].concat(req.query.tag || []).map(String))].filter((t) => (req.household.pantryTags || []).includes(t));
     if (tags.length) filter.tags = { $all: tags };
+    // Find: by name, or a tag it starts ("swe" → Sweet). Typing filters as you go on the page too.
+    const q = String(req.query.q || '').trim().slice(0, 80);
+    const qTag = q ? (req.household.pantryTags || []).find((t) => t.toLowerCase().startsWith(q.toLowerCase())) : '';
+    if (q) filter.$or = [{ name: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }, ...(qTag ? [{ tags: qTag }] : [])];
     const canBulk = req.perms.parts('pantry').delete === 'all' || req.perms.parts('pantry').edit === 'all';
     const selecting = req.query.select === '1' && canBulk;
     const [putAway, items, catalog, counts] = await Promise.all([
@@ -72,9 +76,17 @@ router.get('/s/pantry', async (req, res, next) => {
     const groups = order
       .map((name) => ({ name, items: rows.filter((r) => r.spot === name || (name === 'Other' && !spots.includes(r.spot))) }))
       .filter((g) => g.items.length);
-    const params = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v));
+    const params = new URLSearchParams(Object.entries({ show, spot, q }).filter(([, v]) => v));
     tags.forEach((t) => params.append('tag', t));
     const query = params.toString();
+    // A link to this page with some filters changed ({ spot: '' } drops the spot).
+    const urlWith = (change) => {
+      const now = { show, spot, q, tags, ...change };
+      const p = new URLSearchParams(Object.entries({ show: now.show, spot: now.spot, q: now.q }).filter(([, v]) => v));
+      now.tags.forEach((t) => p.append('tag', t));
+      if (selecting) p.set('select', '1');
+      return `/s/pantry${p.toString() ? `?${p}` : ''}`;
+    };
     // A tag chip's link: the same filters with that tag on or off.
     const tagLink = (t) => {
       const p = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v));
@@ -84,7 +96,7 @@ router.get('/s/pantry', async (req, res, next) => {
     };
     const ratePrompt = await nextPrompt(req);
     res.render('pantry/list', {
-      active: 'pantry', ratePrompt, groups, tags, tagLink, selecting, canBulk, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
+      active: 'pantry', ratePrompt, groups, tags, tagLink, selecting, canBulk, q, qTag, urlWith, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
       lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {

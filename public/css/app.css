@@ -590,3 +590,65 @@ span.check { cursor: default; }
 .bulk-do select { flex: 1; min-width: 0; }
 .row-thumb { flex: none; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: var(--off); display: block; }
 .row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- Pantry top: menu, find or add, filter ---------- */
+.head-actions { display: flex; gap: 8px; align-items: center; flex: none; }
+.icon-btn { width: 44px; height: 44px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; padding: 0; list-style: none; }
+.icon-btn::-webkit-details-marker { display: none; }
+.icon-btn[hidden] { display: none; }
+.more-menu { position: relative; }
+.more-menu summary { list-style: none; }
+.menu-pop { position: absolute; right: 0; top: 52px; z-index: 20; min-width: 230px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 12px 40px rgba(31,34,48,.18); padding: 6px 0; display: flex; flex-direction: column; }
+.menu-pop a { display: flex; align-items: center; min-height: 44px; padding: 0 16px; color: var(--ink); text-decoration: none; font-size: 15px; }
+.menu-pop a:hover, .menu-pop a:focus-visible { background: var(--off); }
+.find-box { position: relative; }
+.find-box input { width: 100%; min-height: 48px; padding-left: 40px; border-radius: 14px; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%235D5A6E' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E") no-repeat 14px center; }
+.find-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 52px; padding: 6px 14px; border: 1px dashed var(--lilac-ring); border-radius: 14px; background: var(--lilac-tint); color: var(--lilac-ink); font-weight: 700; text-decoration: none; }
+.find-add[hidden] { display: none; }
+.find-add .muted { font-weight: 400; font-size: 13px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.filter-pop summary { list-style: none; cursor: pointer; }
+.filter-pop summary::-webkit-details-marker { display: none; }
+.filter-pop { position: static; }
+.filter-panel { margin-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.filter-pop[open] { flex-basis: 100%; }
+.filter-panel .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.active-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-x { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 16px; background: var(--lilac-tint); color: var(--lilac-ink); font-size: 13px; font-weight: 600; text-decoration: none; }
+[data-find-row][hidden], [data-find-group][hidden] { display: none; }
+.filter-row { position: relative; }
+.filter-pop[open] { flex-basis: auto; }
+.filter-panel { position: absolute; left: 0; right: 0; top: 46px; z-index: 15; margin-top: 0; box-shadow: 0 12px 40px rgba(31,34,48,.18); }
+.find-add > span:first-child { white-space: nowrap; }
+
+/* ---------- What can I cook ---------- */
+.find-row { display: flex; gap: 8px; }
+.find-row input { flex: 1; min-width: 0; min-height: 48px; border-radius: 14px; }
+.mood-chips { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; }
+.mood-chips .tag-pick { flex: none; }
+details.using > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; min-height: 44px; }
+details.using > summary::-webkit-details-marker { display: none; }
+.using-text { display: flex; flex-direction: column; gap: 2px; }
+details.using[open] .using-change { visibility: hidden; }
+.using-body { border-top: 1px solid var(--off); padding-top: 10px; margin-top: 8px; }
+.tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--off); }
+.tab { min-height: 40px; border: 0; border-radius: 10px; background: none; color: var(--muted); font-weight: 700; font-size: 14px; cursor: pointer; }
+.tab.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.show-switch { display: flex; gap: 6px; }
+.show-switch label { flex: 1; position: relative; }
+.show-switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.show-switch span { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; min-height: 40px; padding: 2px 6px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 700; text-align: center; }
+.show-switch span span { border: 0; min-height: 0; padding: 0; background: none; font-weight: 500; }
+.show-switch input:checked + span { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.show-switch input:checked + span .muted { color: inherit; opacity: .8; }
+.show-switch input:focus-visible + span { outline: 2px solid var(--primary-deep); outline-offset: 2px; }
+.cook-card { gap: 6px; }
+.cook-link { display: flex; flex-direction: column; gap: 6px; color: var(--ink); text-decoration: none; }
+.cook-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 16px; }
+.cook-card meter { width: 100%; height: 8px; border-radius: 4px; }
+.cook-card meter::-webkit-meter-bar { background: var(--off); border: 0; border-radius: 4px; height: 8px; }
+.cook-card meter::-webkit-meter-optimum-value, .cook-card meter::-webkit-meter-suboptimum-value, .cook-card meter::-webkit-meter-even-less-good-value { background: var(--primary); border-radius: 4px; }
+.cook-card meter.full::-webkit-meter-optimum-value { background: #3F7D5A; }
+.cook-card meter::-moz-meter-bar { background: var(--primary); border-radius: 4px; }
+.uses-tag { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 10px; background: var(--r-yellow-bg); color: var(--r-yellow); }
+.cook-card .link-btn { align-self: flex-start; }

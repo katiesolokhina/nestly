@@ -104,7 +104,7 @@ test('settings', async (t) => {
   // ---------- Pantry ----------
   await katie('/settings/s/pantry', { method: 'POST', form: { nameHave: 'Plenty', nameLow: 'Low', nameOut: 'Gone', pantryShop: 'out', pantrySoonDays: '7', pantryDefaultSpot: 'Fridge' } });
   page = await sam('/s/pantry');
-  assert.match(page.text, /<option selected>Fridge<\/option>/);
+  assert.match((await sam('/s/pantry/add')).text, /<option selected>Fridge<\/option>/, 'the default spot, on the add form');
   await sam('/s/pantry/add', { method: 'POST', form: { name: 'Butter', spot: 'Fridge' } });
   const butter = await withDb(app.uri, async () => String((await PantryItem.findOne({ name: 'Butter' }).lean())._id));
   page = await sam('/s/pantry');

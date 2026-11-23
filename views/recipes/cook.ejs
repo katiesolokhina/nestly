@@ -1,50 +1,71 @@
-<%- include('../partials/top', { title: 'What can I cook?' }) %>
+<%- include('../partials/top', { title: 'What can I cook?', scripts: ['chip-scroll', 'cook-page'] }) %>
 <main class="stack">
-  <div class="head"><div><h1>What can I cook?</h1><p class="sub">From what’s at home<%= items.some((i) => i.soon) ? ', starting with what’s about to expire' : '' %>.</p></div><a class="link-btn" href="/s/recipes">Recipes</a></div>
+  <div class="head"><div><h1>What can I cook?</h1></div><a class="link-btn" href="/s/recipes">Recipes</a></div>
 
-  <form class="card stack" method="get" action="/s/recipes/cook">
-    <input type="hidden" name="go" value="1">
-    <div class="field"><label for="craving">Craving <span class="muted">(optional)</span></label><input id="craving" name="craving" type="search" maxlength="60" placeholder="Soup, spicy, pasta, quick…" value="<%= craving %>"></div>
-    <% if (items.length) { %>
-      <fieldset class="group">
-        <legend>Use what’s at home</legend>
-        <div class="tag-picks"><% items.forEach((i) => { %><label class="tag-pick<%= i.soon ? ' soon' : '' %>"><input type="checkbox" name="use" value="<%= i.key %>"<%= picked.has(i.key) ? ' checked' : '' %>><span><%= i.name %><%= i.soon ? ' · ' + i.expText.toLowerCase() : '' %></span></label><% }) %></div>
-      </fieldset>
-    <% } else { %>
-      <p class="hint">Nothing’s in the pantry yet, so add what you have below.</p>
-    <% } %>
-    <div class="field"><label for="also">Also have <span class="muted">(comma between)</span></label><input id="also" name="also" type="text" maxlength="300" placeholder="Rice, eggs" value="<%= also %>"></div>
-    <div class="btn-row">
-      <button class="btn btn-primary" type="submit">Find recipes</button>
-      <button class="btn btn-ghost" type="submit" name="online" value="1">Also search online</button>
+  <form class="stack" method="get" action="/s/recipes/cook" id="cook-form" data-cook-form>
+    <input type="hidden" name="go" value="1"><input type="hidden" name="tab" value="<%= tab %>">
+    <div class="find-row">
+      <label class="sr-only" for="craving">Craving</label>
+      <input id="craving" name="craving" type="search" maxlength="60" placeholder="Craving? Soup, tacos, curry…" value="<%= craving %>">
+      <button class="btn btn-primary" type="submit">Find</button>
     </div>
+    <% if (allMoods.length) { %>
+      <div class="chips chips-scroll mood-chips" role="group" aria-label="Moods" data-chip-scroll>
+        <% allMoods.forEach((m) => { %><label class="tag-pick"><input type="checkbox" name="mood" value="<%= m %>"<%= moods.includes(m) ? ' checked' : '' %> data-auto><span><%= m %></span></label><% }) %>
+      </div>
+    <% } %>
+
+    <details class="card using"<%= items.length ? '' : ' open' %>>
+      <summary>
+        <span class="using-text"><strong><%= picked.size >= items.length && items.length ? 'Using everything at home (' + items.length + ')' : items.length ? 'Using ' + [...picked].filter((k) => items.some((i) => i.key === k)).length + ' of ' + items.length + ' at home' : 'Nothing in the pantry yet' %></strong>
+        <% const soonNames = items.filter((i) => i.soon).map((i) => i.name); if (soonNames.length) { %><span class="row-meta late">Use soon: <%= soonNames.slice(0, 4).join(', ') %><%= soonNames.length > 4 ? ' +' + (soonNames.length - 4) + ' more' : '' %></span><% } %></span>
+        <span class="link-btn using-change" aria-hidden="true">Change</span>
+      </summary>
+      <div class="stack using-body">
+        <% spots.forEach((g) => { %>
+          <div data-cook-spot>
+            <div class="row-h"><p class="aisle"><%= g.name %></p><button class="link-btn" type="button" data-cook-all>All / none<span class="sr-only"> (<%= g.name %>)</span></button></div>
+            <div class="tag-picks"><% g.items.forEach((i) => { %><label class="tag-pick<%= i.soon ? ' soon' : '' %>"><input type="checkbox" name="use" value="<%= i.key %>"<%= picked.has(i.key) ? ' checked' : '' %>><span><%= i.name %><%= i.soon ? ' · ' + i.expText.toLowerCase() : '' %></span></label><% }) %></div>
+          </div>
+        <% }) %>
+        <div class="field"><label for="also">Also have <span class="muted">(not in the pantry, comma between)</span></label><input id="also" name="also" type="text" maxlength="300" placeholder="Rice, eggs" value="<%= also %>"></div>
+        <button class="btn btn-ghost" type="submit">Update</button>
+      </div>
+    </details>
+
+    <div class="tabs" role="tablist">
+      <button class="tab<%= tab === 'mine' ? ' on' : '' %>" type="submit" role="tab" aria-selected="<%= tab === 'mine' %>" name="tab" value="mine">Your recipes (<%= counts[show] %>)</button>
+      <button class="tab<%= tab === 'online' ? ' on' : '' %>" type="submit" role="tab" aria-selected="<%= tab === 'online' %>" name="tab" value="online">Online ideas</button>
+    </div>
+
+    <% if (tab === 'mine') { %>
+      <div class="show-switch" role="radiogroup" aria-label="Show">
+        <% [['have', 'Have it all'], ['close', 'Missing ≤ 2'], ['all', 'Everything']].forEach(([v, l]) => { %><label><input type="radio" name="show" value="<%= v %>"<%= show === v ? ' checked' : '' %> data-auto><span><%= l %> <span class="muted">(<%= counts[v] %>)</span></span></label><% }) %>
+      </div>
+    <% } else { %><input type="hidden" name="show" value="<%= show %>"><% } %>
   </form>
 
-  <% if (cravedTags.length) { %>
-    <section class="card" aria-labelledby="tagged">
-      <h2 id="tagged">At home: <%= cravedTags.join(' + ') %></h2>
-      <% if (!tagged.length) { %><p class="muted small">Nothing in the pantry is tagged <%= cravedTags.join(' and ') %> right now.</p><% } else { %>
-        <div class="tag-row"><% tagged.forEach((t) => { %><span class="tag lilac"><%= t.name %></span><% }) %></div>
-        <p class="hint">Tagged in the pantry. Recipes below that use them count as a match.</p>
-      <% } %>
-    </section>
+  <% if (cravedTags.length && tagged.length) { %>
+    <p class="hint">At home and <%= cravedTags.join(' + ').toLowerCase() %>: <%= tagged.map((t) => t.name).join(', ') %>.</p>
   <% } %>
-  <section class="card" aria-labelledby="mine">
-    <h2 id="mine">From your recipes</h2>
-    <% if (!mine.length) { %><p class="muted small"><%= craving ? 'None of your recipes match that craving.' : 'No saved recipes with ingredients yet.' %> Try searching online.</p><% } %>
+
+  <% if (tab === 'mine') { %>
+    <% if (!mine.length) { %><div class="card"><p class="muted small"><%= counts.all ? 'Nothing fits. Try “Everything”, fewer moods, or Online ideas.' : craving || moods.length ? 'None of your recipes match. Try Online ideas.' : 'No saved recipes with ingredients yet. Try Online ideas.' %></p></div><% } %>
     <% mine.forEach((m) => { %>
-      <div class="row cook-row">
-        <a class="row-body row-link" href="/s/recipes/<%= m.recipe._id %>">
-          <span class="row-title"><%= m.recipe.title %></span>
-          <span class="row-meta"><%= m.counts %></span><% if (m.missingText) { %><span class="row-meta"><%= m.missingText %></span><% } %>
-          <% if (m.uses.length) { %><span class="row-meta late">Uses <%= m.uses.map((u) => u.name + ' (' + u.text.toLowerCase() + ')').join(', ') %></span><% } %>
+      <div class="card cook-card">
+        <a class="cook-link" href="/s/recipes/<%= m.recipe._id %>">
+          <span class="cook-top"><strong><%= m.recipe.title %></strong><% if (m.recipe.time) { %><span class="muted small"><%= m.recipe.time %></span><% } %></span>
+          <meter min="0" max="<%= m.total %>" value="<%= m.got %>" class="<%= m.missing.length ? '' : 'full' %>" aria-label="Have <%= m.got %> of <%= m.total %>"></meter>
+          <span class="small"><strong><%= m.counts %></strong></span>
+          <% if (m.missing.length) { %><span class="muted small">Need: <%= m.missing.slice(0, 5).join(', ') %><%= m.missing.length > 5 ? ' +' + (m.missing.length - 5) + ' more' : '' %></span><% } %>
+          <% if (m.uses.length) { %><span class="uses-tag">Uses <%= m.uses.map((u) => u.name).join(', ') %> before it goes</span><% } %>
         </a>
-        <% if (mealsOn) { %><a class="btn btn-ghost" href="/s/meals/new?recipe=<%= m.recipe._id %>">Plan it<span class="sr-only"> (<%= m.recipe.title %>)</span></a><% } %>
+        <% if (mealsOn) { %><a class="link-btn" href="/s/meals/new?recipe=<%= m.recipe._id %>">Plan it<span class="sr-only"> (<%= m.recipe.title %>)</span></a><% } %>
       </div>
     <% }) %>
-  </section>
+  <% } %>
 
-  <% if (online || onlineError) { %>
+  <% if (tab === 'online') { %>
     <section class="card" aria-labelledby="web">
       <h2 id="web">Online</h2>
       <% if (onlineError) { %><p class="alert" role="alert"><%= onlineError %></p><% } %>

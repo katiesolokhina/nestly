@@ -1,13 +1,31 @@
-<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan', 'confirm', 'pantry-select'] }) %>
+<%- include('../partials/top', { title: 'Pantry', scripts: ['swipe', 'scan', 'confirm', 'pantry-select', 'pantry-find'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (!selecting && (can('pantry', 'add') || can('pantry', 'stock'))) { %><div class="btn-row"><button class="btn btn-ghost" type="button" data-scan-open hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg> Scan</button><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div><% } %></div>
-  <% if (canBulk && groups.length && !selecting) { %><a class="link-btn select-link" href="/s/pantry?<%= query ? query + '&' : '' %>select=1">Select to change several</a><% } %>
+  <div class="head">
+    <div><h1><%= secName('pantry') %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div>
+    <div class="head-actions">
+      <% if (!selecting && (can('pantry', 'add') || can('pantry', 'stock'))) { %><button class="icon-btn" type="button" data-scan-open hidden aria-label="Scan a barcode"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg></button><% } %>
+      <details class="more-menu">
+        <summary class="icon-btn" aria-label="More"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></summary>
+        <div class="menu-pop">
+          <% if (can('pantry', 'add')) { %><a href="/s/pantry/add<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Add with all the details</a><% } %>
+          <% if (canBulk && groups.length && !selecting) { %><a href="/s/pantry?<%= query ? query + '&' : '' %>select=1">Select to change several</a><% } %>
+          <% if (putAway.length) { %><a href="#putaway">Put away (<%= putAway.length %> waiting)</a><% } %>
+          <% if (canSettings) { %><a href="/settings/s/pantry"><%= secName('pantry') %> settings</a><% } %>
+        </div>
+      </details>
+    </div>
+  </div>
   <%- include('../partials/rate-prompt', { back: '/s/pantry' }) %>
-  <% if (can('pantry', 'add')) { %><form class="add pantry-add" method="get" action="/s/pantry/add">
-    <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add to the pantry" placeholder="Add an item" autocomplete="off">
-    <select name="spot" aria-label="Where it’s kept"><% household.pantrySpots.forEach((s) => { %><option<%= (spot || defaultSpot) === s ? ' selected' : '' %>><%= s %></option><% }) %></select>
-    <button class="btn btn-primary" type="submit">Add</button>
-  </form><% } %>
+  <% if (!selecting) { %>
+  <form class="find-box" method="get" action="/s/pantry" role="search">
+    <% if (show) { %><input type="hidden" name="show" value="<%= show %>"><% } %><% if (spot) { %><input type="hidden" name="spot" value="<%= spot %>"><% } %><% tags.forEach((t) => { %><input type="hidden" name="tag" value="<%= t %>"><% }) %>
+    <label class="sr-only" for="find"><%= can('pantry', 'add') ? 'Find or add' : 'Find' %></label>
+    <input id="find" name="q" type="search" maxlength="80" value="<%= q %>" placeholder="<%= can('pantry', 'add') ? 'Find or add…' : 'Find…' %>" autocomplete="off" data-pantry-find>
+  </form>
+  <% const exact = q && groups.some((g) => g.items.some((i) => i.name.toLowerCase() === q.toLowerCase())); %>
+  <% if (can('pantry', 'add')) { %><a class="find-add" href="/s/pantry/add?name=<%= encodeURIComponent(q) %><%= spot ? '&spot=' + encodeURIComponent(spot) : '' %>" data-find-add<%= q && !exact && !qTag ? '' : ' hidden' %>><span>+ Add “<span data-find-name><%= q %></span>”</span><span class="muted">opens the full form</span></a><% } %>
+  <p class="hint" data-find-tag<%= qTag ? '' : ' hidden' %>>Also showing everything tagged <strong data-find-tag-name><%= qTag %></strong></p>
+  <% } %>
   <% if (putAway.length) { %>
     <section class="card" id="putaway" aria-labelledby="pa">
       <h2 id="pa">Put away</h2>
@@ -23,17 +41,29 @@
       <% if (putAway.length > 1) { %><form method="post" action="/s/pantry/putaway/skip-all" data-confirm="Add all <%= putAway.length %> to the pantry without dates?"><button class="link-btn" type="submit">Skip details for all <%= putAway.length %></button></form><% } %>
     </section>
   <% } %>
-  <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
-  <div class="chips chips-scroll" role="group" aria-label="Filter" data-chip-scroll>
-    <a class="chip<%= !show && !spot ? ' on' : '' %>" href="/s/pantry"<%- !show && !spot ? ' aria-current="true"' : '' %>>All</a>
-    <a class="chip<%= show === 'low' ? ' on' : '' %>" href="/s/pantry?show=low"<%- show === 'low' ? ' aria-current="true"' : '' %>><%= STATUS.low %> &amp; <%= STATUS.out.toLowerCase() %><%= lowCount ? ' (' + lowCount + ')' : '' %></a>
-    <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="/s/pantry?show=soon"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring soon<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
-    <% household.pantrySpots.forEach((s) => { %><a class="chip<%= spot === s ? ' on' : '' %>" href="/s/pantry?spot=<%= encodeURIComponent(s) %>"<%- spot === s ? ' aria-current="true"' : '' %>><%= s %></a><% }) %>
+  <% const nFilters = (spot ? 1 : 0) + tags.length; %>
+  <div class="chips filter-row" role="group" aria-label="Show">
+    <a class="chip<%= !show ? ' on' : '' %>" href="<%= urlWith({ show: '' }) %>"<%- !show ? ' aria-current="true"' : '' %>>All</a>
+    <a class="chip<%= show === 'low' ? ' on' : '' %>" href="<%= urlWith({ show: 'low' }) %>"<%- show === 'low' ? ' aria-current="true"' : '' %>><%= STATUS.low %> &amp; <%= STATUS.out.toLowerCase() %><%= lowCount ? ' (' + lowCount + ')' : '' %></a>
+    <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="<%= urlWith({ show: 'soon' }) %>"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
+    <details class="filter-pop">
+      <summary class="chip<%= nFilters ? ' on' : '' %>">Filter<%= nFilters ? ' · ' + nFilters : '' %> ▾</summary>
+      <div class="filter-panel card">
+        <p class="aisle">Where</p>
+        <div class="chips"><% [...household.pantrySpots, 'Other'].forEach((s) => { %><a class="chip<%= spot === s ? ' on' : '' %>" href="<%= urlWith({ spot: spot === s ? '' : s }) %>" aria-pressed="<%= spot === s %>"><%= s %></a><% }) %></div>
+        <% if ((household.pantryTags || []).length) { %>
+          <p class="aisle">Tags</p>
+          <div class="chips"><% household.pantryTags.forEach((t) => { const on = tags.includes(t); %><a class="chip<%= on ? ' on' : '' %>" href="<%= urlWith({ tags: on ? tags.filter((x) => x !== t) : [...tags, t] }) %>" aria-pressed="<%= on %>"><%= t %></a><% }) %></div>
+        <% } %>
+        <% if (nFilters) { %><a class="link-btn" href="<%= urlWith({ spot: '', tags: [] }) %>">Clear filters</a><% } %>
+      </div>
+    </details>
   </div>
-  <% if ((household.pantryTags || []).length) { %>
-  <div class="chips chips-scroll tag-chips" role="group" aria-label="Tags" data-chip-scroll>
-    <% household.pantryTags.forEach((t) => { const on = tags.includes(t); %><a class="chip<%= on ? ' on' : '' %>" href="<%= tagLink(t) %>" aria-pressed="<%= on %>"><%= t %></a><% }) %>
-  </div>
+  <% if (nFilters) { %>
+    <div class="chips active-filters" aria-label="Filters on">
+      <% if (spot) { %><a class="chip-x" href="<%= urlWith({ spot: '' }) %>" aria-label="Remove filter <%= spot %>"><%= spot %> ×</a><% } %>
+      <% tags.forEach((t) => { %><a class="chip-x" href="<%= urlWith({ tags: tags.filter((x) => x !== t) }) %>" aria-label="Remove filter <%= t %>"><%= t %> ×</a><% }) %>
+    </div>
   <% } %>
   <% if (selecting) { %>
     <form class="stack" method="post" action="/s/pantry/bulk" data-bulk-form>
@@ -71,13 +101,13 @@
       </div>
     </form>
   <% } else { %>
-  <div class="card">
-    <% if (!groups.length) { %><p class="muted small center"><%= show || spot ? 'Nothing here.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
+  <div class="card" data-find-card>
+    <p class="muted small center" data-find-none hidden>Nothing here matches.</p><% if (!groups.length) { %><p class="muted small center"><%= show || spot || q || tags.length ? 'Nothing here matches.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
     <% groups.forEach((g) => { %>
-      <div>
+      <div data-find-group>
         <p class="aisle"><%= g.name %></p>
         <% g.items.forEach((i) => { %>
-          <div class="swipe" data-swipe id="p-<%= i._id %>">
+          <div class="swipe" data-swipe id="p-<%= i._id %>" data-find-row data-name="<%= i.name.toLowerCase() %>" data-tags="<%= (i.tags || []).join('|').toLowerCase() %>">
             <% if (can('pantry', 'delete', i)) { %><form class="swipe-delete" method="post" action="/s/pantry/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= query %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form><% } %>
             <div class="row pantry-row status-<%= i.status %>">
               <% if (i.photoId) { %><a class="pantry-thumb" href="/files/<%= i.photoId %>/view?back=/s/pantry"><img src="/files/<%= i.photoId %>" alt="Photo of <%= i.name %>" loading="lazy"></a><% } %>

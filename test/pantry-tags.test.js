@@ -85,9 +85,10 @@ test('pantry tags and bulk edit', async (t) => {
   // A craving that names a tag finds what's at home with it, and recipes using it.
   await katie('/s/pantry/bulk', { method: 'POST', form: [...both, ['do', 'food:auto']] });
   page = await katie('/s/recipes/cook?craving=something+sweet');
-  assert.match(page.text, /At home: Sweet/);
-  assert.match(page.text, /class="tag lilac">Gummy Bears</);
+  assert.match(page.text, /At home and sweet: Gummy Bears\./);
   assert.match(page.text, /Trail Mix/);
+  // The Sweet mood does the same.
+  assert.match((await katie('/s/recipes/cook?mood=Sweet&show=all')).text, /Trail Mix/);
 
   // Delete several at once; Activity can undo it.
   await katie('/s/pantry/bulk', { method: 'POST', form: [...both, ['do', 'delete']] });

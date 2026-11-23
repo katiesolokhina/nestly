@@ -53,7 +53,7 @@ test('what can I cook', async (t) => {
       const home = await Household.create({ name: 'Home' });
       const k = await User.create({ householdId: home._id, email: 'katie@test.dev', name: 'Katie', role: 'admin', passwordHash: await User.hashPassword(PW) });
       const base = { householdId: home._id, createdBy: k._id, byName: 'Katie' };
-      await Recipe.create({ ...base, title: 'Omelet', ingredients: [{ qty: '3', name: 'eggs' }, { qty: '1/4 cup', name: 'milk' }, { qty: '', name: 'salt' }] });
+      await Recipe.create({ ...base, title: 'Omelet', time: '10 min', ingredients: [{ qty: '3', name: 'eggs' }, { qty: '1/4 cup', name: 'milk' }, { qty: '', name: 'salt' }] });
       await Recipe.create({ ...base, title: 'Chicken soup', tags: ['Homemade'], ingredients: [{ qty: '1 lb', type: 'thigh', name: 'chicken' }, { qty: '2', name: 'carrots' }, { qty: '1', name: 'onion' }] });
       await Recipe.create({ ...base, title: 'Toast', ingredients: [{ qty: '2', name: 'bread' }] });
       await PantryItem.create({ ...base, name: 'Eggs', key: 'eggs', spot: 'Fridge' });
@@ -71,23 +71,32 @@ test('what can I cook', async (t) => {
   assert.match((await katie('/s/recipes')).text, /href="\/s\/recipes\/cook"/);
   let page = await katie('/s/recipes/cook');
   assert.equal(page.status, 200);
-  // Omelet first: it uses the milk that's about to expire, and salt counts as "usually have".
-  const order = [...page.text.matchAll(/<span class="row-title">([^<]+)<\/span>/g)].map((m) => m[1]);
-  assert.deepEqual(order.slice(0, 2), ['Omelet', 'Chicken Soup']);
+  // Omelet first: it uses the milk that's about to expire (and salt counts as "usually have").
+  // Then fewest missing: Toast (bread is out), then Chicken Soup.
+  const order = (text) => [...text.matchAll(/<span class="cook-top"><strong>([^<]+)<\/strong>/g)].map((m) => m[1]);
+  assert.deepEqual(order(page.text), ['Omelet', 'Toast', 'Chicken Soup']);
   assert.match(page.text, /Have all 3/);
-  assert.match(page.text, /Uses Milk \(expires tomorrow\)/);
-  assert.match(page.text, /Have 1 of 3 · Missing 2<\/span><span class="row-meta">Missing: carrots, onion/);
-  assert.match(page.text, /Have 0 of 1 · Missing 1<\/span><span class="row-meta">Missing: bread/, 'bread is out');
+  assert.match(page.text, /Uses Milk before it goes/);
+  assert.match(page.text, /Have 1 of 3 · Missing 2<\/strong><\/span>\s*<span class="muted small">Need: carrots, onion/);
+  assert.match(page.text, /Using everything at home \(3\)/);
+  assert.match(page.text, /Use soon: Milk/);
   assert.doesNotMatch(page.text, /id="web"/, 'online only when asked');
+  // Have it all / Missing ≤ 2 / Everything.
+  assert.deepEqual(order((await katie('/s/recipes/cook?go=1&show=have&use=eggs&use=milk&use=chicken')).text), ['Omelet']);
+  // Moods: Quick is 30 minutes or less; Use it up uses something expiring; others match words.
+  assert.deepEqual(order((await katie('/s/recipes/cook?mood=Quick&show=all')).text), ['Omelet']);
+  assert.deepEqual(order((await katie('/s/recipes/cook?mood=Use+it+up&show=all')).text), ['Omelet']);
+  assert.deepEqual(order((await katie('/s/recipes/cook?mood=Soup&show=all')).text), ['Chicken Soup']);
+  assert.match((await katie('/s/recipes/cook?mood=Soup')).text, /value="Soup" checked/);
   // A craving narrows it; unticking narrows what counts.
   page = await katie('/s/recipes/cook?go=1&craving=soup&use=chicken');
   assert.match(page.text, /Chicken soup/i);
   assert.doesNotMatch(page.text, /Omelet/);
   page = await katie('/s/recipes/cook?go=1&use=eggs');
-  assert.match(page.text, /Have 2 of 3 · Missing 1<\/span><span class="row-meta">Missing: milk/);
+  assert.match(page.text, /Have 2 of 3 · Missing 1<\/strong><\/span>\s*<span class="muted small">Need: milk/);
 
   // Online without a key: TheMealDB, merged by ingredient.
-  page = await katie('/s/recipes/cook?go=1&use=milk&use=eggs&online=1');
+  page = await katie('/s/recipes/cook?go=1&use=milk&use=eggs&tab=online');
   assert.match(page.text, /Rice Pudding/);
   assert.match(page.text, /Uses Milk, Eggs/i);
   assert.match(page.text, /TheMealDB/);

@@ -28,6 +28,7 @@ const householdSchema = new mongoose.Schema(
     infoTypes: { type: [String], default: ['Wi-Fi & codes', 'Contacts', 'Appliances', 'Documents & how-tos'] },
     recipeCats: { type: [String], default: ['Breakfast', 'Mains', 'Sides', 'Soups', 'Desserts', 'Snacks'] },
     recipeTags: { type: [String], default: ['Homemade', 'Online recipe', 'To try', 'Family recipes'] },
+    recipeMoods: { type: [String], default: ['Quick', 'Use it up', 'Sweet', 'Spicy', 'Soup', 'Pasta', 'Comfort'] },
     pantryTags: { type: [String], default: ['Snacks', 'Sweet', 'Salty', 'Spicy', 'Fruity', 'Chocolatey', 'Baking', 'Kids'] },
     prepStyles: { type: [String], default: ['chopped', 'diced', 'sliced', 'minced', 'grated', 'shredded', 'cubed', 'julienned', 'crushed', 'peeled', 'melted', 'softened'] },
     choreRooms: { type: [String], default: ['Kitchen', 'Bathroom', 'Bedrooms', 'Living room', 'Laundry', 'Yard'] },
