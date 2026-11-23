@@ -40,6 +40,7 @@
       <% sel('pantrySoonDays', [[1, '1 day'], [2, '2 days'], [3, '3 days'], [5, '5 days'], [7, '7 days'], [14, '14 days']], household.pantrySoonDays, '“Expiring soon” means within') %>
       <% sel('todayExpired', [['week', 'Only for a week after the date'], ['show', 'Show them'], ['hide', 'Hide them']], household.todayExpired || 'week', 'On Today, things past their date') %>
       <p class="hint">For everyone, unless they pick their own in Today → Customize.</p>
+      <input type="hidden" name="kindsShown" value="1"><label class="check-row"><span>Show kinds and barcodes on items <span class="muted small">· brands or flavors, each with its barcode and photo. Scanning works either way.</span></span><input type="checkbox" name="showKinds"<%= household.showKinds !== false ? ' checked' : '' %>></label>
       <a class="card row menu-row" href="/settings/ratings"><span class="row-body"><span class="row-title">Ratings</span><span class="row-meta">Buy again, Never again… and the “Buy again?” prompt</span></span><span class="chev" aria-hidden="true">›</span></a>
       <fieldset class="group" id="nonfood">
         <legend>Not food</legend>

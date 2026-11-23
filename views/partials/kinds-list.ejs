@@ -1,0 +1,26 @@
+<%# Kinds and barcodes: a dropdown with each kind's photo, name (to rename), code, and Remove,
+    plus adding one by typing its code. Locals: kinds. %>
+<details class="kinds-box">
+  <summary>
+    <span class="kinds-sum"><strong>Kinds and barcodes (<%= kinds.length %>)</strong><span class="muted small"><%= kinds.length ? kinds.map((k) => k.name || 'Unnamed').join(' · ') : 'None yet. Scanning it adds one.' %></span></span>
+    <span class="kinds-chev" aria-hidden="true">▾</span>
+  </summary>
+  <div class="kinds-body">
+    <% kinds.forEach((k) => { %>
+      <div class="kind-row">
+        <% if (k.photoId) { %><img class="kind-thumb" src="/files/<%= k.photoId %>" alt="" loading="lazy" width="44" height="44"><% } else { %><span class="kind-thumb empty" aria-hidden="true"><%= (k.name || '?').charAt(0).toUpperCase() %></span><% } %>
+        <span class="kind-text">
+          <label class="sr-only" for="kn-<%= k.code %>">Name for barcode <%= k.code %></label>
+          <input id="kn-<%= k.code %>" name="kindName_<%= k.code %>" type="text" maxlength="60" value="<%= k.name %>" placeholder="Name it (brand or flavor)">
+          <span class="muted small kind-code"><%= k.code %></span>
+        </span>
+        <label class="kind-remove"><input type="checkbox" name="kindRemove" value="<%= k.code %>"><span>Remove</span></label>
+      </div>
+    <% }) %>
+    <div class="kind-add">
+      <label class="sr-only" for="kind-add">Barcode to add</label><input id="kind-add" name="kindAdd" type="text" inputmode="numeric" maxlength="20" placeholder="Barcode">
+      <label class="sr-only" for="kind-add-name">Its name</label><input id="kind-add-name" name="kindAddName" type="text" maxlength="60" placeholder="Name (brand or flavor)">
+    </div>
+    <p class="hint">Scanning adds kinds on its own, with the name and photo when the product is known. Type one here when the camera can’t read it. Changes save with the page.</p>
+  </div>
+</details>

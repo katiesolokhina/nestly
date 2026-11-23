@@ -111,7 +111,7 @@
     result.elements.brand.value = d.brand || '';
     result.elements.name.value = d.name || '';
     const parts = [];
-    if (d.source === 'saved') parts.push('You’ve scanned this before.');
+    if (d.source === 'saved') parts.push(d.kindName ? `You’ve scanned this before: ${d.kindName}.` : 'You’ve scanned this before.');
     else if (d.source === 'lookup') parts.push(`Found: ${[d.brand, d.name, d.size].filter(Boolean).join(' · ')}. Change the name if you like.`);
     else parts.push('Not found. Type what it is once, and Nestly will remember this barcode.');
     if (mode === 'shopping' && d.onList && !d.onList.bought) parts.push(`${d.onList.name} is already on the list.`);
@@ -123,6 +123,12 @@
     found.textContent = parts.join(' ');
     const warn = dialog.querySelector('[data-scan-warn]');
     if (warn) { warn.textContent = (d.warn || []).join(' · '); warn.hidden = !(d.warn || []).length; }
+    const kindBox = dialog.querySelector('[data-scan-kind]');
+    if (kindBox) {
+      kindBox.hidden = !d.kind;
+      kindBox.className = `scan-kind ${d.kind ? d.kind.tone : ''}`;
+      kindBox.replaceChildren(...(d.kind ? [Object.assign(document.createElement('strong'), { textContent: d.kind.title }), Object.assign(document.createElement('span'), { textContent: d.kind.text })] : []));
+    }
     say('');
     if (!d.name) result.elements.name.focus();
     else if (mode === 'shop' && d.onList && !d.onList.bought) go.focus();

@@ -18,6 +18,12 @@ const catalogSchema = new mongoose.Schema(
     staple: { type: Boolean, default: false },
     stapleOrder: { type: Number, default: 0 }, // where it sits among staples on the Shopping page
     barcodes: { type: [String], default: [] }, // scanned codes that mean this item
+    // Kinds: a brand or flavor of this item, one per barcode, with a name and photo (from the scan
+    // when the product is known). Who added it and when are kept, not shown.
+    kinds: {
+      type: [{ _id: false, code: { type: String, maxlength: 20 }, name: { type: String, trim: true, maxlength: 60, default: '' }, photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null }, by: { type: String, default: '' }, at: { type: Date, default: Date.now } }],
+      default: [],
+    },
     // Skipped by default when a meal plan's ingredients go to the shopping list (salt, oil...).
     usuallyHave: { type: Boolean, default: false },
     // Bought → straight into the pantry (no date, no Put away prompt). Listed in Settings → Pantry.

@@ -2,6 +2,7 @@
 // Anyone who can edit Shopping can tidy them. Mounted before Shopping's own routes.
 const express = require('express');
 const { ratingsFor } = require('../lib/ratings');
+const { kindsOf, applyKindsForm } = require('../lib/kinds');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const CatalogItem = require('../models/CatalogItem');
@@ -77,7 +78,12 @@ router.get('/s/shopping/saved/:id', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    res.render('shopping/saved-item', { active: 'shopping', item: item.toObject(), error: null, rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
+    // Its pantry item(s), with how many of each kind.
+    const inPantry = req.sees('pantry') ? await PantryItem.find({ ...require('../lib/changes').visible(req.user), key: item.key }, { spot: 1, status: 1, count: 1, batches: 1 }).lean() : [];
+    res.render('shopping/saved-item', {
+      active: 'shopping', item: item.toObject(), error: null, rList: (await ratingsFor(req.household, [item.key])).get(item.key),
+      kinds: kindsOf(item), showKinds: req.household.showKinds !== false, inPantry,
+    });
   } catch (err) {
     next(err);
   }
@@ -101,16 +107,17 @@ router.post('/s/shopping/saved/:id', async (req, res, next) => {
       usuallyHave: b.usuallyHave === 'on',
     };
     const view = { ...item.toObject(), ...values, staple: b.staple === 'on' };
-    if (!name) return res.status(422).render('shopping/saved-item', { active: 'shopping', item: view, error: 'Enter a name.' });
+    if (!name) return res.status(422).render('shopping/saved-item', { active: 'shopping', item: view, error: 'Enter a name.', kinds: kindsOf(item), showKinds: req.household.showKinds !== false, inPantry: [] });
     const key = keyOf(name);
     if (key !== item.key && (await CatalogItem.exists({ householdId: h._id, key }))) {
-      return res.status(422).render('shopping/saved-item', { active: 'shopping', item: view, error: `${name} is already saved. Delete one of them instead.` });
+      return res.status(422).render('shopping/saved-item', { active: 'shopping', item: view, error: `${name} is already saved. Delete one of them instead.`, kinds: kindsOf(item), showKinds: req.household.showKinds !== false, inPantry: [] });
     }
     const oldKey = item.key;
     const oldName = item.name;
     item.set({ ...values, key });
     await item.save();
     await setStaple(h._id, key, b.staple === 'on');
+    const kindNote = b.savedShown === '1' && req.household.showKinds !== false ? await applyKindsForm(req.user, { key, name }, b) : '';
     // A new name follows to what's on the list now and the pantry, so they stay linked.
     if (key !== oldKey || name !== oldName) {
       await Promise.all([
@@ -119,7 +126,7 @@ router.post('/s/shopping/saved/:id', async (req, res, next) => {
       ]);
     }
     await logActivity(req.user, { section: SECTION, text: name !== oldName ? `${req.user.name} renamed the saved item ${oldName} to ${name}` : `${req.user.name} edited the saved item ${name}` });
-    req.session.flash = `${name} saved.`;
+    req.session.flash = kindNote || `${name} saved.`;
     res.redirect('/s/shopping/saved');
   } catch (err) {
     next(err);

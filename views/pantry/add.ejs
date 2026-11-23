@@ -7,11 +7,12 @@
     <input type="hidden" name="from" value="<%= from %>"><input type="hidden" name="code" value="<%= code %>"><input type="hidden" name="brand" value="<%= brand %>"><input type="hidden" name="details" value="1">
     <div class="field"><label for="name">Item</label><input id="name" name="name" type="text" maxlength="80" required list="catalog-names" autocomplete="off" value="<%= item.name %>"<%= item.name ? '' : ' autofocus' %>></div>
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
-    <% if (existing.length) { %><%- include('choices', { existing }) %><% } %>
+    <% if (existing.length) { %><%- include('choices', { existing, asKind: Boolean(code) && household.showKinds !== false }) %><% } %>
     <div class="fields">
       <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
       <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="have"<%= item.status !== 'low' ? ' selected' : '' %>><%= STATUS.have %></option><option value="low"<%= item.status === 'low' ? ' selected' : '' %>><%= STATUS.low %></option></select></div>
     </div>
+    <% if (code && household.showKinds !== false) { %><div class="field"><label for="kind-name">Kind <span class="muted">(brand or flavor, from the scan)</span></label><input id="kind-name" name="kindName" type="text" maxlength="60" value="<%= kindName %>" placeholder="Nature Sweet, BBQ…"></div><% } %>
     <div class="fields">
       <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="1" max="99" inputmode="numeric" value="<%= item.count %>"></div>
       <div class="field"><label for="expires">Use by</label><span class="date-clear"><input id="expires" name="expires" type="date" value="<%= item.expires %>" placeholder="No date"><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>

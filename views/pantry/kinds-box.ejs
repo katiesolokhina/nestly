@@ -1,0 +1,11 @@
+<%# Shopping and scanning: staple, usual store, and the kinds (brand or flavor, one per barcode). %>
+<fieldset class="group saved-box">
+  <legend>Shopping and scanning</legend>
+  <p class="hint">Shared with its saved item, so Shopping sees the same.</p>
+  <input type="hidden" name="savedShown" value="1">
+  <% if (household.features.shopping !== false) { %>
+    <label class="check-row"><span>Staple <span class="muted small">· one tap to add it on Shopping</span></span><input type="checkbox" name="staple"<%= staple ? ' checked' : '' %>></label>
+  <% } %>
+  <%- include('store-field') %>
+  <% if (showKinds) { %><%- include('../partials/kinds-list', { kinds }) %><% } %>
+</fieldset>

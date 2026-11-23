@@ -21,6 +21,9 @@ const shoppingSchema = new mongoose.Schema(
     note: { type: String, trim: true, maxlength: 300, default: '' },
     receiptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null },
     photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null },
+    // Which kinds (barcodes from its saved item): the preferred one, and others that are fine.
+    kindPref: { type: String, default: '' },
+    kindOk: { type: [String], default: [] },
     bought: { type: Boolean, default: false },
     // Bought, and something like it is in the pantry: waits on the Pantry page to be put away.
     putAway: { type: String, enum: ['', 'pending', 'done'], default: '' },

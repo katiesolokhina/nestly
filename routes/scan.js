@@ -2,6 +2,7 @@
 // while shopping. Mounted before Pantry and Shopping, whose /:id routes would catch these paths.
 const express = require('express');
 const { ratingsFor, warnings } = require('../lib/ratings');
+const { kindsOf } = require('../lib/kinds');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const PantryItem = require('../models/PantryItem');
 const ShoppingItem = require('../models/ShoppingItem');
@@ -28,12 +29,25 @@ router.get('/api/barcode/:code', requireAuth, async (req, res, next) => {
     if (!found) return res.status(400).json({ error: 'That isn’t a barcode number.' });
     const key = found.name ? keyOf(found.name) : null;
     const [onList, pantry] = await Promise.all([
-      key && req.sees('shopping') ? ShoppingItem.findOne({ ...visible(req.user), key, clearedAt: null }, { name: 1, bought: 1 }).sort({ bought: 1 }).lean() : null,
+      key && req.sees('shopping') ? ShoppingItem.findOne({ ...visible(req.user), key, clearedAt: null }, { name: 1, bought: 1, kindPref: 1, kindOk: 1 }).sort({ bought: 1 }).lean() : null,
       key && req.sees('pantry') ? PantryItem.find({ ...visible(req.user), key }, { name: 1, status: 1, spot: 1, count: 1, expires: 1 }).lean() : [],
     ]);
     // Someone rated it Never again (or another warning rating): say so before it goes in the cart.
     const rated = key && req.perms.sees('pantry', 'ratings') ? (await ratingsFor(req.household, [key])).get(key) : [];
+    // On the list with kinds picked: is this the preferred one, one that's OK, or not one of them?
+    let kind = null;
+    if (onList && !onList.bought && found.catalog && req.household.showKinds !== false && (onList.kindPref || (onList.kindOk || []).length)) {
+      const kinds = kindsOf(found.catalog);
+      const nameOfKind = (c) => ((kinds.find((k) => k.code === c) || {}).name || 'another kind');
+      const wanted = [onList.kindPref, ...(onList.kindOk || [])].filter(Boolean).map(nameOfKind);
+      const mine = nameOfKind(found.code);
+      kind = found.code === onList.kindPref ? { tone: 'good', title: 'That’s the one', text: `${mine} is the kind the list wants.` }
+        : (onList.kindOk || []).includes(found.code) ? { tone: 'ok', title: 'OK instead', text: `${mine} is fine; ${nameOfKind(onList.kindPref)} was preferred.` }
+          : { tone: 'no', title: 'Not one you picked', text: `The list wants ${wanted.join(' or ')}.` };
+    }
     res.json({
+      kind,
+      kindName: found.kind || '',
       warn: warnings(rated),
       code: found.code,
       name: found.name,

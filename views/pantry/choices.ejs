@@ -5,7 +5,7 @@
   <% existing.forEach((p, i) => { %>
     <div class="choice-item">
       <p class="choice-label"><%= p.label %></p>
-      <label class="choice"><input type="radio" name="choice" value="add:<%= p._id %>"<%= i === 0 ? ' checked' : '' %>> Add these to it</label>
+      <label class="choice"><input type="radio" name="choice" value="add:<%= p._id %>"<%= i === 0 ? ' checked' : '' %>> <%= typeof asKind !== 'undefined' && asKind ? 'Add as another kind of ' + p.name + ' (its own date line)' : 'Add these to it' %></label>
       <label class="choice"><input type="radio" name="choice" value="replace:<%= p._id %>"> Replace it (the old ones are gone)</label>
     </div>
   <% }) %>

@@ -73,6 +73,7 @@ const householdSchema = new mongoose.Schema(
     // On Today, pantry things past their date: show | week (for a week after) | hide. Each person
     // can choose their own in Today → Customize; this is for everyone who hasn't.
     todayExpired: { type: String, enum: ['show', 'week', 'hide'], default: 'week' },
+    showKinds: { type: Boolean, default: true }, // kinds and barcodes on items (scanning works either way)
     // Ratings (Buy again / Never again…): the choices, in order. warn: shows as a warning on
     // scans and Shopping. Empty means the starting three.
     ratingChoices: {

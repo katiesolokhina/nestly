@@ -12,7 +12,8 @@ const { addToShopping, expiryText, stockIn, countOf, quickStock, spotFor, bought
 // An item's batches, also for older items saved before there were any.
 const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '', bought: '' }] : []);
 const ShoppingItem = require('../models/ShoppingItem');
-const { remember, productPhotoUrl, productPhoto, CODE } = require('../lib/barcode');
+const { remember, productPhotoUrl, productPhoto, CODE, norm } = require('../lib/barcode');
+const { kindsFor, kindsByKey, kindName, applyKindsForm, fetchKindPhoto } = require('../lib/kinds');
 const { ratingsFor, warnings, rate, askLater, nextPrompt } = require('../lib/ratings');
 const { pantryNames } = require('../lib/prefs');
 const { shortDay } = require('../lib/dates');
@@ -67,10 +68,20 @@ router.get('/s/pantry', async (req, res, next) => {
         PantryItem.countDocuments({ ...visible(req.user), expires: { $ne: '', $lte: addDays(today, SOON_DAYS) } }),
       ]),
     ]);
+    // Kinds: the soonest line's kind shows by its date, and its photo when the item has none.
+    const showKinds = req.household.showKinds !== false;
+    const kindMap = showKinds ? await kindsByKey(req.user, items.filter((i) => (i.batches || []).some((b) => b.kind)).map((i) => i.key)) : new Map();
     const rows = items.map((i) => {
       const exp = expiryText(i.expires, today, SOON_DAYS);
       const dated = batchesOf(i).filter((b) => b.expires).length;
-      return { ...i, exp, meta: [i.count > 1 ? `${i.count} of them` : '', i.amount, exp.text + (dated > 1 ? ` (+${dated - 1} later)` : ''), i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · ') };
+      const kinds = kindMap.get(i.key) || [];
+      const first = batchesOf(i).filter((b) => b.kind).sort((a, b) => (a.expires || '9999').localeCompare(b.expires || '9999'))[0];
+      const kind = first ? kinds.find((k) => k.code === first.kind) : null;
+      const kindsHere = [...new Set(batchesOf(i).map((b) => b.kind).filter(Boolean))].length;
+      return {
+        ...i, exp, kindPhoto: kind && kind.photoId ? kind.photoId : '',
+        meta: [i.count > 1 ? `${i.count} of them` : '', i.amount, kind && kind.name ? kind.name + (kindsHere > 1 ? ` +${kindsHere - 1}` : '') : '', exp.text + (dated > 1 ? ` (+${dated - 1} later)` : ''), i.autoShop ? '' : 'Not added to shopping'].filter(Boolean).join(' · '),
+      };
     });
     const order = [...spots, 'Other'];
     const groups = order
@@ -147,9 +158,10 @@ function readForm(req) {
   const counts = [].concat(b.bCount == null ? [] : b.bCount);
   const dates = [].concat(b.bExpires == null ? [] : b.bExpires);
   const boughts = [].concat(b.bBought == null ? [] : b.bBought);
+  const kinds = [].concat(b.bKind == null ? [] : b.bKind);
   const today = todayIn(req.user.timezone);
   values.batches = counts
-    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) && boughts[i] <= today ? boughts[i] : '' }))
+    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) && boughts[i] <= today ? boughts[i] : '', kind: /^\d{8,14}$/.test(String(kinds[i] || '')) ? String(kinds[i]) : '' }))
     .filter((x) => x.count > 0)
     .slice(0, 30);
   if (values.status === 'out') values.batches = [];
@@ -184,11 +196,25 @@ async function saveStore(req, name, store) {
   await CatalogItem.updateOne({ householdId: req.user.householdId, key }, { $set: { store: s }, $setOnInsert: { name } }, { upsert: true });
 }
 
+// The saved item's side of a pantry item: its kinds and whether it's a staple.
+async function savedBits(req, item) {
+  const { cat, kinds } = await kindsFor(req.user, item.key);
+  return { kinds, staple: item.staple !== undefined ? item.staple : Boolean(cat && cat.staple), showKinds: req.household.showKinds !== false };
+}
+// Saves the staple box, and kind renames, removals and a typed-in code. Returns a note, if any.
+async function saveSavedBits(req, item) {
+  const b = req.body || {};
+  if (b.savedShown !== '1') return '';
+  await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key }, { $set: { staple: b.staple === 'on' }, $setOnInsert: { name: item.name } }, { upsert: true });
+  return applyKindsForm(req.user, { key: item.key, name: item.name }, b);
+}
+
 const formView = async (req, item, error, existing = []) => ({
   active: 'pantry', item: { ...item, batches: item.batches && item.batches.length ? item.batches : batchesOf(item) }, error: error || null, STATUS: pantryNames(req.household), existing, todayDate: todayIn(req.user.timezone),
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
   photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
   stores: req.household.stores || [], store: item.store !== undefined ? item.store : await storeFor(req, item.key),
+  ...(await savedBits(req, item)),
 });
 
 // Reference photo: a new one replaces the old; "Remove" takes it off.
@@ -214,6 +240,8 @@ router.get('/s/pantry/add', async (req, res, next) => {
     const rList = key ? (await ratingsFor(req.household, [key])).get(key) : [];
     res.render('pantry/add', {
       rList, rWarn: warnings(rList), stores: req.household.stores || [], store: await storeFor(req, key),
+      // What this scanned kind is called: what it was named before, else its brand from the scan.
+      kindName: CODE.test(String(q.code || '')) ? (((await kindsFor(req.user, key)).kinds.find((k) => k.code === norm(String(q.code))) || {}).name || String(q.brand || '')) : '',
       active: 'pantry', STATUS: pantryNames(h),
       todayDate: todayIn(req.user.timezone),
       item: {
@@ -249,12 +277,14 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
     const existing = await sameAs(req, key);
     const { choice, target } = await readChoice(req, existing);
     const c = await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean();
+    // Scanned: this date line is that kind (its brand or flavor).
+    const scanned = CODE.test(String(b.code || '')) ? norm(String(b.code)) : '';
     const { item, text } = await stockIn(req.user, {
       name: c ? c.name : name, key, choice, target,
       spot: pick(req.household, 'pantrySpots', b.spot),
       amount: String(b.amount || '').trim().slice(0, 40),
       // Bought: the date given, or none when it was cleared ("No date"); today if it wasn't sent.
-      batches: [{ count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)), expires: isDate(b.expires) ? b.expires : '', bought: isDate(b.bought) && b.bought <= todayIn(req.user.timezone) ? b.bought : b.bought === '' ? '' : todayIn(req.user.timezone) }],
+      batches: [{ count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)), expires: isDate(b.expires) ? b.expires : '', bought: isDate(b.bought) && b.bought <= todayIn(req.user.timezone) ? b.bought : b.bought === '' ? '' : todayIn(req.user.timezone), kind: scanned }],
     });
     // The rest of the details, as on the Edit page. Adding to one that's there keeps its own
     // details unless something new was given.
@@ -286,7 +316,14 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
     else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
     await addToCatalog(req.user, req.household, [item.name]);
     await saveStore(req, item.name, (req.body || {}).store);
-    if (CODE.test(String(b.code || ''))) await remember(req.user.householdId, String(b.code), item.key, b.brand);
+    if (scanned) {
+      await remember(req.user.householdId, scanned, item.key, b.brand, { name: item.name, kindName: String(b.kindName || '').trim(), by: req.user.name });
+      // The kind's photo: the one just saved from the scan, else fetched once.
+      try {
+        if (b.useProductPhoto === 'on' && item.photoId) await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key, 'kinds.code': scanned, 'kinds.photoId': null }, { $set: { 'kinds.$.photoId': item.photoId } });
+        else await fetchKindPhoto(req.user, item.key, scanned);
+      } catch { /* no photo is fine */ }
+    }
     // From "Put away": that bought item is done.
     if (mongoose.isValidObjectId(b.from)) await ShoppingItem.updateOne({ _id: b.from, householdId: req.user.householdId }, { $set: { putAway: 'done' } });
     if (!req.session.flash) req.session.flash = `${item.name}: ${choice === 'new' ? 'added' : choice === 'add' ? `${item.count} now` : 'restocked'}.`;
@@ -413,6 +450,7 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
       const { item, text } = await stockIn(req.user, { ...values, choice, target });
       try { await applyPhoto(req, item); await item.save(); } catch (e) { if (!e.userFacing) throw e; }
       await saveStore(req, item.name, (req.body || {}).store);
+      { const note = await saveSavedBits(req, item); if (note) req.session.flash = note; }
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
       return res.redirect(`/s/pantry#p-${item._id}`);
     }
@@ -426,6 +464,7 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
     await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
     await saveStore(req, item.name, (req.body || {}).store);
+    { const note = await saveSavedBits(req, item); if (note) req.session.flash = note; }
     await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text: `added ${item.name} to the pantry`, label: item.name });
     if (await addToShopping(req.user, req.household, item)) req.session.flash = `${item.name} is on the shopping list now.`;
     res.redirect(`/s/pantry#p-${item._id}`);
@@ -526,6 +565,7 @@ router.post('/s/pantry/:id', withPhoto, async (req, res, next) => {
     await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
     await saveStore(req, item.name, (req.body || {}).store);
+    { const note = await saveSavedBits(req, item); if (note) req.session.flash = note; }
     await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: `edited ${item.name} in the pantry`, label: item.name });
     if (statusChanged && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     res.redirect(`/s/pantry#p-${item._id}`);

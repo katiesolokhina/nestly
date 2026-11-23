@@ -1,6 +1,9 @@
 <%- include('../partials/top', { title: item.name, scripts: ['confirm'] }) %>
 <main class="stack">
   <div class="head"><div><h1><%= item.name %></h1><p class="sub">Saved item</p></div><a class="link-btn" href="/s/shopping/saved">Cancel</a></div>
+  <% (inPantry || []).forEach((p) => { const byKind = {}; (p.batches || []).forEach((b) => { const k = (kinds.find((x) => x.code === b.kind) || {}).name; if (k) byKind[k] = (byKind[k] || 0) + b.count; }); %>
+    <a class="in-pantry" href="/s/pantry/<%= p._id %>/edit">In the pantry: <%= p.spot %> · <%= p.status === 'out' ? 'Out' : p.count %><%= Object.keys(byKind).length ? ' (' + Object.entries(byKind).map(([k, n]) => k + ' ' + n).join(', ') + ')' : '' %><span aria-hidden="true">›</span></a>
+  <% }) %>
   <form class="card" method="post" action="/s/shopping/saved/<%= item._id %>" novalidate>
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" maxlength="80" required value="<%= item.name %>"><span class="hint">Renaming also renames it on the list and in the pantry.</span></div>
@@ -19,6 +22,7 @@
     </div>
     <label class="check-row">Staple (one-tap button on Shopping)<input type="checkbox" name="staple"<%= item.staple ? ' checked' : '' %>></label>
     <label class="check-row">Usually have (skipped in recipe shopping)<input type="checkbox" name="usuallyHave"<%= item.usuallyHave ? ' checked' : '' %>></label>
+    <% if (showKinds) { %><input type="hidden" name="savedShown" value="1"><%- include('../partials/kinds-list', { kinds }) %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
   <form method="post" action="/s/shopping/saved/<%= item._id %>/delete" data-confirm="Stop suggesting <%= item.name %>? Anything already on the list stays."><button class="link-btn link-danger" type="submit">Delete saved item</button></form>

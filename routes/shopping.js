@@ -1,6 +1,7 @@
 const express = require('express');
 const PantryItem = require('../models/PantryItem');
 const { ratingsFor, warnings, askLater, nextPrompt } = require('../lib/ratings');
+const { kindsFor, kindsByKey } = require('../lib/kinds');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const ShoppingItem = require('../models/ShoppingItem');
@@ -77,9 +78,19 @@ router.get('/s/shopping', async (req, res, next) => {
     const want = active.filter((i) => !i.photoId).map((i) => i.key);
     const pantryPhotos = want.length && req.sees('pantry') ? await PantryItem.find({ ...visible(user), key: { $in: want }, photoId: { $ne: null } }, { key: 1, photoId: 1 }).lean() : [];
     const photoOf = new Map(pantryPhotos.map((p) => [p.key, String(p.photoId)]));
-    const photo = (i) => (i.photoId ? String(i.photoId) : photoOf.get(i.key) || '');
+    // Kinds asked for: "Nature Sweet (or Sunset)", and the preferred one's photo.
+    const kindMap = req.household.showKinds !== false ? await kindsByKey(user, active.filter((i) => i.kindPref || (i.kindOk || []).length).map((i) => i.key)) : new Map();
+    const kindsOfItem = (i) => kindMap.get(i.key) || [];
+    const nameOf = (i, code) => ((kindsOfItem(i).find((k) => k.code === code) || {}).name || '');
+    const kindText = (i) => {
+      const ok = (i.kindOk || []).map((c) => nameOf(i, c)).filter(Boolean);
+      const pref = nameOf(i, i.kindPref);
+      return pref ? pref + (ok.length ? ` (or ${ok.join(', ')})` : '') : ok.join(' or ');
+    };
+    const prefPhoto = (i) => ((kindsOfItem(i).find((k) => k.code === i.kindPref) || {}).photoId || '');
+    const photo = (i) => (i.photoId ? String(i.photoId) : prefPhoto(i) || photoOf.get(i.key) || '');
     const groups = [...household.aisles, 'Unassigned']
-      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i), warn: warn(i), photo: photo(i) })) }))
+      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i), warn: warn(i), photo: photo(i), kindText: kindText(i) })) }))
       .filter((g) => g.items.length);
 
     const ratePrompt = shopping || selecting ? null : await nextPrompt(req);
@@ -204,7 +215,8 @@ async function formData(req, item, error) {
     item && item.receiptId ? Upload.findById(item.receiptId).lean() : null,
     item && item.photoId ? Upload.findById(item.photoId).lean() : null,
   ]);
-  return { active: 'shopping', item, error: error || null, lastPaid, catalog, receipt, photo };
+  const { kinds } = item && item.key ? await kindsFor(req.user, item.key) : { kinds: [] };
+  return { active: 'shopping', item, error: error || null, lastPaid, catalog, receipt, photo, kinds, showKinds: req.household.showKinds !== false };
 }
 
 function readForm(req) {
@@ -303,6 +315,13 @@ router.post('/s/shopping/:id', withFiles, async (req, res, next) => {
     // The item's owner decides whether it's private.
     if (String(item.createdBy) !== req.user.id) values.private = item.private;
     item.set(values);
+    // Which kinds: the preferred one and the ones that are fine instead (only its own kinds).
+    if ((req.body || {}).kindsShown === '1') {
+      const codes = new Set((await kindsFor(req.user, item.key)).kinds.map((k) => k.code));
+      const pref = String(req.body.kindPref || '');
+      item.kindPref = codes.has(pref) ? pref : '';
+      item.kindOk = [...new Set([].concat(req.body.kindOk || []).map(String))].filter((c) => codes.has(c) && c !== item.kindPref);
+    }
     try {
       await applyFiles(req, item);
     } catch (e) {

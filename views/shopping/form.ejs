@@ -33,6 +33,21 @@
     <div class="field"><label for="ref">Reference item</label><input id="ref" name="ref" type="text" maxlength="160" placeholder="Size, model, or what to look for" value="<%= item.ref %>"></div>
     <div class="field"><label for="link">Product link</label><input id="link" name="link" type="text" inputmode="url" maxlength="1000" placeholder="https://..." value="<%= item.link %>"></div>
     <div class="field"><label for="note">Note</label><input id="note" name="note" type="text" maxlength="300" value="<%= item.note %>"></div>
+    <% if (showKinds && kinds.length) { %>
+      <fieldset class="group kinds-pick">
+        <legend>Which kind <span class="muted">(★ preferred, ticked = OK instead; none = any)</span></legend>
+        <input type="hidden" name="kindsShown" value="1">
+        <% kinds.forEach((k) => { %>
+          <div class="kind-pick-row">
+            <% if (k.photoId) { %><img class="kind-thumb" src="/files/<%= k.photoId %>" alt="" loading="lazy" width="40" height="40"><% } else { %><span class="kind-thumb empty" aria-hidden="true"><%= (k.name || '?').charAt(0).toUpperCase() %></span><% } %>
+            <span class="kind-pick-name"><%= k.name || 'Unnamed (' + k.code + ')' %></span>
+            <label class="kind-star"><input type="radio" name="kindPref" value="<%= k.code %>"<%= item.kindPref === k.code ? ' checked' : '' %>><span aria-hidden="true">★</span><span class="sr-only">Preferred: <%= k.name || k.code %></span></label>
+            <label class="kind-ok"><input type="checkbox" name="kindOk" value="<%= k.code %>"<%= (item.kindOk || []).includes(k.code) ? ' checked' : '' %>><span>OK<span class="sr-only"> instead: <%= k.name || k.code %></span></span></label>
+          </div>
+        <% }) %>
+        <label class="check-row small"><span>No preference</span><input type="radio" name="kindPref" value=""<%= !item.kindPref ? ' checked' : '' %>></label>
+      </fieldset>
+    <% } %>
     <input type="hidden" name="stapleShown" value="1"><label class="check-row">Save as a staple<input type="checkbox" name="staple"<%= item.staple ? ' checked' : '' %>></label>
 <% if (perms.private) { %>    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private"<%= item.private ? ' checked' : '' %>></label><% } %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
