@@ -28,6 +28,7 @@
       <p class="hint">The empty line adds more with another date. Set a count to 0 to remove that line.</p>
     </fieldset>
     <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
+    <%- include('tag-picks', { tags: item.tags }) %>
     <div class="field">
       <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>
       <% if (photo) { %><p class="file-row"><a href="/files/<%= photo._id %>/view?back=/s/pantry/<%= item._id %>/edit"><img class="file-thumb" src="/files/<%= photo._id %>" alt="Current photo"></a><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>

@@ -1,6 +1,6 @@
 // Nestly service worker. Nestly is online-only: pages are always fetched live, nothing is
 // queued, and an offline page shows without a connection.
-const CACHE = 'nestly-v49';
+const CACHE = 'nestly-v50';
 const PRECACHE = ['/offline.html', '/css/app.css', '/icons/icon-192.png', '/brand/nestly-mark.png'];
 
 self.addEventListener('install', (event) => {

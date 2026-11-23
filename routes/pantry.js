@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const PantryItem = require('../models/PantryItem');
 const CatalogItem = require('../models/CatalogItem');
-const { recordChange, visible } = require('../lib/changes');
+const { recordChange, recordDeleteMany, visible } = require('../lib/changes');
 const { logActivity } = require('../lib/activity');
 const { pick } = require('../lib/lists');
 const { keyOf, addToCatalog } = require('../lib/catalog');
@@ -48,6 +48,11 @@ router.get('/s/pantry', async (req, res, next) => {
     if (show === 'low') filter.status = { $in: ['low', 'out'] };
     if (show === 'soon') filter.expires = { $ne: '', $lte: addDays(today, SOON_DAYS) };
     if (spot) filter.spot = spot;
+    // Tags: show things with every picked tag.
+    const tags = [...new Set([].concat(req.query.tag || []).map(String))].filter((t) => (req.household.pantryTags || []).includes(t));
+    if (tags.length) filter.tags = { $all: tags };
+    const canBulk = req.perms.parts('pantry').delete === 'all' || req.perms.parts('pantry').edit === 'all';
+    const selecting = req.query.select === '1' && canBulk;
     const [putAway, items, catalog, counts] = await Promise.all([
       // Bought on Shopping and waiting to be put away (the last two weeks).
       req.perms.level('pantry') === 'edit' ? ShoppingItem.find({ ...visible(req.user), bought: true, putAway: 'pending', boughtAt: { $gte: new Date(Date.now() - 14 * 86400000) } }, { name: 1, qty: 1, boughtByName: 1, boughtAt: 1 }).sort({ boughtAt: -1 }).limit(30).lean() : [],
@@ -67,10 +72,19 @@ router.get('/s/pantry', async (req, res, next) => {
     const groups = order
       .map((name) => ({ name, items: rows.filter((r) => r.spot === name || (name === 'Other' && !spots.includes(r.spot))) }))
       .filter((g) => g.items.length);
-    const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
+    const params = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v));
+    tags.forEach((t) => params.append('tag', t));
+    const query = params.toString();
+    // A tag chip's link: the same filters with that tag on or off.
+    const tagLink = (t) => {
+      const p = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v));
+      (tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t]).forEach((x) => p.append('tag', x));
+      if (selecting) p.set('select', '1');
+      return `/s/pantry${p.toString() ? `?${p}` : ''}`;
+    };
     const ratePrompt = await nextPrompt(req);
     res.render('pantry/list', {
-      active: 'pantry', ratePrompt, groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
+      active: 'pantry', ratePrompt, groups, tags, tagLink, selecting, canBulk, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
       lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {
@@ -100,6 +114,9 @@ router.post('/s/pantry/:id/status', async (req, res, next) => {
   }
 });
 
+// Tags ticked on a form, keeping only the household's own.
+const tagsFrom = (req, b) => [...new Set([].concat(b.tags == null ? [] : b.tags).map(String))].filter((t) => (req.household.pantryTags || []).includes(t));
+
 function readForm(req) {
   const b = req.body || {};
   const values = {
@@ -110,6 +127,7 @@ function readForm(req) {
     autoShop: b.autoShop === 'on',
     food: b.food === 'yes' ? true : b.food === 'no' ? false : null,
     note: String(b.note || '').trim().slice(0, 300),
+    tags: tagsFrom(req, b),
   };
   values.key = keyOf(values.name);
   // How many, by use-by date: one row each. A row with no count is left out.
@@ -217,6 +235,8 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
     if (b.details === '1' && isNew) item.autoShop = b.autoShop === 'on';
     const note = String(b.note || '').trim().slice(0, 300);
     if (note) item.note = note;
+    const tags = tagsFrom(req, b);
+    if (tags.length) item.tags = [...new Set([...(isNew ? [] : item.tags || []), ...tags])];
     try {
       if ((req.files || {}).photo) await applyPhoto(req, item);
       else if (b.useProductPhoto === 'on' && (isNew || !item.photoId)) {
@@ -386,6 +406,69 @@ router.get('/s/pantry/:id/edit', async (req, res, next) => {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
     res.render('pantry/form', { ...(await formView(req, item.toObject())), rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Select mode: one change to many items at once (move, status, tags, food, shopping, delete).
+router.post('/s/pantry/bulk', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const back = backTo(b.query);
+    const ids = [].concat(b.ids || []).map(String).filter((id) => mongoose.isValidObjectId(id)).slice(0, 500);
+    const items = ids.length ? await PantryItem.find({ _id: { $in: ids }, ...visible(req.user) }).collation({ locale: 'en' }).sort({ name: 1 }) : [];
+    const [what, ...rest] = String(b.do || '').split(':');
+    const value = rest.join(':');
+    if (!items.length || !what) {
+      req.session.flash = items.length ? 'Pick what to do with them.' : 'Nothing was selected.';
+      return res.redirect(`${back}${back.includes('?') ? '&' : '?'}select=1`);
+    }
+    const h = req.household;
+    const names = items.map((i) => i.name);
+    const many = names.length === 1 ? names[0] : `${names.length} items`;
+    const NAMES = pantryNames(h);
+    let text = '';
+    if (what === 'delete') {
+      const docs = items.map((i) => i.toObject());
+      await PantryItem.deleteMany({ _id: { $in: items.map((i) => i._id) } });
+      await recordDeleteMany(req, { model: 'PantryItem', docs, section: SECTION, label: many, text: names.length <= 3 ? `removed ${names.join(', ')} from the pantry` : `removed ${names.length} items from the pantry (${names.slice(0, 3).join(', ')}, …)` });
+      req.session.flash = `Removed ${many}.`;
+      return res.redirect(back);
+    }
+    if (what === 'move' && [...h.pantrySpots, 'Other'].includes(value)) {
+      items.forEach((i) => { i.spot = value; });
+      text = `moved ${many} to ${value}`;
+    } else if (what === 'status' && STATUS_KEYS.includes(value)) {
+      items.forEach((i) => {
+        if (i.status === value) return;
+        if (value === 'out') i.batches = [];
+        else if (!batchesOf(i).length) i.batches = [{ count: 1, expires: '' }];
+        i.set({ status: value, statusBy: req.user.name, statusAt: new Date() });
+      });
+      text = `marked ${many} ${NAMES[value]}`;
+    } else if ((what === 'tag+' || what === 'tag-') && (h.pantryTags || []).includes(value)) {
+      items.forEach((i) => { i.tags = what === 'tag+' ? [...new Set([...(i.tags || []), value])] : (i.tags || []).filter((t) => t !== value); });
+      text = `${what === 'tag+' ? 'tagged' : 'untagged'} ${many} ${value}`;
+    } else if (what === 'food' && ['yes', 'no', 'auto'].includes(value)) {
+      items.forEach((i) => { i.food = value === 'yes' ? true : value === 'no' ? false : null; });
+      text = `set ${many} as ${value === 'yes' ? 'food' : value === 'no' ? 'not food' : 'food by where it’s kept'}`;
+    } else if (what === 'shop' && ['on', 'off'].includes(value)) {
+      items.forEach((i) => { i.autoShop = value === 'on'; });
+      text = `turned ${value} adding ${many} to shopping when low`;
+    } else {
+      req.session.flash = 'Pick what to do with them.';
+      return res.redirect(`${back}${back.includes('?') ? '&' : '?'}select=1`);
+    }
+    let added = 0;
+    for (const i of items) {
+      if (!i.isModified()) continue;
+      await i.save();
+      if (what === 'status' && (await addToShopping(req.user, h, i))) added++;
+    }
+    await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
+    req.session.flash = `${text.charAt(0).toUpperCase()}${text.slice(1)}.${added ? ` ${added} added to the shopping list.` : ''}`;
+    res.redirect(back);
   } catch (err) {
     next(err);
   }

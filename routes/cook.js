@@ -5,7 +5,7 @@ const { requireAuth, requireSection } = require('../middleware/auth');
 const Recipe = require('../models/Recipe');
 const { visible } = require('../lib/changes');
 const { keyOf } = require('../lib/catalog');
-const { rankRecipes, searchOnline, fetchOnline, source, atHome } = require('../lib/cook');
+const { rankRecipes, searchOnline, fetchOnline, source, atHome, tagsIn } = require('../lib/cook');
 
 const router = express.Router();
 router.use('/s/recipes/cook', requireAuth, requireSection('recipes'));
@@ -23,7 +23,10 @@ router.get('/s/recipes/cook', async (req, res, next) => {
     const have = [...using.map((i) => i.key), ...also.map(keyOf)];
     const expiring = using.filter((i) => i.soon).map((i) => ({ key: i.key, name: i.name, text: i.expText }));
     const recipes = await Recipe.find(visible(req.user), { title: 1, category: 1, tags: 1, ingredients: 1, time: 1, servings: 1 }).lean();
-    const mine = rankRecipes(recipes, { have, usual, expiring, craving }).slice(0, 20);
+    // A craving that names pantry tags: what's at home with those tags, and recipes that use it.
+    const cravedTags = tagsIn(craving, req.household.pantryTags);
+    const tagged = cravedTags.length ? items.filter((i) => cravedTags.every((t) => i.tags.includes(t))) : [];
+    const mine = rankRecipes(recipes, { have, usual, expiring, craving, cravedKeys: tagged.map((i) => i.key) }).slice(0, 20);
 
     let online = null;
     let onlineError = null;
@@ -39,7 +42,7 @@ router.get('/s/recipes/cook', async (req, res, next) => {
     }
     const query = new URLSearchParams([['go', '1'], ...(craving ? [['craving', craving]] : []), ...(also.length ? [['also', also.join(', ')]] : []), ...[...picked].map((k) => ['use', k])]).toString();
     res.render('recipes/cook', {
-      active: 'recipes', craving, also: also.join(', '), items, picked, mine, online, onlineError, query,
+      active: 'recipes', cravedTags, tagged, craving, also: also.join(', '), items, picked, mine, online, onlineError, query,
       source: source(), mealsOn: req.perms.can('meals', 'add'), canAdd: req.perms.can('recipes', 'add'),
     });
   } catch (err) {

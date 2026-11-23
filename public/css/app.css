@@ -579,3 +579,12 @@ span.check { cursor: default; }
 .rate-alert strong { font-size: 15px; }
 .rate-prompt { border: 1px solid var(--lilac-ring); }
 .rate-prompt-foot { display: flex; justify-content: space-between; }
+
+/* ---------- Pantry tags and select mode ---------- */
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.tag-row .tag { font-size: 11px; padding: 1px 7px; }
+.tag-chips .chip { min-height: 36px; }
+.select-link { align-self: flex-end; margin-top: -8px; }
+.bulk-bar { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 5; border: 1px solid var(--border); box-shadow: 0 -4px 24px rgba(31,34,48,.12); }
+.bulk-do { display: flex; gap: 8px; }
+.bulk-do select { flex: 1; min-width: 0; }

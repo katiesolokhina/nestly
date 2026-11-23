@@ -1,6 +1,7 @@
-<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan', 'confirm'] }) %>
+<%- include('../partials/top', { title: 'Pantry', scripts: ['chip-scroll', 'swipe', 'scan', 'confirm', 'pantry-select'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (canEdit('pantry')) { %><div class="btn-row"><button class="btn btn-ghost" type="button" data-scan-open hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg> Scan</button><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('pantry') %><%- include('../partials/gear', { key: 'pantry' }) %></h1><p class="sub"><%= lowCount %> <%= STATUS.low.toLowerCase() %> or <%= STATUS.out.toLowerCase() %><%= soonCount ? ' · ' + soonCount + ' expiring soon' : '' %></p></div><% if (!selecting && (can('pantry', 'add') || can('pantry', 'stock'))) { %><div class="btn-row"><button class="btn btn-ghost" type="button" data-scan-open hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"></path></svg> Scan</button><a class="btn btn-ghost" href="/s/pantry/new<%= spot ? '?spot=' + encodeURIComponent(spot) : '' %>">Details</a></div><% } %></div>
+  <% if (canBulk && groups.length && !selecting) { %><a class="link-btn select-link" href="/s/pantry?<%= query ? query + '&' : '' %>select=1">Select to change several</a><% } %>
   <%- include('../partials/rate-prompt', { back: '/s/pantry' }) %>
   <% if (can('pantry', 'add')) { %><form class="add pantry-add" method="get" action="/s/pantry/add">
     <input type="text" name="name" list="catalog-names" maxlength="80" aria-label="Add to the pantry" placeholder="Add an item" autocomplete="off">
@@ -29,6 +30,47 @@
     <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="/s/pantry?show=soon"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring soon<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
     <% household.pantrySpots.forEach((s) => { %><a class="chip<%= spot === s ? ' on' : '' %>" href="/s/pantry?spot=<%= encodeURIComponent(s) %>"<%- spot === s ? ' aria-current="true"' : '' %>><%= s %></a><% }) %>
   </div>
+  <% if ((household.pantryTags || []).length) { %>
+  <div class="chips chips-scroll tag-chips" role="group" aria-label="Tags" data-chip-scroll>
+    <% household.pantryTags.forEach((t) => { const on = tags.includes(t); %><a class="chip<%= on ? ' on' : '' %>" href="<%= tagLink(t) %>" aria-pressed="<%= on %>"><%= t %></a><% }) %>
+  </div>
+  <% } %>
+  <% if (selecting) { %>
+    <form class="stack" method="post" action="/s/pantry/bulk" data-bulk-form>
+      <input type="hidden" name="query" value="<%= query %>">
+      <div class="row-h"><h2>Select items</h2><a class="link-btn" href="/s/pantry<%= query ? '?' + query : '' %>">Done</a></div>
+      <div class="card">
+        <% if (!groups.length) { %><p class="muted small center">Nothing here.</p><% } %>
+        <% groups.forEach((g, gi) => { %>
+          <div data-bulk-group>
+            <div class="row-h"><p class="aisle"><%= g.name %></p><button class="link-btn" type="button" data-bulk-all>Select all here<span class="sr-only"> (<%= g.name %>)</span></button></div>
+            <% g.items.forEach((i) => { %>
+              <label class="row ing-pick"><input type="checkbox" name="ids" value="<%= i._id %>" data-bulk-item><span class="row-body"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta"><%= i.meta %></span><% } %><% if ((i.tags || []).length) { %><span class="tag-row"><% i.tags.forEach((t) => { %><span class="tag lilac"><%= t %></span><% }) %></span><% } %></span><span class="tag"><%= STATUS[i.status] %></span></label>
+            <% }) %>
+          </div>
+        <% }) %>
+      </div>
+      <div class="bulk-bar card">
+        <strong data-bulk-count>Tick items, or Select all in a spot</strong>
+        <div class="bulk-do">
+          <label class="sr-only" for="bulk-do">Change</label>
+          <select id="bulk-do" name="do" required>
+            <option value="">Change them…</option>
+            <optgroup label="Move to"><% [...household.pantrySpots, 'Other'].forEach((sp) => { %><option value="move:<%= sp %>"><%= sp %></option><% }) %></optgroup>
+            <optgroup label="Status"><% Object.entries(STATUS).forEach(([v, l]) => { %><option value="status:<%= v %>"><%= l %></option><% }) %></optgroup>
+            <% if ((household.pantryTags || []).length) { %>
+              <optgroup label="Add tag"><% household.pantryTags.forEach((t) => { %><option value="tag+:<%= t %>">+ <%= t %></option><% }) %></optgroup>
+              <optgroup label="Remove tag"><% household.pantryTags.forEach((t) => { %><option value="tag-:<%= t %>">− <%= t %></option><% }) %></optgroup>
+            <% } %>
+            <optgroup label="Food (for recipes)"><option value="food:yes">Food</option><option value="food:no">Not food</option><option value="food:auto">By where it’s kept</option></optgroup>
+            <optgroup label="Add to shopping when low"><option value="shop:on">On</option><option value="shop:off">Off</option></optgroup>
+          </select>
+          <button class="btn btn-primary" type="submit" data-bulk-apply>Apply</button>
+        </div>
+        <% if (can('pantry', 'delete') && (perms.parts('pantry') || {}).delete === 'all') { %><button class="btn btn-danger btn-block" type="submit" name="do" value="delete" formnovalidate data-bulk-delete data-confirm="Remove the selected items from the pantry? You can undo it from Activity.">Delete selected</button><% } %>
+      </div>
+    </form>
+  <% } else { %>
   <div class="card">
     <% if (!groups.length) { %><p class="muted small center"><%= show || spot ? 'Nothing here.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
     <% groups.forEach((g) => { %>
@@ -36,10 +78,10 @@
         <p class="aisle"><%= g.name %></p>
         <% g.items.forEach((i) => { %>
           <div class="swipe" data-swipe id="p-<%= i._id %>">
-            <form class="swipe-delete" method="post" action="/s/pantry/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= query %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form>
+            <% if (can('pantry', 'delete', i)) { %><form class="swipe-delete" method="post" action="/s/pantry/<%= i._id %>/delete"><input type="hidden" name="query" value="<%= query %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form><% } %>
             <div class="row pantry-row status-<%= i.status %>">
               <% if (i.photoId) { %><a class="pantry-thumb" href="/files/<%= i.photoId %>/view?back=/s/pantry"><img src="/files/<%= i.photoId %>" alt="Photo of <%= i.name %>" loading="lazy"></a><% } %>
-              <% if (can('pantry', 'edit', i)) { %><a class="row-body row-link" href="/s/pantry/<%= i._id %>/edit"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %></div><% } %>
+              <% if (can('pantry', 'edit', i)) { %><a class="row-body row-link" href="/s/pantry/<%= i._id %>/edit"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %><% if ((i.tags || []).length) { %><span class="tag-row"><% i.tags.forEach((t) => { %><span class="tag lilac"><%= t %></span><% }) %></span><% } %></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><% if (i.meta) { %><span class="row-meta<%= i.exp.tone === 'late' ? ' late' : '' %>"><%= i.meta %></span><% } %><% if ((i.tags || []).length) { %><span class="tag-row"><% i.tags.forEach((t) => { %><span class="tag lilac"><%= t %></span><% }) %></span><% } %></div><% } %>
               <% if (i.count > 1 && can('pantry', 'stock')) { %><form method="post" action="/s/pantry/<%= i._id %>/use"><input type="hidden" name="query" value="<%= query %>"><button class="mini use-one" type="submit" aria-label="Used one <%= i.name %> (<%= i.count %> left)">−1</button></form><% } %>
               <% if (!can('pantry', 'stock')) { %><span class="tag"><%= STATUS[i.status] %></span><% } else { %><form class="status-seg" method="post" action="/s/pantry/<%= i._id %>/status" aria-label="<%= i.name %>: <%= STATUS[i.status] %>">
                 <input type="hidden" name="query" value="<%= query %>">
@@ -51,6 +93,7 @@
       </div>
     <% }) %>
   </div>
+  <% } %>
   <p class="hint"><% if (shoppingOn) { %>Marking something <%= household.pantryShop === 'out' ? STATUS.out : STATUS.low + ' or ' + STATUS.out %> puts it on the shopping list, and what’s bought there waits under Put away. <% } %>Swipe an item left to delete it.</p>
 </main>
 <% if (can('pantry', 'add') || can('pantry', 'stock')) { %><%- include('../partials/scanner', { mode: 'pantry', spots: household.pantrySpots, spot: spot || defaultSpot || household.pantrySpots[0], query }) %><% } %>

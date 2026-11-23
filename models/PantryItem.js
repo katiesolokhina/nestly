@@ -23,6 +23,7 @@ const pantrySchema = new mongoose.Schema(
     // Food (used for recipes)? null: decided by its spot (Settings → Pantry → Not food).
     food: { type: Boolean, default: null },
     note: { type: String, trim: true, maxlength: 300, default: '' },
+    tags: { type: [String], default: [] }, // from the household's pantry tags (Snacks, Spicy…)
     photoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Upload', default: null }, // what it looks like (the brand you buy)
     statusBy: { type: String, default: '' },
     statusAt: { type: Date, default: null },

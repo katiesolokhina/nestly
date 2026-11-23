@@ -20,6 +20,15 @@
     </div>
   </form>
 
+  <% if (cravedTags.length) { %>
+    <section class="card" aria-labelledby="tagged">
+      <h2 id="tagged">At home: <%= cravedTags.join(' + ') %></h2>
+      <% if (!tagged.length) { %><p class="muted small">Nothing in the pantry is tagged <%= cravedTags.join(' and ') %> right now.</p><% } else { %>
+        <div class="tag-row"><% tagged.forEach((t) => { %><span class="tag lilac"><%= t.name %></span><% }) %></div>
+        <p class="hint">Tagged in the pantry. Recipes below that use them count as a match.</p>
+      <% } %>
+    </section>
+  <% } %>
   <section class="card" aria-labelledby="mine">
     <h2 id="mine">From your recipes</h2>
     <% if (!mine.length) { %><p class="muted small"><%= craving ? 'None of your recipes match that craving.' : 'No saved recipes with ingredients yet.' %> Try searching online.</p><% } %>

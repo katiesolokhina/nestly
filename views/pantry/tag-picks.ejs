@@ -1,0 +1,7 @@
+<% if ((household.pantryTags || []).length) { %>
+  <fieldset class="group">
+    <legend>Tags <span class="muted">(optional)</span></legend>
+    <div class="tag-picks"><% household.pantryTags.forEach((t) => { %><label class="tag-pick"><input type="checkbox" name="tags" value="<%= t %>"<%= (tags || []).includes(t) ? ' checked' : '' %>><span><%= t %></span></label><% }) %></div>
+    <% if (canSettings) { %><p class="hint">Add or change tags in <a href="/settings/s/pantry">Settings → Pantry</a>.</p><% } %>
+  </fieldset>
+<% } %>
