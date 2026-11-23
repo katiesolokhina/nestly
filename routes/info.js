@@ -135,9 +135,10 @@ router.get('/s/info/:id', async (req, res, next) => {
       active: 'info',
       item,
       files,
-      qr: await wifiQr(item),
+      // A role that can't see passwords gets neither the hidden fields nor the Wi-Fi code (it holds one).
+      qr: req.perms.sees('info', 'passwords') ? await wifiQr(item) : null,
       warranty: warrantyNote(item, today),
-      fields: item.fields.map((f) => ({ ...f.toObject(), href: hrefFor(f), sms: smsFor(f), display: f.kind === 'date' && f.value ? shortDay(f.value) : f.value })),
+      fields: item.fields.filter((f) => f.kind !== 'secret' || req.perms.sees('info', 'passwords')).map((f) => ({ ...f.toObject(), href: hrefFor(f), sms: smsFor(f), display: f.kind === 'date' && f.value ? shortDay(f.value) : f.value })),
     });
   } catch (err) {
     next(err);

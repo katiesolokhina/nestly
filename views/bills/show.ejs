@@ -54,10 +54,10 @@
   <% } %>
 
   <div class="btn-row">
-    <a class="btn btn-ghost" href="/s/bills/<%= bill._id %>/edit">Edit</a>
+    <% if (can('bills', 'edit', bill)) { %><a class="btn btn-ghost" href="/s/bills/<%= bill._id %>/edit">Edit</a><% } %>
     <% if (series && series.active) { %><form method="post" action="/s/bills/<%= bill._id %>/stop" data-confirm="Stop this bill from repeating? Bills already paid stay in history."><button class="btn btn-ghost" type="submit">Stop repeating</button></form><% } %>
   </div>
-  <form method="post" action="/s/bills/<%= bill._id %>/delete" data-confirm="Delete this bill?"><button class="link-btn link-danger" type="submit">Delete this bill<span class="sr-only"> <%= bill.name %></span></button></form>
+  <% if (can('bills', 'delete', bill)) { %><form method="post" action="/s/bills/<%= bill._id %>/delete" data-confirm="Delete this bill?"><button class="link-btn link-danger" type="submit">Delete this bill<span class="sr-only"> <%= bill.name %></span></button></form><% } %>
   <p class="hint">Added by <%= bill.byName %>.</p>
 </main>
 <%- include('../partials/bottom') %>

@@ -32,7 +32,7 @@
     </fieldset>
     <% if (showPoints) { %><div class="field"><label for="points">Points</label><input id="points" name="points" type="number" min="0" max="1000" inputmode="numeric" value="<%= item.points || 0 %>"><span class="hint">Earned each time it’s done, by the roles chosen in Chores settings.</span></div><% } %>
     <div class="field"><label for="details">Details <span class="muted">(optional)</span></label><textarea id="details" name="details" maxlength="1000" rows="3" placeholder="How to do it, what counts as done"><%= item.details %></textarea></div>
-    <% if (canEdit('chores')) { %><button class="btn btn-primary btn-block" type="submit">Save</button><% } %>
+    <% if (item._id ? can('chores', 'edit', item) : can('chores', 'add')) { %><button class="btn btn-primary btn-block" type="submit">Save</button><% } %>
   </form>
   <% if (history.length) { %>
     <div class="card">
@@ -40,6 +40,6 @@
       <% history.forEach((d) => { %><div class="row"><div class="row-body"><span class="row-title"><%= d.byName %></span><span class="row-meta">For <%= d.day %><%= showPoints && d.points ? ' · +' + d.points + ' points' : '' %></span></div></div><% }) %>
     </div>
   <% } %>
-  <% if (item._id && canEdit('chores')) { %><form method="post" action="/s/chores/<%= item._id %>/delete" data-confirm="Delete <%= item.title %><%= item.repeat !== 'none' ? ' and every time it repeats' : '' %>?"><button class="link-btn link-danger" type="submit">Delete chore</button></form><% } %>
+  <% if (item._id && can('chores', 'delete', item)) { %><form method="post" action="/s/chores/<%= item._id %>/delete" data-confirm="Delete <%= item.title %><%= item.repeat !== 'none' ? ' and every time it repeats' : '' %>?"><button class="link-btn link-danger" type="submit">Delete chore</button></form><% } %>
 </main>
 <%- include('../partials/bottom') %>

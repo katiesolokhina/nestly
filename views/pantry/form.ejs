@@ -45,7 +45,7 @@
   </form>
   <% if (item._id) { %>
     <p class="hint">Last changed by <%= item.statusBy || item.byName %>.</p>
-    <form method="post" action="/s/pantry/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the pantry<span class="sr-only"> <%= item.name %></span></button></form>
+    <% if (can('pantry', 'delete', item)) { %><form method="post" action="/s/pantry/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the pantry<span class="sr-only"> <%= item.name %></span></button></form><% } %>
   <% } %>
 </main>
 <%- include('../partials/bottom') %>

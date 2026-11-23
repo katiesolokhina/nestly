@@ -64,7 +64,7 @@ test('roles and permissions', async (t) => {
 
   // Change Child: Bills view, Activity on, may change settings.
   page = await katie('/settings/roles/child');
-  assert.match(page.text, /name="s_bills" value="hidden" checked/);
+  assert.doesNotMatch(page.text, /name="show_bills"[^>]*checked/);
   await katie('/settings/roles/child', { method: 'POST', form: { name: 'Kid', s_bills: 'view', s_calendar: 'view', s_shopping: 'edit', s_info: 'hidden', activity: 'on', settings: 'on' } });
   assert.equal((await sam('/s/bills')).status, 200);
   assert.doesNotMatch((await sam('/s/bills')).text, /href="\/s\/bills\/new"/);

@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Chores', scripts: ['chip-scroll', 'quick'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('chores') %><%- include('../partials/gear', { key: 'chores' }) %></h1><p class="sub"><%= count %> to do today</p></div><% if (canEdit('chores')) { %><a class="btn btn-primary" href="/s/chores/new">Add</a><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('chores') %><%- include('../partials/gear', { key: 'chores' }) %></h1><p class="sub"><%= count %> to do today</p></div><% if (can('chores', 'add')) { %><a class="btn btn-primary" href="/s/chores/new">Add</a><% } %></div>
   <% if (showPoints) { %><a class="card row menu-row" href="/s/chores/points"><span class="row-body"><span class="row-title">Points and rewards</span><span class="row-meta">See points and spend them on rewards</span></span><span class="chev" aria-hidden="true">›</span></a><% } %>
   <% const link = (o) => { const p = new URLSearchParams(Object.entries({ who, room, group, ...o }).filter(([k, v]) => v && !(k === 'who' && v === 'all') && !(k === 'group' && v === 'day'))).toString(); return '/s/chores' + (p ? '?' + p : ''); }; %>
   <div class="chips" role="group" aria-label="Whose chores">
@@ -23,7 +23,7 @@
           <div class="swipe" data-swipe>
           <div class="row">
             <% if (can('chores', 'done')) { %><form method="post" action="/s/chores/<%= c._id %>/done" data-quick="bought"><input type="hidden" name="due" value="<%= c.due %>"><input type="hidden" name="query" value="<%= query %>"><button class="check" type="submit" aria-label="Mark <%= c.title %> done"><i></i></button></form><% } %>
-            <a class="row-body row-link" href="/s/chores/<%= c._id %>/edit"><span class="row-title"><%= c.title %></span><span class="row-meta<%= c.late ? ' late' : '' %>"><%= c.meta %></span></a>
+            <% if (can('chores', 'edit', c)) { %><a class="row-body row-link" href="/s/chores/<%= c._id %>/edit"><span class="row-title"><%= c.title %></span><span class="row-meta<%= c.late ? ' late' : '' %>"><%= c.meta %></span></a><% } else { %><div class="row-body"><span class="row-title"><%= c.title %></span><span class="row-meta<%= c.late ? ' late' : '' %>"><%= c.meta %></span></div><% } %>
             <% if (c.pts) { %><span class="tag lilac"><%= c.pts %> pt<%= c.pts === 1 ? '' : 's' %></span><% } %>
           </div>
           </div>
@@ -37,6 +37,6 @@
       <% recent.forEach((d) => { %><div class="row done"><span class="check on" aria-hidden="true"><i>✓</i></span><div class="row-body"><span class="row-title"><%= d.title %></span><span class="row-meta"><%= d.meta %></span></div></div><% }) %>
     </div>
   <% } %>
-  <% if (groups.length && canEdit('chores')) { %><p class="hint">Done one late? It counts for the latest day it was due, so missed days don’t pile up.</p><% } %>
+  <% if (groups.length && can('chores', 'done')) { %><p class="hint">Done one late? It counts for the latest day it was due, so missed days don’t pile up.</p><% } %>
 </main>
 <%- include('../partials/bottom') %>

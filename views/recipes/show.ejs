@@ -36,7 +36,7 @@
   <% if (item.notes) { %><section class="card"><h2>Notes</h2><p class="details-text"><%= item.notes %></p></section><% } %>
   <% if (item.link) { %><a class="btn btn-ghost btn-block" href="<%= item.link %>" target="_blank" rel="noopener noreferrer">Open original<%= source ? ' on ' + source : '' %></a><% } %>
   <div class="btn-row">
-    <a class="btn btn-ghost" href="/s/recipes/<%= item._id %>/edit">Edit</a>
+    <% if (can('recipes', 'edit', item)) { %><a class="btn btn-ghost" href="/s/recipes/<%= item._id %>/edit">Edit</a><% } %>
     <form method="post" action="/s/recipes/<%= item._id %>/copy"><button class="btn btn-ghost" type="submit">Make a copy</button></form>
   </div>
   <p class="hint">Added by <%= item.byName %>. A copy is a separate recipe you can change without touching this one.</p>

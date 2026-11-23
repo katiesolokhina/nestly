@@ -1,12 +1,12 @@
 <%- include('../partials/top', { title: 'Bills', scripts: ['chip-scroll'] }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('bills') %><%- include('../partials/gear', { key: 'bills' }) %></h1><p class="sub"><% if (tab === 'upcoming') { %><%= dueCount %> due in the next 30 days · <%= dueTotal %><% } else { %>Paid bills<% } %></p></div><% if (canEdit('bills')) { %><a class="btn btn-primary" href="/s/bills/new">Add</a><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('bills') %><%- include('../partials/gear', { key: 'bills' }) %></h1><p class="sub"><% if (tab === 'upcoming') { %><%= dueCount %> due in the next 30 days · <%= dueTotal %><% } else { %>Paid bills<% } %></p></div><% if (can('bills', 'add')) { %><a class="btn btn-primary" href="/s/bills/new">Add</a><% } %></div>
 
-  <a class="card balance-card" href="/s/bills/balances">
+  <% if (perms.sees('bills', 'owes')) { %><a class="card balance-card" href="/s/bills/balances">
     <span class="row-title">Balances</span>
     <% if (!mine.length) { %><span class="row-meta">You’re all square<%= othersOwing ? ', see others' : '' %>.</span><% } %>
     <% mine.forEach((m) => { %><span class="row-meta<%= m.owe ? ' late' : ' good' %>"><%= m.text %></span><% }) %>
-  </a>
+  </a><% } %>
 
   <div class="seg" role="tablist" aria-label="Bills">
     <a role="tab" class="seg-item<%= tab === 'upcoming' ? ' on' : '' %>" aria-selected="<%= tab === 'upcoming' %>" href="/s/bills<%= category ? '?category=' + encodeURIComponent(category) : '' %>">Upcoming</a>

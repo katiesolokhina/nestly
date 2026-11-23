@@ -1,29 +1,28 @@
-<%- include('../partials/top', { title: role.name, scripts: ['confirm', 'seg-radio'] }) %>
+<%- include('../partials/top', { title: role.name, scripts: ['confirm', 'role-parts'] }) %>
 <main class="stack">
   <%- include('../partials/settings-head', { heading: role.name, sub: 'What this role can do in ' + household.name, back: '/settings/roles' }) %>
   <form class="card stack" method="post" action="/settings/roles/<%= role.key %>">
     <div class="field"><label for="name">Role name</label><input id="name" name="name" type="text" maxlength="24" required value="<%= role.name %>"></div>
     <fieldset class="group">
       <legend>Sections</legend>
-      <p class="hint">Hidden: they don’t see it or get its notifications. View: look only. Edit: everything. Custom: pick what they can do.</p>
-      <% sections.forEach((s) => { const lvl = role.sections[s.key] || 'edit'; %>
-        <div class="perm-block" data-perm="<%= s.key %>">
-          <div class="perm-row">
-            <span class="perm-name"><%= s.label %></span>
-            <div class="seg perm-seg" role="radiogroup" aria-label="<%= s.label %>">
-              <% [['hidden', 'Hidden'], ['view', 'View'], ['edit', 'Edit'], ...(s.actions.length ? [['custom', 'Custom']] : [])].forEach(([v, l]) => { %>
-                <label class="seg-item<%= lvl === v ? ' on' : '' %>"><input class="sr-only" type="radio" name="s_<%= s.key %>" value="<%= v %>"<%= lvl === v ? ' checked' : '' %>><%= l %></label>
-              <% }) %>
-            </div>
+      <p class="hint">Show or hide each section. When it’s shown, tap it to choose what they can do with each part. Anything they can’t do won’t appear for them.</p>
+      <% sections.forEach((s) => { %>
+        <div class="perm-sec" data-perm>
+          <div class="perm-head">
+            <button class="perm-open" type="button" aria-expanded="false" aria-controls="parts-<%= s.key %>" data-perm-toggle<%= s.shown ? '' : ' disabled' %>>
+              <span class="perm-name"><%= s.label %> <span class="perm-chev" aria-hidden="true">›</span></span>
+              <span class="perm-sum" data-perm-sum><%= s.shown ? s.summary : 'Hidden: not in the menu, search, Today or notifications' %></span>
+            </button>
+            <label class="switch"><span data-switch-text><%= s.shown ? 'Shown' : 'Hidden' %></span><input type="checkbox" role="switch" name="show_<%= s.key %>" aria-label="Show <%= s.label %>" data-perm-show<%= s.shown ? ' checked' : '' %>><span class="switch-track" aria-hidden="true"></span></label>
           </div>
-          <% if (s.actions.length) { %>
-            <div class="perm-custom" data-custom<%= lvl === 'custom' ? '' : ' hidden' %>>
-              <% s.actions.forEach(([a, label]) => { %><label class="check-row"><%= label %><input type="checkbox" name="c_<%= s.key %>_<%= a %>"<%= s.custom[a] ? ' checked' : '' %>></label><% }) %>
-              <% [['edit', 'Change things'], ['delete', 'Delete things']].forEach(([a, label]) => { %>
-                <div class="field"><label for="c_<%= s.key %>_<%= a %>"><%= label %></label><select id="c_<%= s.key %>_<%= a %>" name="c_<%= s.key %>_<%= a %>"><% SCOPES.forEach(([v, l]) => { %><option value="<%= v %>"<%= (s.custom[a] || 'none') === v ? ' selected' : '' %>><%= l %></option><% }) %></select></div>
-              <% }) %>
-            </div>
-          <% } %>
+          <div class="perm-parts" id="parts-<%= s.key %>" hidden>
+            <% s.parts.forEach((p) => { const id = 'c_' + s.key + '_' + p.a; %>
+              <div class="perm-part">
+                <label for="<%= id %>"><%= p.label %></label>
+                <select id="<%= id %>" name="<%= id %>" data-kind="<%= p.kind %>"><% p.options.forEach(([v, l]) => { %><option value="<%= v %>"<%= String(p.value) === v ? ' selected' : '' %>><%= l %></option><% }) %></select>
+              </div>
+            <% }) %>
+          </div>
         </div>
       <% }) %>
     </fieldset>

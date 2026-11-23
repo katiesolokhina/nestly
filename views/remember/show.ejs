@@ -29,6 +29,6 @@
       </form>
     </section>
   <% } %>
-  <a class="btn btn-ghost btn-block" href="/s/remember/<%= item._id %>/edit">Edit reminder</a>
+  <% if (can('remember', 'edit', item)) { %><a class="btn btn-ghost btn-block" href="/s/remember/<%= item._id %>/edit">Edit reminder</a><% } %>
 </main>
 <%- include('../partials/bottom') %>

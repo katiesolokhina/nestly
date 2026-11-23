@@ -27,6 +27,6 @@
 <% if (perms.private) { %>    <% if (!item._id || String(item.createdBy) === user.id) { %><label class="check-row">Only me<input type="checkbox" name="private" data-private<%= item.private ? ' checked' : '' %>></label><% } %><% } %>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
-  <% if (item._id) { %><form method="post" action="/s/remember/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.text %></span></button></form><% } %>
+  <% if (item._id && can('remember', 'delete', item)) { %><form method="post" action="/s/remember/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.text %></span></button></form><% } %>
 </main>
 <%- include('../partials/bottom') %>

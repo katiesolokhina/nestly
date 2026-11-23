@@ -35,7 +35,7 @@
       <% files.forEach((f) => { %><a class="row bill-row" href="/files/<%= f._id %>/view?back=/s/info/<%= item._id %>"><% if (f.type.startsWith('image/')) { %><img class="file-thumb" src="/files/<%= f._id %>" alt=""><% } %><span class="row-body row-title"><%= f.name %></span></a><% }) %>
     </section>
   <% } %>
-  <a class="btn btn-ghost btn-block" href="/s/info/<%= item._id %>/edit">Edit</a>
+  <% if (can('info', 'edit', item)) { %><a class="btn btn-ghost btn-block" href="/s/info/<%= item._id %>/edit">Edit</a><% } %>
   <p class="hint">Added by <%= item.byName %><%= item.private ? ', only visible to you' : '' %>.</p>
 </main>
 <%- include('../partials/bottom') %>

@@ -50,7 +50,7 @@ router.get('/s/chores', async (req, res, next) => {
     let chores = withDue.filter((c) => c.due);
     if (who === 'me') chores = chores.filter((c) => isFor(c, req.user._id, members));
     chores.sort((a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title));
-    const showPoints = pointsOn(h);
+    const showPoints = pointsOn(h) && req.perms.can('chores', 'rewards');
     const rows = chores.map((c) => {
       const a = assigneeOf(c, members);
       return {

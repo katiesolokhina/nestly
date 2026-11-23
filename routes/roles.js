@@ -5,8 +5,8 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const Membership = require('../models/Membership');
 const { SECTIONS } = require('../lib/sections');
 const { sectionName } = require('../lib/prefs');
-const { LEVELS, EXTRA, PAGES, rolesOf, roleOf } = require('../lib/perms');
-const { ACTIONS, SCOPES, fullCustom, readCustom } = require('../lib/actions');
+const { EXTRA, PAGES, rolesOf, roleOf } = require('../lib/perms');
+const { KINDS, PARTS, fullCustom, viewCustom, fillCustom, readCustom, levelFor } = require('../lib/actions');
 const { WIDGETS } = require('../lib/today');
 const { logActivity } = require('../lib/activity');
 
@@ -70,14 +70,29 @@ router.post('/settings/roles', async (req, res, next) => {
   }
 });
 
+// What one part's choice counts as, for the short line under each section.
+const tally = (kind, v) => (['no', 'hidden'].includes(v) || (kind === 'scope' && v === 'none') || v === false ? 'off' : v === 'view' || (kind === 'main' && v === 'none') ? 'view' : 'on');
+const summaryOf = (parts) => {
+  const n = { on: 0, view: 0, off: 0 };
+  parts.forEach((p) => { n[tally(p.kind, p.value)]++; });
+  return [n.on && `${n.on} allowed`, n.view && `${n.view} view only`, n.off && `${n.off} off`].filter(Boolean).join(' · ');
+};
+
 router.get('/settings/roles/:key', (req, res) => {
   const role = roleOf(req.household, req.params.key);
   if (!role) return res.status(404).send('Not found');
+  const levels = role.sections || {};
   res.render('settings/role', {
     active: 'settings',
-    role: { ...role, sections: { ...(role.sections || {}) }, custom: role.custom || {}, pages: role.pages || {}, todayHidden: role.todayHidden || [] },
-    sections: SECTIONS.filter((s) => req.household.features[s.key] !== false).map((s) => ({ ...s, label: sectionName(req.household, s.key), actions: ACTIONS[s.key] || [], custom: (role.custom || {})[s.key] || fullCustom(s.key) })),
-    EXTRA, PAGES, SCOPES,
+    role: { ...role, pages: role.pages || {}, todayHidden: role.todayHidden || [] },
+    sections: SECTIONS.filter((s) => req.household.features[s.key] !== false).map((s) => {
+      const lvl = levels[s.key] || 'edit';
+      // A hidden section shows the choices it had before (or Edit's), for when it's shown again.
+      const c = lvl === 'view' ? viewCustom(s.key) : lvl === 'custom' || lvl === 'hidden' ? fillCustom(s.key, (role.custom || {})[s.key]) : fullCustom(s.key);
+      const parts = (PARTS[s.key] || []).map(([a, label, kind]) => ({ a, label, kind, options: KINDS[kind], value: kind === 'action' ? (c[a] ? 'yes' : 'no') : c[a] }));
+      return { key: s.key, label: sectionName(req.household, s.key), shown: lvl !== 'hidden', parts, summary: summaryOf(parts) };
+    }),
+    EXTRA, PAGES,
     cards: WIDGETS.filter((w) => !w.feature || req.household.features[w.feature] !== false),
     error: null,
   });
@@ -95,11 +110,17 @@ router.post('/settings/roles/:key', async (req, res, next) => {
       return res.redirect(`/settings/roles/${roles[i].key}`);
     }
     // Sections that are turned off keep whatever they had, for when they come back on.
+    // Each shown section: one choice per part, stored as edit/view when it matches those exactly.
     const sections = { ...roles[i].sections };
-    SECTIONS.forEach((s) => { if (LEVELS.includes(b[`s_${s.key}`])) sections[s.key] = b[`s_${s.key}`]; });
-    // Custom sections: which actions, and whose things they can change and delete.
     const custom = { ...(roles[i].custom || {}) };
-    SECTIONS.forEach((s) => { if (sections[s.key] === 'custom' && ACTIONS[s.key]) custom[s.key] = readCustom(s.key, b); });
+    SECTIONS.forEach((s) => {
+      if (req.household.features[s.key] === false) return;
+      // A plain level (hidden, view, edit) still works, as the older form sent it.
+      if (!b[`c_${s.key}_edit`]) { if (['hidden', 'view', 'edit'].includes(b[`s_${s.key}`])) sections[s.key] = b[`s_${s.key}`]; return; }
+      const c = readCustom(s.key, b);
+      custom[s.key] = c; // kept while hidden too, for when it's shown again
+      sections[s.key] = b[`show_${s.key}`] === 'on' ? levelFor(s.key, c) : 'hidden';
+    });
     const pages = Object.fromEntries(Object.keys(PAGES).map((k) => [k, b[`p_${k}`] === 'on']));
     const shown = new Set([].concat(b.cards || []).map(String));
     const todayHidden = WIDGETS.filter((w) => !w.feature || req.household.features[w.feature] !== false).map((w) => w.k).filter((k) => !shown.has(k));

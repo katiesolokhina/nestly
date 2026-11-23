@@ -40,7 +40,7 @@ router.get('/s/recipes/cook', async (req, res, next) => {
     const query = new URLSearchParams([['go', '1'], ...(craving ? [['craving', craving]] : []), ...(also.length ? [['also', also.join(', ')]] : []), ...[...picked].map((k) => ['use', k])]).toString();
     res.render('recipes/cook', {
       active: 'recipes', craving, also: also.join(', '), items, picked, mine, online, onlineError, query,
-      source: source(), mealsOn: req.perms.level('meals') === 'edit', canAdd: req.perms.level('recipes') === 'edit',
+      source: source(), mealsOn: req.perms.can('meals', 'add'), canAdd: req.perms.can('recipes', 'add'),
     });
   } catch (err) {
     next(err);

@@ -6,7 +6,7 @@ const { homesOf } = require('../lib/members');
 const { sectionName } = require('../lib/prefs');
 const { permsFor, roleName, roleOf } = require('../lib/perms');
 const { SECTIONS } = require('../lib/sections');
-const { classify, check } = require('../lib/actions');
+const { classify, classifyGet, check } = require('../lib/actions');
 const { bottomBar } = require('../lib/sections');
 
 // Loads the signed-in user and their household, or sends them to /login.
@@ -111,10 +111,13 @@ const requireSection = (key) => (req, res, next) => {
     req.session.flash = `Your role can look at ${sectionName(req.household, key)} but not change it.`;
     return res.redirect(`/s/${key}`);
   }
-  // Custom: what this change is (add, check off, delete someone else's…) and whether it's allowed.
-  if (req.perms && req.perms.mode(key) === 'custom' && req.method === 'POST') {
-    const what = classify(key, req.method, req.baseUrl + req.path, req.body || {});
-    return check(key, req.perms.custom(key), req.user, what).then((cant) => {
+  // What this request is (open an edit form, add, check off, delete someone else's…) and whether
+  // the role's choices allow it. Forms they can't save, and parts they can't see, don't open.
+  const isGet = ['GET', 'HEAD'].includes(req.method);
+  if (req.perms && !req.perms.admin && (isGet || req.perms.mode(key) === 'custom')) {
+    const what = isGet ? classifyGet(key, req.baseUrl + req.path) : classify(key, req.method, req.baseUrl + req.path, req.body || {});
+    if (!what) return next();
+    return check(key, req.perms.parts(key), req.user, what).then((cant) => {
       if (!cant) return next();
       const msg = `Your role can’t ${cant} in ${sectionName(req.household, key)}.`;
       if (req.get('X-Requested-With') === 'fetch' || req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: msg });

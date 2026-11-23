@@ -37,9 +37,10 @@ test('custom permissions', async (t) => {
 
   // The Child role starts with Shopping and Chores on Custom.
   let page = await katie('/settings/roles/child');
-  assert.match(page.text, /name="s_shopping" value="custom" checked/);
-  assert.match(page.text, /name="c_shopping_add" checked/);
-  assert.doesNotMatch(page.text, /name="c_shopping_check" checked/);
+  assert.match(page.text, /name="show_shopping" aria-label="Show Shopping" data-perm-show checked/);
+  assert.match(page.text, /name="c_shopping_add" data-kind="action"><option value="no">Hidden<\/option><option value="yes" selected>/);
+  assert.match(page.text, /name="c_shopping_check" data-kind="action"><option value="no" selected>/);
+  assert.doesNotMatch(page.text, /name="show_bills"[^>]*checked/);
 
   // Shopping as a Child: add yes; check off, start shopping, and deleting others' no.
   page = await mia('/s/shopping');
@@ -49,7 +50,7 @@ test('custom permissions', async (t) => {
   assert.doesNotMatch(page.text, /swipe-delete/, 'Milk is Katie’s');
   let r = await mia(`/s/shopping/${app.seeded.milkId}/toggle`, { method: 'POST', form: { bought: '1' } });
   assert.equal(r.status, 303);
-  assert.match((await mia('/s/shopping')).text, /can’t check things off as bought/);
+  assert.match((await mia('/s/shopping')).text, /can’t check off as bought/);
   await withDb(app.uri, async () => assert.equal((await ShoppingItem.findById(app.seeded.milkId).lean()).bought, false));
   assert.equal((await mia('/s/shopping/start', { method: 'POST' })).status, 303);
   assert.doesNotMatch((await mia('/s/shopping?mode=shop')).text, /Shopping<\/strong>/, 'no shopping mode');
@@ -72,9 +73,12 @@ test('custom permissions', async (t) => {
   // Katie changes the Child role: let them check off; turn off Search; no Use soon on Today.
   page = await katie('/settings/roles/child');
   const form = [['name', 'Child']];
-  for (const m of page.text.matchAll(/name="(s_\w+)" value="(\w+)" checked/g)) form.push([m[1], m[2]]);
-  for (const m of page.text.matchAll(/name="(c_\w+)" checked/g)) form.push([m[1], 'on']);
-  form.push(['c_shopping_check', 'on'], ['c_shopping_edit', 'own'], ['c_shopping_delete', 'own'], ['c_chores_edit', 'none'], ['c_chores_delete', 'none']);
+  // What the page sends as it stands: each shown switch, and each part's picked choice.
+  for (const m of page.text.matchAll(/name="(show_\w+)"[^>]*data-perm-show checked/g)) form.push([m[1], 'on']);
+  for (const m of page.text.matchAll(/<select id="(c_\w+)"[^>]*>(.*?)<\/select>/g)) {
+    const v = m[1] === 'c_shopping_check' ? 'yes' : (m[2].match(/<option value="([^"]*)" selected>/) || [])[1];
+    form.push([m[1], v]);
+  }
   form.push(['p_spending', 'on'], ['p_feedback', 'on']); // search and households off
   for (const k of ['attention', 'shopping', 'remember', 'meals', 'upcoming', 'chores']) form.push(['cards', k]);
   await katie('/settings/roles/child', { method: 'POST', form });
@@ -86,6 +90,28 @@ test('custom permissions', async (t) => {
   assert.doesNotMatch((await mia('/')).text, /<h2>Use soon<\/h2>/);
   assert.doesNotMatch((await mia('/customize')).text, /Use soon/);
   assert.equal((await mia('/households', { method: 'POST', form: { name: 'Mine' } })).status, 404);
+
+  // Forms a role can't save don't open, and their links aren't there.
+  r = await mia(`/s/shopping/${app.seeded.milkId}/edit`);
+  assert.equal(r.status, 303, 'Milk is Katie’s: no edit form for a Child');
+  assert.doesNotMatch((await mia('/s/shopping')).text, new RegExp(`/s/shopping/${app.seeded.milkId}/edit`));
+  assert.equal((await mia('/s/chores/new')).status, 303, 'Child can’t add chores');
+  assert.doesNotMatch((await mia('/s/chores')).text, /href="\/s\/chores\/new"/);
+  await mia('/s/shopping', { method: 'POST', form: { name: 'Juice', qty: '1' } });
+  const juice = await withDb(app.uri, async () => (await ShoppingItem.findOne({ name: /juice/i }).lean())._id);
+  assert.equal((await mia(`/s/shopping/${juice}/edit`)).status, 200, 'their own opens');
+
+  // The Show switch: turning Calendar off hides it; the Saved items part set to Hidden hides that page.
+  page = await katie('/settings/roles/child');
+  const again = [['name', 'Child']];
+  for (const m of page.text.matchAll(/name="(show_\w+)"[^>]*data-perm-show checked/g)) if (m[1] !== 'show_calendar') again.push([m[1], 'on']);
+  for (const m of page.text.matchAll(/<select id="(c_\w+)"[^>]*>(.*?)<\/select>/g)) again.push([m[1], m[1] === 'c_shopping_saved' ? 'hidden' : (m[2].match(/<option value="([^"]*)" selected>/) || [])[1]]);
+  await katie('/settings/roles/child', { method: 'POST', form: again });
+  assert.equal((await mia('/s/calendar')).status, 404);
+  assert.equal((await mia('/s/shopping/saved')).status, 303);
+  page = await katie('/settings/roles/child');
+  assert.doesNotMatch(page.text, /name="show_calendar"[^>]*checked/);
+  assert.match(page.text, /name="c_shopping_saved" data-kind="area"><option value="hidden" selected>/);
 
   // A second household of Katie's, to check View as covers every household, not just this one.
   await katie('/households', { method: 'POST', form: { name: 'Lake house' } });

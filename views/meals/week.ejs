@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Meals' }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('meals') %><%- include('../partials/gear', { key: 'meals' }) %></h1><p class="sub"><%= count %> planned · <%= range %></p></div><% if (canEdit('meals')) { %><a class="btn btn-primary" href="/s/meals/new?date=<%= isThisWeek ? '' : start %>">Add</a><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('meals') %><%- include('../partials/gear', { key: 'meals' }) %></h1><p class="sub"><%= count %> planned · <%= range %></p></div><% if (can('meals', 'add')) { %><a class="btn btn-primary" href="/s/meals/new?date=<%= isThisWeek ? '' : start %>">Add</a><% } %></div>
   <div class="card">
     <div class="row-h">
       <a class="icon-link" href="/s/meals?week=<%= prev %>" aria-label="Previous week">‹</a>
@@ -46,8 +46,8 @@
         <% s.meals.forEach((m, i) => { %>
           <div class="row meal-row">
             <span class="meal-slot"><%= i === 0 ? s.slot : '' %></span>
-            <% const meta = [m.servings ? 'Serves ' + m.servings : '', m.note].filter(Boolean).join(' · '); %><a class="row-body row-link" href="<%= m.hasRecipe ? '/s/recipes/' + m.recipeId + (m.servings ? '?serves=' + m.servings : '') : '/s/meals/' + m._id + '/edit' %>"><span class="row-title"><%= m.name %></span><% if (meta) { %><span class="row-meta"><%= meta %></span><% } %></a>
-            <a class="link-btn" href="/s/meals/<%= m._id %>/edit">Change<span class="sr-only"> <%= m.name %>, <%= s.slot %> on <%= d.label %></span></a>
+            <% const meta = [m.servings ? 'Serves ' + m.servings : '', m.note].filter(Boolean).join(' · '); %><% if (m.hasRecipe || can('meals', 'edit', m)) { %><a class="row-body row-link" href="<%= m.hasRecipe ? '/s/recipes/' + m.recipeId + (m.servings ? '?serves=' + m.servings : '') : '/s/meals/' + m._id + '/edit' %>"><span class="row-title"><%= m.name %></span><% if (meta) { %><span class="row-meta"><%= meta %></span><% } %></a><% } else { %><div class="row-body"><span class="row-title"><%= m.name %></span><% if (meta) { %><span class="row-meta"><%= meta %></span><% } %></div><% } %>
+            <% if (can('meals', 'edit', m)) { %><a class="link-btn" href="/s/meals/<%= m._id %>/edit">Change<span class="sr-only"> <%= m.name %>, <%= s.slot %> on <%= d.label %></span></a><% } %>
           </div>
         <% }) %>
       <% }) %>

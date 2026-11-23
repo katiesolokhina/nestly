@@ -144,7 +144,7 @@ test('saved items', async (t) => {
   });
   page = await sam('/s/shopping/saved');
   assert.equal(page.status, 200);
-  assert.doesNotMatch((await sam('/s/shopping')).text, /href="\/s\/shopping\/saved"/);
+  assert.doesNotMatch(page.text, /\/delete"/, 'no delete on saved items when view only');
   r = await sam(`/s/shopping/saved/${ids.Bread}/delete`, { method: 'POST' });
   await withDb(app.uri, async () => assert.ok(await CatalogItem.exists({ name: 'Bread' })));
   // Another household's item isn't reachable.

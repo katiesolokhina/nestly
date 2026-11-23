@@ -9,12 +9,12 @@
       <% if (!staples.length) { %><p class="muted small">None yet. Tap ☆ on any item below to make it a staple.</p><% } %>
       <% staples.forEach((s, i) => { %>
         <div class="staple-row">
-          <a class="row-title" href="/s/shopping/saved/<%= s._id %>"><%= s.name %></a>
-          <form class="staple-move" method="post" action="/s/shopping/saved/<%= s._id %>/move">
+          <% if (can('shopping', 'saved')) { %><a class="row-title" href="/s/shopping/saved/<%= s._id %>"><%= s.name %></a><% } else { %><span class="row-title"><%= s.name %></span><% } %>
+          <% if (can('shopping', 'saved')) { %><form class="staple-move" method="post" action="/s/shopping/saved/<%= s._id %>/move">
             <button class="mini" type="submit" name="dir" value="up" aria-label="Move <%= s.name %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button>
             <button class="mini" type="submit" name="dir" value="down" aria-label="Move <%= s.name %> down"<%= i === staples.length - 1 ? ' disabled' : '' %>>↓</button>
           </form>
-          <form method="post" action="/s/shopping/saved/<%= s._id %>/staple"><input type="hidden" name="on" value="0"><button class="link-btn" type="submit">Remove<span class="sr-only"> <%= s.name %> from staples</span></button></form>
+          <form method="post" action="/s/shopping/saved/<%= s._id %>/staple"><input type="hidden" name="on" value="0"><button class="link-btn" type="submit">Remove<span class="sr-only"> <%= s.name %> from staples</span></button></form><% } %>
         </div>
       <% }) %>
     </section>
@@ -35,10 +35,10 @@
     <% const query = new URLSearchParams(Object.entries({ q, show }).filter(([, v]) => v)).toString(); %>
     <% items.forEach((i) => { %>
       <div class="swipe" data-swipe>
-      <% if (canEdit('shopping')) { %><form class="swipe-delete" method="post" action="/s/shopping/saved/<%= i._id %>/delete" data-quick="remove"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form><% } %>
+      <% if (can('shopping', 'saved')) { %><form class="swipe-delete" method="post" action="/s/shopping/saved/<%= i._id %>/delete" data-quick="remove"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form><% } %>
       <div class="row">
-        <form method="post" action="/s/shopping/saved/<%= i._id %>/staple" data-quick="star"><input type="hidden" name="on" value="<%= i.staple ? '0' : '1' %>"><input type="hidden" name="query" value="<%= query %>"><button class="star<%= i.staple ? ' on' : '' %>" type="submit" aria-pressed="<%= i.staple %>" aria-label="<%= i.staple ? 'Remove ' + i.name + ' from staples' : 'Make ' + i.name + ' a staple' %>"><%= i.staple ? '★' : '☆' %></button></form>
-        <a class="row-body row-link" href="/s/shopping/saved/<%= i._id %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= [i.qty !== '1' ? i.qty : '', i.store !== 'Any store' ? i.store : '', i.aisle !== 'Unassigned' ? i.aisle : '', i.brand, i.usuallyHave ? 'Usually have' : ''].filter(Boolean).join(' · ') %></span></a>
+        <% if (can('shopping', 'saved')) { %><form method="post" action="/s/shopping/saved/<%= i._id %>/staple" data-quick="star"><input type="hidden" name="on" value="<%= i.staple ? '0' : '1' %>"><input type="hidden" name="query" value="<%= query %>"><button class="star<%= i.staple ? ' on' : '' %>" type="submit" aria-pressed="<%= i.staple %>" aria-label="<%= i.staple ? 'Remove ' + i.name + ' from staples' : 'Make ' + i.name + ' a staple' %>"><%= i.staple ? '★' : '☆' %></button></form><% } %>
+        <% if (can('shopping', 'saved')) { %><a class="row-body row-link" href="/s/shopping/saved/<%= i._id %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= [i.qty !== '1' ? i.qty : '', i.store !== 'Any store' ? i.store : '', i.aisle !== 'Unassigned' ? i.aisle : '', i.brand, i.usuallyHave ? 'Usually have' : ''].filter(Boolean).join(' · ') %></span></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= [i.qty !== '1' ? i.qty : '', i.store !== 'Any store' ? i.store : '', i.aisle !== 'Unassigned' ? i.aisle : '', i.brand, i.usuallyHave ? 'Usually have' : ''].filter(Boolean).join(' · ') %></span></div><% } %>
         <span class="chev" aria-hidden="true">›</span>
       </div>
       </div>

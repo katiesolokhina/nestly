@@ -1,6 +1,6 @@
 <%- include('../partials/top', { title: 'Remember' }) %>
 <main class="stack">
-  <div class="head"><div><h1 class="title-gear"><%= secName('remember') %><%- include('../partials/gear', { key: 'remember' }) %></h1><p class="sub">Tap one to edit it or add details.</p></div><% if (canEdit('remember')) { %><a class="btn btn-primary" href="/s/remember/new">Add</a><% } %></div>
+  <div class="head"><div><h1 class="title-gear"><%= secName('remember') %><%- include('../partials/gear', { key: 'remember' }) %></h1><p class="sub">Tap one to edit it or add details.</p></div><% if (can('remember', 'add')) { %><a class="btn btn-primary" href="/s/remember/new">Add</a><% } %></div>
   <div class="chips" role="group" aria-label="Filter by category">
     <a class="chip<%= !category ? ' on' : '' %>" href="/s/remember">All</a>
     <% household.remCats.forEach((c) => { %><a class="chip<%= category === c ? ' on' : '' %>" href="/s/remember?category=<%= encodeURIComponent(c) %>"><%= c %></a><% }) %>

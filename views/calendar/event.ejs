@@ -14,6 +14,6 @@
       <% if (file) { %><a class="btn btn-ghost btn-block" href="/files/<%= file._id %>/view?back=/s/calendar/<%= item._id %>">View <%= file.name %></a><% } %>
     </div>
   <% } %>
-  <a class="btn btn-ghost btn-block" href="/s/calendar/<%= item._id %>/edit">Edit event</a>
+  <% if (can('calendar', 'edit', item)) { %><a class="btn btn-ghost btn-block" href="/s/calendar/<%= item._id %>/edit">Edit event</a><% } %>
 </main>
 <%- include('../partials/bottom') %>

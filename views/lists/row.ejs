@@ -12,7 +12,7 @@
     <% if (i.ticketLink) { %><a class="link-btn" href="<%= i.ticketLink %>" target="_blank" rel="noopener noreferrer">Tickets</a><% } %>
     <% if (i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Link</a><% } %>
     <% if (list.type === 'places' && i.maps) { %><a class="link-btn" href="<%= i.maps %>" target="_blank" rel="noopener noreferrer">Map</a><% } %>
-    <% if (list.type === 'places' && !i.done && canEdit('calendar')) { %><a class="link-btn" href="<%= i.plan %>">Plan it</a><% } %>
+    <% if (list.type === 'places' && !i.done && can('calendar', 'add')) { %><a class="link-btn" href="<%= i.plan %>">Plan it</a><% } %>
     <% if (list.type === 'watch' && !i.done && can('lists', 'tick')) { %><form method="post" action="/s/lists/<%= list._id %>/items/<%= i._id %>/watching"><button class="link-btn" type="submit"><%= i.watching ? 'Not started' : 'Watching' %></button></form><% } %>
     <% if ((i.claimable || i.mine) && can('lists', 'claim')) { %><form method="post" action="/s/lists/<%= list._id %>/items/<%= i._id %>/claim"><button class="link-btn" type="submit"><%= i.mine ? 'Not getting it' : 'I’m getting this' %></button></form><% } %>
   </div>
