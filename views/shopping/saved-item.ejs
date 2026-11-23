@@ -22,5 +22,6 @@
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
   <form method="post" action="/s/shopping/saved/<%= item._id %>/delete" data-confirm="Stop suggesting <%= item.name %>? Anything already on the list stays."><button class="link-btn link-danger" type="submit">Delete saved item</button></form>
+  <% if (item._id && typeof rList !== 'undefined') { %><%- include('../partials/rate-block', { rName: item.name, rList, back: '/s/shopping/saved/' + item._id }) %><% } %>
 </main>
 <%- include('../partials/bottom') %>

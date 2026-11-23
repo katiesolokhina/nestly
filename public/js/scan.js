@@ -121,6 +121,8 @@
       go.textContent = onIt ? `Tick off ${d.onList.name}` : 'Not on the list: add it as bought';
     }
     found.textContent = parts.join(' ');
+    const warn = dialog.querySelector('[data-scan-warn]');
+    if (warn) { warn.textContent = (d.warn || []).join(' · '); warn.hidden = !(d.warn || []).length; }
     say('');
     if (!d.name) result.elements.name.focus();
     else if (mode === 'shop' && d.onList && !d.onList.bought) go.focus();

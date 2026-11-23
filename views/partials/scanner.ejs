@@ -16,6 +16,7 @@
     <input type="hidden" name="code"><input type="hidden" name="brand"><input type="hidden" name="query" value="<%= typeof query !== 'undefined' ? query : '' %>">
     <input type="hidden" name="again" value="<%= mode === 'shop' ? '1' : '0' %>">
     <p class="row-meta" data-scan-found></p>
+    <p class="rate-alert" data-scan-warn hidden></p>
     <div class="field"><label for="scan-name">Name</label><input id="scan-name" name="name" type="text" maxlength="80" required></div>
     <% if (mode === 'shopping') { %>
       <input type="hidden" name="action" value="add">

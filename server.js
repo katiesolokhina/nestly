@@ -96,6 +96,7 @@ app.use(require('./routes/access'));
 app.use(require('./routes/ingredients')); // before Shopping, whose /s/shopping/:id would catch it
 app.use(require('./routes/saved-items'));
 app.use(require('./routes/scan')); // before Shopping and Pantry, whose /:id routes would catch it
+app.use(require('./routes/ratings'));
 app.use(require('./routes/shopping'));
 app.use(require('./routes/remember'));
 app.use(require('./routes/calendar'));

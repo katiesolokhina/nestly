@@ -13,6 +13,7 @@ const { addToShopping, expiryText, stockIn, countOf, quickStock, spotFor, bought
 const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '', bought: '' }] : []);
 const ShoppingItem = require('../models/ShoppingItem');
 const { remember, productPhotoUrl, productPhoto, CODE } = require('../lib/barcode');
+const { ratingsFor, warnings, rate, askLater, nextPrompt } = require('../lib/ratings');
 const { pantryNames } = require('../lib/prefs');
 const { shortDay } = require('../lib/dates');
 const Upload = require('../models/Upload');
@@ -67,8 +68,9 @@ router.get('/s/pantry', async (req, res, next) => {
       .map((name) => ({ name, items: rows.filter((r) => r.spot === name || (name === 'Other' && !spots.includes(r.spot))) }))
       .filter((g) => g.items.length);
     const query = new URLSearchParams(Object.entries({ show, spot }).filter(([, v]) => v)).toString();
+    const ratePrompt = await nextPrompt(req);
     res.render('pantry/list', {
-      active: 'pantry', groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
+      active: 'pantry', ratePrompt, groups, catalog, show, spot, query, total: items.length, putAway: putAway.map((s) => ({ ...s, meta: [s.qty && s.qty !== '1' ? s.qty : '', `bought by ${s.boughtByName}`, shortDay(boughtDay(req.user, s))].filter(Boolean).join(' · ') })),
       lowCount: counts[0], soonCount: counts[1], STATUS: pantryNames(req.household), soonDays: SOON_DAYS, shoppingOn: req.sees('shopping') && req.household.pantryShop !== 'never', defaultSpot: req.household.pantrySpots.includes(req.household.pantryDefaultSpot) ? req.household.pantryDefaultSpot : '',
     });
   } catch (err) {
@@ -90,6 +92,7 @@ router.post('/s/pantry/:id/status', async (req, res, next) => {
       const added = await addToShopping(req.user, req.household, item);
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} marked ${item.name} ${pantryNames(req.household)[status]}${added ? ' and added it to Shopping' : ''}` });
       if (added) req.session.flash = `${item.name} is on the shopping list now.`;
+      if (status === 'out') askLater(req, [item]);
     }
     res.redirect(`${backTo(req.body.query)}#p-${item._id}`);
   } catch (err) {
@@ -161,7 +164,9 @@ router.get('/s/pantry/add', async (req, res, next) => {
     const existing = key ? await sameAs(req, key) : [];
     const c = key ? await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean() : null;
     const defaultSpot = h.pantrySpots.includes(h.pantryDefaultSpot) ? h.pantryDefaultSpot : h.pantrySpots[0] || 'Other';
+    const rList = key ? (await ratingsFor(req.household, [key])).get(key) : [];
     res.render('pantry/add', {
+      rList, rWarn: warnings(rList),
       active: 'pantry', STATUS: pantryNames(h),
       todayDate: todayIn(req.user.timezone),
       item: {
@@ -223,6 +228,9 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
       req.session.flash = e.message;
     }
     if (item.isModified()) await item.save();
+    // Their rating, picked on the form; or asked about later when it was bought or scanned.
+    if (b.rating && req.perms.can('pantry', 'ratings')) await rate(req.user, req.household, { key: item.key, name: item.name, value: String(b.rating) });
+    else if (b.from || b.code) askLater(req, [item]);
     if (item.status === 'low' && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     if (choice === 'new') await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text, label: item.name });
     else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
@@ -252,6 +260,7 @@ async function skipDetails(req, shops) {
     await s.save();
   }
   if (shops.length) await addToCatalog(req.user, req.household, shops.map((s) => s.name));
+  askLater(req, shops.map((s) => ({ key: s.key || keyOf(s.name), name: s.name })));
 }
 
 router.post('/s/pantry/putaway/skip-all', async (req, res, next) => {
@@ -323,6 +332,7 @@ router.post('/s/pantry/:id/use', async (req, res, next) => {
     if (!item.batches.length) item.set({ statusBy: req.user.name, statusAt: new Date() });
     await item.save();
     await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: item.count ? `used one ${item.name} (${item.count} left)` : `used the last ${item.name}`, label: item.name });
+    if (item.count === 0) askLater(req, [item]);
     if (item.count === 0 && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     res.redirect(`${backTo(b.query)}#p-${item._id}`);
   } catch (err) {
@@ -375,7 +385,7 @@ router.get('/s/pantry/:id/edit', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    res.render('pantry/form', await formView(req, item.toObject()));
+    res.render('pantry/form', { ...(await formView(req, item.toObject())), rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
   } catch (err) {
     next(err);
   }

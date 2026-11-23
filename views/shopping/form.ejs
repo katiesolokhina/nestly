@@ -38,5 +38,6 @@
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
   <% if (item._id && can('shopping', 'delete', item)) { %><form method="post" action="/s/shopping/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Delete<span class="sr-only"> <%= item.name %></span></button></form><% } %>
+  <% if (item._id && typeof rList !== 'undefined') { %><%- include('../partials/rate-block', { rName: item.name, rList, back: '/s/shopping/' + item._id + '/edit' }) %><% } %>
 </main>
 <%- include('../partials/bottom') %>

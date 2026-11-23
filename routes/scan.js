@@ -1,6 +1,7 @@
 // Barcode scanning: add to or restock the pantry, add to the shopping list, and tick items off
 // while shopping. Mounted before Pantry and Shopping, whose /:id routes would catch these paths.
 const express = require('express');
+const { ratingsFor, warnings } = require('../lib/ratings');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const PantryItem = require('../models/PantryItem');
 const ShoppingItem = require('../models/ShoppingItem');
@@ -30,7 +31,10 @@ router.get('/api/barcode/:code', requireAuth, async (req, res, next) => {
       key && req.sees('shopping') ? ShoppingItem.findOne({ ...visible(req.user), key, clearedAt: null }, { name: 1, bought: 1 }).sort({ bought: 1 }).lean() : null,
       key && req.sees('pantry') ? PantryItem.find({ ...visible(req.user), key }, { name: 1, status: 1, spot: 1, count: 1, expires: 1 }).lean() : [],
     ]);
+    // Someone rated it Never again (or another warning rating): say so before it goes in the cart.
+    const rated = key && req.perms.sees('pantry', 'ratings') ? (await ratingsFor(req.household, [key])).get(key) : [];
     res.json({
+      warn: warnings(rated),
       code: found.code,
       name: found.name,
       brand: found.brand,

@@ -1,0 +1,17 @@
+<%# Everyone's ratings of one thing, and this person's buttons. Locals: rName, rList, back. %>
+<% if (seesRatings && rName) { const mine = (rList || []).find((r) => r.userId === String(user._id)); const others = (rList || []).filter((r) => r.userId !== String(user._id)); %>
+<section class="card ratings" aria-labelledby="ratings-h">
+  <h2 id="ratings-h">Ratings</h2>
+  <% if (!others.length && !canRate) { %><p class="muted small">No ratings yet.</p><% } %>
+  <% others.forEach((r) => { %><div class="rate-line rate-<%= r.color %>"><span><%= r.userName %></span><b><%= r.name %></b></div><% }) %>
+  <% if (canRate) { %>
+    <form class="stack" method="post" action="/ratings" data-no-lock>
+      <input type="hidden" name="name" value="<%= rName %>"><input type="hidden" name="back" value="<%= back %>">
+      <span class="small"><strong>Your rating</strong><% if (!mine) { %> <span class="muted">(tap one)</span><% } %></span>
+      <div class="rate-btns">
+        <% rateChoices.forEach((c) => { const on = mine && mine.value === c.id; %><button class="rate-btn rate-<%= c.color %>" type="submit" name="value" value="<%= on ? 'clear' : c.id %>" aria-pressed="<%= on ? 'true' : 'false' %>"><%= c.name %></button><% }) %>
+      </div>
+    </form>
+  <% } %>
+</section>
+<% } %>

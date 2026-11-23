@@ -1,6 +1,7 @@
 <%- include('../partials/top', { title: 'Add to pantry', scripts: ['pantry-dates'] }) %>
 <main class="stack">
   <div class="head"><div><h1><%= from ? 'Put away' : 'Add to pantry' %></h1><% if (fromText || found) { %><p class="sub"><%= fromText || found %></p><% } %></div><a class="link-btn" href="/s/pantry">Cancel</a></div>
+  <% if (seesRatings && rWarn.length) { %><div class="rate-alert" role="note"><% rWarn.forEach((w, i) => { %><% if (i === 0) { %><strong><%= w %></strong><% } else { %><span><%= w %></span><% } %><% }) %><% rList.filter((r) => !r.warn).forEach((r) => { %><span><%= r.userName %>: <%= r.name %></span><% }) %></div><% } %>
   <form class="card" method="post" action="/s/pantry/add" enctype="multipart/form-data" novalidate>
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
     <input type="hidden" name="from" value="<%= from %>"><input type="hidden" name="code" value="<%= code %>"><input type="hidden" name="brand" value="<%= brand %>"><input type="hidden" name="details" value="1">
@@ -28,6 +29,13 @@
     </select></div>
     <label class="check-row">Add to shopping when it’s <%= household.pantryShop === 'out' ? STATUS.out.toLowerCase() : STATUS.low.toLowerCase() + ' or ' + STATUS.out.toLowerCase() %><input type="checkbox" name="autoShop"<%= item.autoShop !== false ? ' checked' : '' %>></label>
     <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Brand we like, top shelf…" value="<%= item.note %>"></div>
+    <% if (canRate) { const mine = rList.find((r) => r.userId === String(user._id)); %>
+      <fieldset class="group">
+        <legend>Your rating <span class="muted">(optional)</span></legend>
+        <% if (rList.length && !rWarn.length) { %><p class="hint"><%= rList.filter((r) => r.userId !== String(user._id)).map((r) => r.userName + ': ' + r.name).join(' · ') %></p><% } %>
+        <div class="rate-btns"><% rateChoices.forEach((c) => { %><label class="rate-radio"><input type="radio" name="rating" value="<%= c.id %>"<%= mine && mine.value === c.id ? ' checked' : '' %>><span class="rate-btn rate-<%= c.color %>"><%= c.name %></span></label><% }) %></div>
+      </fieldset>
+    <% } %>
     <div class="btn-row">
       <button class="btn btn-primary" type="submit"><%= from ? 'Put away' : 'Save' %></button>
       <% if (code || again) { %><button class="btn btn-ghost" type="submit" name="again" value="1">Save, scan next</button><% } %>

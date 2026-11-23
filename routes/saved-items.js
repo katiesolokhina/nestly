@@ -1,6 +1,7 @@
 // Saved items: the suggestions when typing an item, their usual details, and staples.
 // Anyone who can edit Shopping can tidy them. Mounted before Shopping's own routes.
 const express = require('express');
+const { ratingsFor } = require('../lib/ratings');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const CatalogItem = require('../models/CatalogItem');
@@ -76,7 +77,7 @@ router.get('/s/shopping/saved/:id', async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
-    res.render('shopping/saved-item', { active: 'shopping', item: item.toObject(), error: null });
+    res.render('shopping/saved-item', { active: 'shopping', item: item.toObject(), error: null, rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
   } catch (err) {
     next(err);
   }

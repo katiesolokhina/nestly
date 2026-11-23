@@ -10,7 +10,7 @@
         <% groups.forEach((g) => { %>
           <p class="aisle"><%= g.name %></p>
           <% g.items.forEach((i) => { %>
-            <label class="row ing-pick"><input type="checkbox" name="ids" value="<%= i._id %>" data-select-item><span class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></span><span class="tag"><%= i.qty %></span></label>
+            <label class="row ing-pick"><input type="checkbox" name="ids" value="<%= i._id %>" data-select-item><span class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span><% if (i.warn) { %><span class="rate-warn"><%= i.warn %></span><% } %></span><span class="tag"><%= i.qty %></span></label>
           <% }) %>
         <% }) %>
       </div>
@@ -22,6 +22,7 @@
   <% } else { %>
     <div class="head"><div><h1 class="title-gear"><%= secName('shopping') %><%- include('../partials/gear', { key: 'shopping' }) %></h1><p class="sub"><span data-count="<%= count %>" data-one="item" data-many="items"><%= count %> <%= count === 1 ? 'item' : 'items' %></span> · About <%= total %></p></div><% if (can('shopping', 'shop')) { %><form method="post" action="/s/shopping/start"><input type="hidden" name="query" value="<%= query %>"><input type="hidden" name="store" value="<%= store %>"><button class="btn btn-ghost" type="submit">Start shopping</button></form><% } %></div>
     <% if (household.tripAlerts !== false && can('shopping', 'shop')) { %><p class="hint">Start shopping lets everyone else know<%= store ? ' you’re at ' + store : '' %>, so they can add what they need. <a href="/s/shopping?<%= query ? query + '&' : '' %>mode=shop">Shop without telling anyone</a></p><% } %>
+    <%- include('../partials/rate-prompt', { back: '/s/shopping' + (query ? '?' + query : '') }) %>
     <form class="stack" method="get" action="/s/shopping" data-auto-submit>
       <div class="fields">
         <div class="field"><label for="method">Buying</label><select id="method" name="method"><% ['All', ...methods].forEach((m) => { %><option value="<%= m === 'All' ? '' : m %>"<%= method === m ? ' selected' : '' %>><%= m %></option><% }) %></select></div>
@@ -58,7 +59,7 @@
           <% if (can('shopping', 'delete', i)) { %><form class="swipe-delete" method="post" action="/s/shopping/<%= i._id %>/delete" data-quick="remove"><input type="hidden" name="query" value="<%= back %>"><button type="submit" tabindex="-1">Delete<span class="sr-only"> <%= i.name %></span></button></form><% } %>
           <div class="row<%= shopping ? ' big' : '' %>">
             <% if (!can('shopping', 'check')) { %><span class="check-gap" aria-hidden="true"></span><% } else { %><form method="post" action="/s/shopping/<%= i._id %>/toggle" data-quick="bought"><input type="hidden" name="bought" value="1"><input type="hidden" name="query" value="<%= query %><%= shopping ? (query ? '&' : '') + 'mode=shop' : '' %>"><button class="check" type="submit" aria-label="Mark <%= i.name %> bought"><i></i></button></form><% } %>
-            <% if (can('shopping', 'edit', i)) { %><a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></div><% } %>
+            <% if (can('shopping', 'edit', i)) { %><a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span><% if (i.warn) { %><span class="rate-warn"><%= i.warn %></span><% } %></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span><% if (i.warn) { %><span class="rate-warn"><%= i.warn %></span><% } %></div><% } %>
             <% if (i.private) { %><span class="tag lilac">Only me</span><% } %>
             <% if (i.link) { %><a class="link-btn" href="<%= i.link %>" target="_blank" rel="noopener noreferrer">Buy<span class="sr-only"> <%= i.name %></span></a><% } %>
             <span class="tag"><%= i.qty %></span>
@@ -75,7 +76,7 @@
       <% bought.forEach((i) => { %>
         <div class="row done">
           <% if (can('shopping', 'check')) { %><form method="post" action="/s/shopping/<%= i._id %>/toggle"><input type="hidden" name="bought" value="0"><input type="hidden" name="query" value="<%= query %>"><button class="check on" type="submit" aria-label="Move <%= i.name %> back to the list"><i>✓</i></button></form><% } %>
-          <% if (can('shopping', 'edit', i)) { %><a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span></div><% } %>
+          <% if (can('shopping', 'edit', i)) { %><a class="row-body row-link" href="/s/shopping/<%= i._id %>/edit" aria-label="Edit <%= i.name %>"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span><% if (i.warn) { %><span class="rate-warn"><%= i.warn %></span><% } %></a><% } else { %><div class="row-body"><span class="row-title"><%= i.name %></span><span class="row-meta"><%= i.meta %></span><% if (i.warn) { %><span class="rate-warn"><%= i.warn %></span><% } %></div><% } %>
           <% if (i.receiptId) { %><a class="link-btn" href="/files/<%= i.receiptId %>/view?back=/s/shopping">View receipt<span class="sr-only"> for <%= i.name %></span></a><% } else if (can('shopping', 'edit', i)) { %><a class="link-btn" href="/s/shopping/<%= i._id %>/edit#receipt">Add receipt<span class="sr-only"> for <%= i.name %></span></a><% } %>
         </div>
       <% }) %>

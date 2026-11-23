@@ -7,6 +7,7 @@ const { sectionName } = require('../lib/prefs');
 const { permsFor, roleName, roleOf } = require('../lib/perms');
 const { SECTIONS } = require('../lib/sections');
 const { classify, classifyGet, check } = require('../lib/actions');
+const { choicesOf } = require('../lib/ratings');
 const { bottomBar } = require('../lib/sections');
 
 // Loads the signed-in user and their household, or sends them to /login.
@@ -73,6 +74,10 @@ async function requireAuth(req, res, next) {
     res.locals.canEdit = (key) => perms.level(key) === 'edit';
     res.locals.can = (key, action, doc) => perms.can(key, action, doc);
     res.locals.canPage = (key) => perms.page(key);
+    // Ratings: the choices, and whether this person sees and can give them.
+    res.locals.rateChoices = choicesOf(household);
+    res.locals.seesRatings = perms.sees('pantry', 'ratings');
+    res.locals.canRate = perms.can('pantry', 'ratings');
     res.locals.roleLabel = roleName(household, member.role);
     res.locals.homes = homes;
     res.locals.secName = (key) => sectionName(household, key);

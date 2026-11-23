@@ -43,6 +43,7 @@
     <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Brand we like, top shelf…" value="<%= item.note %>"></div>
     <button class="btn btn-primary btn-block" type="submit">Save</button>
   </form>
+  <% if (item._id && typeof rList !== 'undefined') { %><%- include('../partials/rate-block', { rName: item.name, rList, back: '/s/pantry/' + item._id + '/edit' }) %><% } %>
   <% if (item._id) { %>
     <p class="hint">Last changed by <%= item.statusBy || item.byName %>.</p>
     <% if (can('pantry', 'delete', item)) { %><form method="post" action="/s/pantry/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the pantry<span class="sr-only"> <%= item.name %></span></button></form><% } %>

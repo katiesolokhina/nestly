@@ -13,7 +13,7 @@ const AccessToken = require('../models/AccessToken');
 const Activity = require('../models/Activity');
 
 // Everything that belongs to a household, for deleting one.
-const HOUSEHOLD_DATA = ['ShoppingItem', 'CatalogItem', 'Reminder', 'Event', 'Recipe', 'Meal', 'Bill', 'BillSeries', 'PantryItem', 'InfoItem', 'Chore', 'ChoreDone', 'RewardClaim']
+const HOUSEHOLD_DATA = ['ShoppingItem', 'CatalogItem', 'Rating', 'Reminder', 'Event', 'Recipe', 'Meal', 'Bill', 'BillSeries', 'PantryItem', 'InfoItem', 'Chore', 'ChoreDone', 'RewardClaim']
   .map((name) => require(`../models/${name}`));
 
 // Deleting needs: admin there, nobody else in it (even turned off), and another household to go to.

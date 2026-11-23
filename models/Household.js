@@ -68,6 +68,13 @@ const householdSchema = new mongoose.Schema(
     pantryShop: { type: String, enum: ['both', 'out', 'never'], default: 'both' }, // which statuses add to Shopping
     pantrySoonDays: { type: Number, min: 1, max: 30, default: 3 },
     pantryDefaultSpot: { type: String, default: '' },
+    // Ratings (Buy again / Never again…): the choices, in order. warn: shows as a warning on
+    // scans and Shopping. Empty means the starting three.
+    ratingChoices: {
+      type: [{ _id: false, id: { type: String, maxlength: 24 }, name: { type: String, maxlength: 24 }, color: { type: String, maxlength: 12 }, warn: { type: Boolean, default: false } }],
+      default: [],
+    },
+    ratingPrompt: { type: Boolean, default: true }, // ask "Buy again?" after putting away or buying
     // Calendar, Remember, Meals
     eventAlert: { type: String, default: '60' }, // minutes before, or 'none'
     eventAlertAllDay: { type: String, default: '0' }, // '0' morning of, '1440' day before, 'none'

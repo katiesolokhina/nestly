@@ -1,0 +1,37 @@
+<%- include('../partials/top', { title: 'Ratings' }) %>
+<main class="stack">
+  <%- include('../partials/settings-head', { heading: 'Ratings', sub: 'What people can say about things they buy', back: '/settings/s/pantry' }) %>
+  <form class="card stack" method="post" action="/settings/ratings" id="choices">
+    <p class="hint">Everyone rates for themselves and sees everyone’s. <strong>Warn</strong> shows that rating as a warning on scans and on the Shopping list.</p>
+    <% choices.forEach((c, i) => { %>
+      <fieldset class="rate-edit">
+        <legend class="sr-only"><%= c.name %></legend>
+        <input type="hidden" name="id" value="<%= c.id %>">
+        <div class="rate-edit-top">
+          <span class="rate-dot rate-<%= c.color %>" aria-hidden="true"></span>
+          <label class="sr-only" for="rn<%= i %>">Name</label><input id="rn<%= i %>" name="name" type="text" maxlength="24" value="<%= c.name %>" required>
+          <button class="mini" type="submit" name="move" value="up:<%= i %>" aria-label="Move <%= c.name %> up"<%= i === 0 ? ' disabled' : '' %>>↑</button>
+          <button class="mini" type="submit" name="move" value="down:<%= i %>" aria-label="Move <%= c.name %> down"<%= i === choices.length - 1 ? ' disabled' : '' %>>↓</button>
+        </div>
+        <div class="rate-edit-opts">
+          <label for="rc<%= i %>" class="sr-only">Color</label><select id="rc<%= i %>" name="color"><% Object.entries(COLORS).forEach(([v, l]) => { %><option value="<%= v %>"<%= c.color === v ? ' selected' : '' %>><%= l %></option><% }) %></select>
+          <label class="inline-check"><input type="checkbox" name="warn" value="<%= c.id %>"<%= c.warn ? ' checked' : '' %>>Warn</label>
+          <label class="inline-check link-danger"><input type="checkbox" name="remove" value="<%= c.id %>">Delete</label>
+        </div>
+      </fieldset>
+    <% }) %>
+    <fieldset class="rate-edit">
+      <legend class="rate-new">Add a rating</legend>
+      <input type="hidden" name="id" value="new">
+      <div class="rate-edit-top"><label class="sr-only" for="rn-new">New rating name</label><input id="rn-new" name="name" type="text" maxlength="24" placeholder="Kids only, Too spicy…"></div>
+      <div class="rate-edit-opts">
+        <label for="rc-new" class="sr-only">Color</label><select id="rc-new" name="color"><% Object.entries(COLORS).forEach(([v, l]) => { %><option value="<%= v %>"<%= v === 'blue' ? ' selected' : '' %>><%= l %></option><% }) %></select>
+        <label class="inline-check"><input type="checkbox" name="warn" value="new">Warn</label>
+      </div>
+    </fieldset>
+    <label class="check-row">Ask “Buy again?” after putting away, buying, or using up something not rated yet<input type="checkbox" name="prompt"<%= prompt ? ' checked' : '' %>></label>
+    <button class="btn btn-primary btn-block" type="submit">Save ratings</button>
+  </form>
+  <p class="hint">Deleting a rating removes it from everything rated with it.</p>
+</main>
+<%- include('../partials/bottom') %>

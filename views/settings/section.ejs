@@ -38,6 +38,7 @@
       </fieldset>
       <% sel('pantryShop', [['both', names.low + ' or ' + names.out], ['out', names.out + ' only'], ['never', 'Never']], household.pantryShop, 'Add to shopping when') %>
       <% sel('pantrySoonDays', [[1, '1 day'], [2, '2 days'], [3, '3 days'], [5, '5 days'], [7, '7 days'], [14, '14 days']], household.pantrySoonDays, '“Expiring soon” means within') %>
+      <a class="card row menu-row" href="/settings/ratings"><span class="row-body"><span class="row-title">Ratings</span><span class="row-meta">Buy again, Never again… and the “Buy again?” prompt</span></span><span class="chev" aria-hidden="true">›</span></a>
       <fieldset class="group" id="nonfood">
         <legend>Not food</legend>
         <p class="hint">Things kept here are left out of recipes, What can I cook, and Use soon. Each item can override this.</p>

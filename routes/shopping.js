@@ -1,4 +1,5 @@
 const express = require('express');
+const { ratingsFor, warnings, askLater, nextPrompt } = require('../lib/ratings');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
 const ShoppingItem = require('../models/ShoppingItem');
@@ -68,11 +69,16 @@ router.get('/s/shopping', async (req, res, next) => {
     ]);
     const active = items.filter((i) => !i.bought);
     const meta = (i) => [i.method !== req.household.methods[0] ? i.method : '', i.brand, i.store === 'Any store' ? '' : i.store, i.price != null ? money(i.price, cur) : '', i.ref, i.note].filter(Boolean).join(' · ');
+    // "Naum: Never again" under things someone rated with a warning.
+    const rated = req.perms.sees('pantry', 'ratings') ? await ratingsFor(household, active.map((i) => i.key)) : new Map();
+    const warn = (i) => warnings(rated.get(i.key)).join(' · ');
     const groups = [...household.aisles, 'Unassigned']
-      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i) })) }))
+      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i), warn: warn(i) })) }))
       .filter((g) => g.items.length);
 
+    const ratePrompt = shopping || selecting ? null : await nextPrompt(req);
     res.render('shopping/list', {
+      ratePrompt,
       active: 'shopping', method, store, tag, shopping, selecting, groups, staples, catalog,
       count: active.length,
       total: money(active.reduce((n, i) => n + (i.price || 0), 0), cur),
@@ -272,7 +278,7 @@ router.get('/s/shopping/:id/edit', async (req, res, next) => {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
     const c = await CatalogItem.findOne({ householdId: req.user.householdId, key: item.key }).lean();
-    res.render('shopping/form', await formData(req, { ...item.toObject(), staple: !!(c && c.staple) }));
+    res.render('shopping/form', { ...(await formData(req, { ...item.toObject(), staple: !!(c && c.staple) })), rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
   } catch (err) {
     next(err);
   }
@@ -343,6 +349,7 @@ router.post('/s/shopping/:id/toggle', async (req, res, next) => {
     item.boughtAt = item.bought ? new Date() : null;
     item.boughtByName = item.bought ? req.user.name : '';
     if (req.household.features.pantry !== false) await markPutAway(req.user, item, req.household);
+    if (item.bought) askLater(req, [item]);
     await item.save();
     const text = item.bought ? `bought ${item.name}${item.store !== 'Any store' ? ` at ${item.store}` : ''}` : `moved ${item.name} back to Shopping`;
     await recordChange(req, { kind: 'update', model: 'ShoppingItem', doc: item, before, section: SECTION, text, label: item.name });

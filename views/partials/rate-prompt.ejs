@@ -1,0 +1,13 @@
+<%# "Buy again?" after putting away, buying, or using up something not rated yet. Locals: ratePrompt, back. %>
+<% if (typeof ratePrompt !== 'undefined' && ratePrompt) { %>
+<form class="card stack rate-prompt" method="post" action="/ratings" data-no-lock>
+  <input type="hidden" name="name" value="<%= ratePrompt.name %>"><input type="hidden" name="from" value="prompt"><input type="hidden" name="back" value="<%= back %>">
+  <div class="row-h"><h2>Buy again?</h2><% if (ratePrompt.left > 1) { %><span class="muted small">1 of <%= ratePrompt.left %></span><% } %></div>
+  <p><%= ratePrompt.name %></p>
+  <div class="rate-btns"><% rateChoices.forEach((c) => { %><button class="rate-btn rate-<%= c.color %>" type="submit" name="value" value="<%= c.id %>"><%= c.name %></button><% }) %></div>
+  <div class="rate-prompt-foot">
+    <button class="link-btn" type="submit" name="value" value="skip">Skip</button>
+    <button class="link-btn muted" type="submit" name="value" value="stop">Don’t ask for the rest</button>
+  </div>
+</form>
+<% } %>
