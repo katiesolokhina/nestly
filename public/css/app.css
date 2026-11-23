@@ -505,3 +505,44 @@ span.check { cursor: default; }
 .switch input:checked + .switch-track::after { transform: translateX(20px); }
 .switch input:focus-visible + .switch-track { outline: 2px solid var(--primary-deep); outline-offset: 2px; }
 @media (max-width: 360px) { .perm-part { flex-direction: column; align-items: stretch; } .perm-part select { width: 100%; max-width: none; } }
+
+/* ---------- Date picker ---------- */
+.dp-native { display: none !important; }
+.dp-field { min-height: 44px; width: 100%; padding: 0 40px 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%235D5A6E' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E") no-repeat right 12px center; color: var(--ink); font: inherit; font-size: 16px; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-field.empty { color: var(--muted); }
+.dp { width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 0; border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 48px rgba(0,0,0,.25); }
+.dp::backdrop { background: rgba(20, 18, 28, .45); }
+.dp-body { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.dp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.dp-head > div { display: flex; flex-direction: column; gap: 2px; }
+.dp-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.dp-picked { font-size: 19px; }
+.dp-quick { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.dp-quick .chip { flex: none; min-height: 36px; }
+.dp-nav { display: flex; gap: 8px; align-items: center; }
+.dp-nav select { flex: 3; min-width: 0; font-weight: 600; }
+.dp-nav .dp-year { flex: 2; }
+.dp-step { width: 44px; height: 44px; flex: none; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 20px; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.dp-dow { font-size: 12px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.dp-day { height: 44px; border: 0; border-radius: 12px; background: none; color: var(--ink); font-size: 15px; }
+.dp-day.now { background: var(--lilac-tint); color: var(--lilac-ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--lilac-ring); }
+.dp-day.on { background: var(--primary); color: var(--on-primary); font-weight: 700; box-shadow: none; }
+.dp-day:disabled { opacity: .3; cursor: default; }
+.dp-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.dp-mo { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink); font-weight: 600; }
+.dp-mo.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.dp-foot { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.month-jump { background: none; border: 0; padding: 0 8px; min-height: 44px; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.month-jump::after { content: '▾'; font-size: 14px; color: var(--muted); }
+.dp-nav .dp-month { flex: 1 1 auto; padding: 0 6px; }
+.dp-nav .dp-year { flex: 0 0 92px; padding: 0 6px; }
+.dp-step { width: 40px; }
+.date-clear { display: flex; align-items: center; gap: 8px; }
+.date-clear .link-btn { white-space: nowrap; flex: none; }
+.fields .dp-field + [data-clear-date] { display: none; } /* narrow fields: the picker's own No date does it */
+.date-clear .dp-field { flex: 1; min-width: 0; }
+.batch-row .dp-field { flex: 1; min-width: 0; font-size: 15px; padding-right: 34px; background-position: right 8px center; }
+.batch-row > .dp-field { grid-column: 3 / -1; }
+.batch-row .dp-field ~ .batch-clear { display: none; }
+.batch-bought .dp-field { flex: 1; min-width: 0; min-height: 36px; font-size: 14px; padding: 0 10px; background-image: none; }

@@ -7,7 +7,7 @@
   <div class="card">
     <div class="row-h">
       <a class="icon-link" href="/s/calendar?month=<%= prev %>&day=<%= day %><%= catQuery %>" aria-label="Previous month">‹</a>
-      <h1 class="month-title"><%= label %></h1>
+      <h1 class="month-title"><button class="month-jump" type="button" data-month-jump="<%= month %>" data-href="/s/calendar?month=MONTH&amp;day=DAY<%= catQuery %>" aria-label="<%= label %>: pick a month"><%= label %></button></h1>
       <a class="icon-link" href="/s/calendar?month=<%= next %>&day=<%= day %><%= catQuery %>" aria-label="Next month">›</a>
     </div>
     <div class="cal">

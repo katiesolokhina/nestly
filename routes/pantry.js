@@ -12,7 +12,7 @@ const { addToShopping, expiryText, stockIn, countOf, quickStock, spotFor, bought
 // An item's batches, also for older items saved before there were any.
 const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '', bought: '' }] : []);
 const ShoppingItem = require('../models/ShoppingItem');
-const { remember, CODE } = require('../lib/barcode');
+const { remember, productPhotoUrl, productPhoto, CODE } = require('../lib/barcode');
 const { pantryNames } = require('../lib/prefs');
 const { shortDay } = require('../lib/dates');
 const Upload = require('../models/Upload');
@@ -162,14 +162,16 @@ router.get('/s/pantry/add', async (req, res, next) => {
     const c = key ? await CatalogItem.findOne({ householdId: req.user.householdId, key }).lean() : null;
     const defaultSpot = h.pantrySpots.includes(h.pantryDefaultSpot) ? h.pantryDefaultSpot : h.pantrySpots[0] || 'Other';
     res.render('pantry/add', {
-      active: 'pantry',
+      active: 'pantry', STATUS: pantryNames(h),
       todayDate: todayIn(req.user.timezone),
       item: {
         name: c ? c.name : name,
         spot: h.pantrySpots.includes(q.spot) ? q.spot : existing[0] ? existing[0].spot : from ? spotFor(h, from.aisle) : defaultSpot,
         expires: '', amount: '', count: from ? countOf(from.qty) : 1, // one batch: this date, this many
         bought: from ? boughtDay(req.user, from) : todayIn(req.user.timezone),
+        status: 'have', food: null, autoShop: true, note: '',
       },
+      productPhoto: CODE.test(String(q.code || '')) && Boolean(await productPhotoUrl(String(q.code))),
       existing,
       from: from ? String(from._id) : '',
       fromText: from ? `Bought by ${from.boughtByName || from.byName}${from.qty && from.qty !== '1' ? ` (${from.qty})` : ''}` : '',
@@ -185,9 +187,10 @@ router.get('/s/pantry/add', async (req, res, next) => {
   }
 });
 
-router.post('/s/pantry/add', async (req, res, next) => {
+router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
   try {
     const b = req.body || {};
+    if (req.uploadError) { req.session.flash = req.uploadError; return res.redirect('/s/pantry'); }
     const name = String(b.name || '').trim().slice(0, 80);
     if (!name) { req.session.flash = 'Enter the item’s name.'; return res.redirect('/s/pantry'); }
     const key = keyOf(name);
@@ -198,15 +201,36 @@ router.post('/s/pantry/add', async (req, res, next) => {
       name: c ? c.name : name, key, choice, target,
       spot: pick(req.household, 'pantrySpots', b.spot),
       amount: String(b.amount || '').trim().slice(0, 40),
-      batches: [{ count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)), expires: isDate(b.expires) ? b.expires : '', bought: isDate(b.bought) && b.bought <= todayIn(req.user.timezone) ? b.bought : todayIn(req.user.timezone) }],
+      // Bought: the date given, or none when it was cleared ("No date"); today if it wasn't sent.
+      batches: [{ count: Math.min(99, Math.max(1, parseInt(b.count, 10) || 1)), expires: isDate(b.expires) ? b.expires : '', bought: isDate(b.bought) && b.bought <= todayIn(req.user.timezone) ? b.bought : b.bought === '' ? '' : todayIn(req.user.timezone) }],
     });
+    // The rest of the details, as on the Edit page. Adding to one that's there keeps its own
+    // details unless something new was given.
+    const isNew = choice === 'new';
+    if (b.status === 'low') item.status = 'low';
+    if (b.food !== undefined && (isNew || b.food !== 'auto')) item.food = b.food === 'yes' ? true : b.food === 'no' ? false : null;
+    if (b.details === '1' && isNew) item.autoShop = b.autoShop === 'on';
+    const note = String(b.note || '').trim().slice(0, 300);
+    if (note) item.note = note;
+    try {
+      if ((req.files || {}).photo) await applyPhoto(req, item);
+      else if (b.useProductPhoto === 'on' && (isNew || !item.photoId)) {
+        const file = await productPhoto(b.code);
+        if (file) item.photoId = (await saveUpload(req.user, file, { isPrivate: false, imagesOnly: true }))._id;
+      }
+    } catch (e) {
+      if (!e.userFacing) throw e;
+      req.session.flash = e.message;
+    }
+    if (item.isModified()) await item.save();
+    if (item.status === 'low' && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     if (choice === 'new') await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text, label: item.name });
     else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
     await addToCatalog(req.user, req.household, [item.name]);
     if (CODE.test(String(b.code || ''))) await remember(req.user.householdId, String(b.code), item.key, b.brand);
     // From "Put away": that bought item is done.
     if (mongoose.isValidObjectId(b.from)) await ShoppingItem.updateOne({ _id: b.from, householdId: req.user.householdId }, { $set: { putAway: 'done' } });
-    req.session.flash = `${item.name}: ${choice === 'new' ? 'added' : choice === 'add' ? `${item.count} now` : 'restocked'}.`;
+    if (!req.session.flash) req.session.flash = `${item.name}: ${choice === 'new' ? 'added' : choice === 'add' ? `${item.count} now` : 'restocked'}.`;
     res.redirect(b.again === '1' ? '/s/pantry?scan=1' : `/s/pantry#p-${item._id}`);
   } catch (err) {
     next(err);

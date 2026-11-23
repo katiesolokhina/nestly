@@ -56,6 +56,19 @@ test('pantry', async (t) => {
   await katie('/s/pantry/add', { method: 'POST', form: { name: 'Rice', spot: 'Pantry' } });
   // The old quick add form goes to the add page.
   assert.equal((await katie('/s/pantry/quick', { method: 'POST', form: { name: 'Beans', spot: 'Pantry' } })).location, '/s/pantry/add?name=Beans&spot=Pantry');
+  // Adding has every detail the Edit page has, and Bought can be cleared.
+  let addPage = await katie('/s/pantry/add?name=Chips');
+  for (const f of ['name="status"', 'name="food"', 'name="autoShop"', 'name="note"', 'name="photo"', 'enctype="multipart/form-data"']) assert.ok(addPage.text.includes(f), f);
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'Chips', spot: 'Pantry', count: '1', bought: '', status: 'low', food: 'no', details: '1', note: 'The blue bag' } });
+  await withDb(app.uri, async () => {
+    const c = await PantryItem.findOne({ name: /chips/i }).lean();
+    assert.equal(c.batches[0].bought, '', 'no bought date when cleared');
+    assert.equal(c.status, 'low');
+    assert.equal(c.food, false);
+    assert.equal(c.autoShop, false, 'unticked');
+    assert.equal(c.note, 'The blue bag');
+    await PantryItem.deleteOne({ _id: c._id });
+  });
   const ids = await withDb(app.uri, async () => Object.fromEntries((await PantryItem.find().lean()).map((p) => [p.name, String(p._id)])));
   // Already there: choose to add to its count (keeping the earlier date), replace it, or keep separate.
   page = await katie('/s/pantry/add?name=milk');

@@ -1,26 +1,38 @@
 <%- include('../partials/top', { title: 'Add to pantry', scripts: ['pantry-dates'] }) %>
 <main class="stack">
   <div class="head"><div><h1><%= from ? 'Put away' : 'Add to pantry' %></h1><% if (fromText || found) { %><p class="sub"><%= fromText || found %></p><% } %></div><a class="link-btn" href="/s/pantry">Cancel</a></div>
-  <form class="card" method="post" action="/s/pantry/add" novalidate>
+  <form class="card" method="post" action="/s/pantry/add" enctype="multipart/form-data" novalidate>
     <% if (error) { %><p class="alert" role="alert"><%= error %></p><% } %>
-    <input type="hidden" name="from" value="<%= from %>"><input type="hidden" name="code" value="<%= code %>"><input type="hidden" name="brand" value="<%= brand %>">
+    <input type="hidden" name="from" value="<%= from %>"><input type="hidden" name="code" value="<%= code %>"><input type="hidden" name="brand" value="<%= brand %>"><input type="hidden" name="details" value="1">
     <div class="field"><label for="name">Item</label><input id="name" name="name" type="text" maxlength="80" required list="catalog-names" autocomplete="off" value="<%= item.name %>"<%= item.name ? '' : ' autofocus' %>></div>
     <datalist id="catalog-names"><% catalog.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %></datalist>
     <% if (existing.length) { %><%- include('choices', { existing }) %><% } %>
     <div class="fields">
-      <div class="field"><label for="expires">Use by</label><span class="date-clear"><input id="expires" name="expires" type="date" value="<%= item.expires %>"<%= item.name ? ' autofocus' : '' %>><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>
-      <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="1" max="99" inputmode="numeric" value="<%= item.count %>"></div>
+      <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
+      <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="have"<%= item.status !== 'low' ? ' selected' : '' %>><%= STATUS.have %></option><option value="low"<%= item.status === 'low' ? ' selected' : '' %>><%= STATUS.low %></option></select></div>
     </div>
     <div class="fields">
-      <div class="field"><label for="spot">Kept in</label><select id="spot" name="spot"><% household.pantrySpots.forEach((s) => { %><option<%= item.spot === s ? ' selected' : '' %>><%= s %></option><% }) %><option<%= item.spot === 'Other' ? ' selected' : '' %>>Other</option></select></div>
-      <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
+      <div class="field"><label for="count">How many</label><input id="count" name="count" type="number" min="1" max="99" inputmode="numeric" value="<%= item.count %>"></div>
+      <div class="field"><label for="expires">Use by</label><span class="date-clear"><input id="expires" name="expires" type="date" value="<%= item.expires %>" placeholder="No date"><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>
     </div>
-    <div class="field"><label for="bought">Bought</label><input id="bought" name="bought" type="date" value="<%= item.bought %>" max="<%= todayDate %>"></div>
+    <div class="field"><label for="bought">Bought</label><span class="date-clear"><input id="bought" name="bought" type="date" value="<%= item.bought %>" max="<%= todayDate %>" placeholder="No date"><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>
+    <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
+    <div class="field">
+      <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>
+      <% if (productPhoto) { %><label class="check-row">Use the product’s photo from the scan<input type="checkbox" name="useProductPhoto" checked></label><% } %>
+      <input id="photo" name="photo" type="file" accept="image/*">
+      <% if (productPhoto) { %><span class="hint">Choosing your own photo uses that one instead.</span><% } %>
+    </div>
+    <div class="field"><label for="food">Food (used for recipes)</label><select id="food" name="food">
+      <option value="auto" selected>By where it’s kept</option><option value="yes">Yes</option><option value="no">No</option>
+    </select></div>
+    <label class="check-row">Add to shopping when it’s <%= household.pantryShop === 'out' ? STATUS.out.toLowerCase() : STATUS.low.toLowerCase() + ' or ' + STATUS.out.toLowerCase() %><input type="checkbox" name="autoShop"<%= item.autoShop !== false ? ' checked' : '' %>></label>
+    <div class="field"><label for="note">Note <span class="muted">(optional)</span></label><input id="note" name="note" type="text" maxlength="300" placeholder="Brand we like, top shelf…" value="<%= item.note %>"></div>
     <div class="btn-row">
       <button class="btn btn-primary" type="submit"><%= from ? 'Put away' : 'Save' %></button>
       <% if (code || again) { %><button class="btn btn-ghost" type="submit" name="again" value="1">Save, scan next</button><% } %>
     </div>
   </form>
-  <p class="hint">Leave the use-by date blank for things that don’t expire. Adding to an item keeps each date separately, and its page shows how many of each.</p>
+  <p class="hint">Leave the use-by date blank for things that don’t expire. Adding to an item that’s already there keeps each date separately, and keeps its photo, note, and settings unless you set new ones here.</p>
 </main>
 <%- include('../partials/bottom') %>
