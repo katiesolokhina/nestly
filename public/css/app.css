@@ -724,3 +724,14 @@ details.using[open] .using-change { visibility: hidden; }
 .merge-kind label { font-size: 14px; color: var(--muted); }
 .note-box { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--lilac-tint); color: var(--lilac-ink); font-size: 14px; }
 .warn-text { margin: 0; color: var(--danger); font-weight: 600; font-size: 14px; }
+
+/* Main photo picker (edit page, merge page) and a kind's Change photo */
+.photo-picks { display: flex; gap: 10px; flex-wrap: wrap; }
+.photo-pick { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 76px; cursor: pointer; text-align: center; }
+.photo-pick img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; border: 3px solid transparent; }
+.photo-pick input:checked + img { border-color: var(--primary); }
+.photo-pick input:focus-visible + img { outline: 2px solid var(--primary-deep); outline-offset: 2px; }
+.photo-pick span { overflow-wrap: anywhere; }
+.kind-acts { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.kind-photo { display: flex; align-items: center; min-height: 36px; font-size: 13px; font-weight: 600; color: var(--primary-deep); text-decoration: underline; cursor: pointer; }
+.kind-photo:focus-within { outline: 2px solid var(--primary-deep); outline-offset: 2px; }

@@ -12,7 +12,7 @@ const { addToShopping, expiryText, stockIn, countOf, quickStock, spotFor, bought
 // An item's batches, also for older items saved before there were any.
 const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ count: p.count, expires: p.expires || '', bought: '' }] : []);
 const ShoppingItem = require('../models/ShoppingItem');
-const { remember, productPhotoUrl, productPhoto, CODE, norm } = require('../lib/barcode');
+const { remember, lookup, productPhotoUrl, productPhoto, CODE, norm } = require('../lib/barcode');
 const { kindsFor, kindsByKey, kindName, applyKindsForm, fetchKindPhoto } = require('../lib/kinds');
 const { mergeItems, kindNameFrom, isKindId } = require('../lib/merge');
 const { ratingsFor, warnings, rate, askLater, nextPrompt } = require('../lib/ratings');
@@ -21,6 +21,7 @@ const { shortDay } = require('../lib/dates');
 const Upload = require('../models/Upload');
 const { parseFiles, saveUpload } = require('../lib/uploads');
 const withPhoto = parseFiles(['photo']);
+const withPhotos = parseFiles(['photo'], { prefix: 'kindPhoto_' }); // the edit page: kinds' photos too
 const STATUS_KEYS = ['have', 'low', 'out'];
 const { todayIn, addDays, isDate } = require('../lib/dates');
 
@@ -41,6 +42,21 @@ const backTo = (q) => {
 
 router.get('/s/pantry', async (req, res, next) => {
   try {
+    // A barcode typed in Find or add: looked up like a scan, then on to the add page (which asks
+    // what to do when it's in the pantry already). Without adding, it finds the item it's on.
+    const typedCode = String(req.query.q || '').replace(/[\s-]/g, '');
+    if (/^\d{8,14}$/.test(typedCode)) {
+      const d = await lookup(req.user.householdId, typedCode);
+      if (d && req.perms.can('pantry', 'add')) {
+        const found = d.source === 'saved' ? 'You’ve scanned this before.'
+          : d.source === 'lookup' ? `Found: ${[d.brand, d.name, d.size].filter(Boolean).join(' · ')}`
+            : 'Not found. Type what it is once, and Nestly will remember this barcode.';
+        return res.redirect(`/s/pantry/add?${new URLSearchParams({ name: d.name || '', code: d.code, brand: d.brand || '', found })}`);
+      }
+      if (d && d.source === 'saved') return res.redirect(`/s/pantry?${new URLSearchParams({ q: d.name })}`);
+      req.session.flash = 'No item here has that barcode.';
+      return res.redirect('/s/pantry');
+    }
     const SOON_DAYS = req.household.pantrySoonDays || 3;
     const today = todayIn(req.user.timezone);
     const spots = [...req.household.pantrySpots];
@@ -207,7 +223,7 @@ async function saveSavedBits(req, item) {
   const b = req.body || {};
   if (b.savedShown !== '1') return '';
   await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key }, { $set: { staple: b.staple === 'on' }, $setOnInsert: { name: item.name } }, { upsert: true });
-  return applyKindsForm(req.user, { key: item.key, name: item.name }, b);
+  return applyKindsForm(req.user, { key: item.key, name: item.name }, b, req.files || {});
 }
 
 const formView = async (req, item, error, existing = []) => ({
@@ -218,8 +234,13 @@ const formView = async (req, item, error, existing = []) => ({
   ...(await savedBits(req, item)),
 });
 
-// Reference photo: a new one replaces the old; "Remove" takes it off.
+// Reference photo: the main one can be any of its kinds' photos; a new one replaces it; "Remove" takes it off.
 async function applyPhoto(req, item) {
+  const main = String((req.body || {}).mainPhoto || '');
+  if (main && main !== String(item.photoId || '') && mongoose.isValidObjectId(main)) {
+    const { kinds } = await kindsFor(req.user, item.key);
+    if (kinds.some((k) => k.photoId === main)) item.photoId = main;
+  }
   if ((req.body || {}).removePhoto === 'on') item.photoId = null;
   const f = (req.files || {}).photo;
   if (f) item.photoId = (await saveUpload(req.user, f[0], { isPrivate: false, imagesOnly: true }))._id;
@@ -488,7 +509,10 @@ router.get('/s/pantry/:id/edit', async (req, res, next) => {
 // merged item is called as a kind. Then they become one.
 async function mergeView(req, ids) {
   const items = ids.length ? await PantryItem.find({ _id: { $in: ids }, ...visible(req.user) }).collation({ locale: 'en' }).sort({ name: 1 }).lean() : [];
-  const others = items.length === 1 ? await PantryItem.find({ ...visible(req.user), _id: { $ne: items[0]._id } }, { name: 1, spot: 1, count: 1, status: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean() : [];
+  const others = items.length === 1 ? await PantryItem.find({ ...visible(req.user), _id: { $ne: items[0]._id } }, { name: 1, spot: 1, count: 1, status: 1, key: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean() : [];
+  // Which ones have kinds already: one that has none gets a kind of its own when it's the one kept.
+  const byKey = await kindsByKey(req.user, [...items, ...others].map((i) => i.key));
+  [...items, ...others].forEach((i) => { i.hasKinds = (byKey.get(i.key) || []).length > 0; });
   return { items, others };
 }
 router.get('/s/pantry/merge', async (req, res, next) => {
@@ -510,10 +534,10 @@ router.post('/s/pantry/merge', async (req, res, next) => {
     const keep = all.find((i) => String(i._id) === keepId);
     const others = all.filter((i) => String(i._id) !== keepId);
     if (!keep || !others.length) { req.session.flash = 'Pick which one to keep.'; return res.redirect(`/s/pantry/merge?${ids.map((id) => `ids=${id}`).join('&')}`); }
-    const kindNames = Object.fromEntries(others.map((o) => [String(o._id), String(b[`kindName_${o._id}`] || '').trim()]).filter(([, v]) => v));
+    const kindNames = Object.fromEntries([keep, ...others].map((o) => [String(o._id), String(b[`kindName_${o._id}`] || '').trim()]).filter(([, v]) => v));
     let text;
     try {
-      text = await mergeItems(req.user, { keep, others, name: String(b.name || '').trim(), kindNames });
+      text = await mergeItems(req.user, { keep, others, name: String(b.name || '').trim(), kindNames, mainPhoto: String(b.mainPhoto || '') });
     } catch (e) {
       if (!e.userFacing) throw e;
       req.session.flash = e.message;
@@ -590,7 +614,7 @@ router.post('/s/pantry/bulk', async (req, res, next) => {
   }
 });
 
-router.post('/s/pantry/:id', withPhoto, async (req, res, next) => {
+router.post('/s/pantry/:id', withPhotos, async (req, res, next) => {
   try {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');

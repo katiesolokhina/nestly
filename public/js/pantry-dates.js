@@ -28,3 +28,11 @@ document.querySelectorAll('[data-batches]').forEach((box) => {
     last.after(row);
   });
 });
+
+// A kind's "Change photo": says which file is ready (it saves with the page).
+document.querySelectorAll('[data-kind-photo]').forEach((input) => {
+  input.addEventListener('change', () => {
+    const span = input.previousElementSibling;
+    if (span && input.files && input.files[0]) span.textContent = 'Photo ready ✓';
+  });
+});

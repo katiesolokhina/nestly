@@ -30,11 +30,25 @@
     </fieldset>
     <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
     <%- include('tag-picks', { tags: item.tags }) %>
+    <% const mainNow = photo ? String(photo._id) : ''; const choices = mainNow ? [{ id: mainNow, label: ((kinds || []).find((k) => k.photoId === mainNow) || {}).name || 'Current photo' }] : [];
+       if (showKinds && item._id) (kinds || []).forEach((k) => { if (k.photoId && !choices.some((c) => c.id === k.photoId)) choices.push({ id: k.photoId, label: k.name || 'Unnamed' }); }); %>
+    <% if (choices.length > 1) { %>
+      <fieldset class="group">
+        <legend>Main photo <span class="muted small">· shows on the pantry list, Shopping and search</span></legend>
+        <div class="photo-picks">
+          <% choices.forEach((c) => { %><label class="photo-pick"><input class="sr-only" type="radio" name="mainPhoto" value="<%= c.id %>"<%= c.id === mainNow ? ' checked' : '' %>><img src="/files/<%= c.id %>" alt="" width="64" height="64" loading="lazy"><span class="small"><%= c.label %></span></label><% }) %>
+        </div>
+        <span class="hint">Tap one to make it the main photo. Each kind keeps its own photo either way.</span>
+        <% if (photo) { %><label class="inline-check"><input type="checkbox" name="removePhoto">No main photo</label><% } %>
+        <div class="field"><label for="photo">Or a new photo</label><input id="photo" name="photo" type="file" accept="image/*"></div>
+      </fieldset>
+    <% } else { %>
     <div class="field">
       <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>
       <% if (photo) { %><p class="file-row"><a href="/files/<%= photo._id %>/view?back=/s/pantry/<%= item._id %>/edit"><img class="file-thumb" src="/files/<%= photo._id %>" alt="Current photo"></a><label class="inline-check"><input type="checkbox" name="removePhoto">Remove</label></p><% } %>
       <input id="photo" name="photo" type="file" accept="image/*">
     </div>
+    <% } %>
     <% const spotFood = !(household.nonFoodSpots || []).includes(item.spot); %>
     <div class="field"><label for="food">Food (used for recipes)</label><select id="food" name="food">
       <option value="auto"<%= item.food == null ? ' selected' : '' %>>By where it’s kept (<%= spotFood ? 'yes' : 'no' %>)</option>

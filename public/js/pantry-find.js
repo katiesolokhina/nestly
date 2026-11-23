@@ -5,6 +5,7 @@
   if (!box) return;
   const add = document.querySelector('[data-find-add]');
   const tagNote = document.querySelector('[data-find-tag]');
+  const codeNote = document.querySelector('[data-find-code]');
   const rows = [...document.querySelectorAll('[data-find-row]')];
   const tags = [...new Set(rows.flatMap((r) => (r.dataset.tags ? r.dataset.tags.split('|') : [])))];
   const run = () => {
@@ -19,13 +20,17 @@
     document.querySelectorAll('[data-find-group]').forEach((g) => { g.hidden = ![...g.querySelectorAll('[data-find-row]')].some((r) => !r.hidden); });
     const none = document.querySelector('[data-find-none]');
     if (none && rows.length) none.hidden = rows.some((r) => !r.hidden);
+    // A barcode number: Enter (or the link) looks it up like a scan.
+    const code = /^\d{8,14}$/.test(q.replace(/[\s-]/g, ''));
     if (add) {
-      add.hidden = !q || exact || Boolean(tag);
+      add.hidden = !q || exact || Boolean(tag) || code;
       add.querySelector('[data-find-name]').textContent = box.value.trim();
       const u = new URL(add.href, location.href);
       u.searchParams.set('name', box.value.trim());
       add.href = u.pathname + u.search;
     }
+    if (codeNote) codeNote.hidden = !code;
+    if (code && none) none.hidden = true;
     if (tagNote) {
       tagNote.hidden = !tag;
       if (tag) tagNote.querySelector('[data-find-tag-name]').textContent = tag.replace(/\b\w/g, (c) => c.toUpperCase());

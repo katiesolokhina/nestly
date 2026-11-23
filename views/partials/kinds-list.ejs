@@ -1,5 +1,5 @@
 <%# Kinds and barcodes: a dropdown with each kind's photo, name (to rename), code, and Remove,
-    plus adding one by typing its code. Locals: kinds. %>
+    plus adding one by typing its code. Locals: kinds, kindPhotos (a Change photo per kind; needs a multipart form). %>
 <details class="kinds-box">
   <summary>
     <span class="kinds-sum"><strong>Kinds and barcodes (<%= kinds.length %>)</strong><span class="muted small"><%= kinds.length ? kinds.map((k) => k.name || 'Unnamed').join(' · ') : 'None yet. Scanning it adds one.' %></span></span>
@@ -14,13 +14,16 @@
           <input id="kn-<%= k.code %>" name="kindName_<%= k.code %>" type="text" maxlength="60" value="<%= k.name %>" placeholder="Name it (brand or flavor)">
           <span class="muted small kind-code"><%= /^\d+$/.test(k.code) ? k.code : 'No barcode yet' %></span>
         </span>
-        <label class="kind-remove"><input type="checkbox" name="kindRemove" value="<%= k.code %>"><span>Remove</span></label>
+        <span class="kind-acts">
+          <% if (typeof kindPhotos !== 'undefined' && kindPhotos) { %><label class="kind-photo"><span><%= k.photoId ? 'Change photo' : 'Add photo' %></span><input class="sr-only" type="file" name="kindPhoto_<%= k.code %>" accept="image/*" data-kind-photo></label><% } %>
+          <label class="kind-remove"><input type="checkbox" name="kindRemove" value="<%= k.code %>"><span>Remove</span></label>
+        </span>
       </div>
     <% }) %>
     <div class="kind-add">
       <label class="sr-only" for="kind-add">Barcode to add</label><input id="kind-add" name="kindAdd" type="text" inputmode="numeric" maxlength="20" placeholder="Barcode">
       <label class="sr-only" for="kind-add-name">Its name</label><input id="kind-add-name" name="kindAddName" type="text" maxlength="60" placeholder="Name (brand or flavor)">
     </div>
-    <p class="hint">Scanning adds kinds on its own, with the name and photo when the product is known. Type one here when the camera can’t read it. Changes save with the page.</p>
+    <p class="hint">Scanning or typing a barcode adds a kind, with the name and photo from Open Food Facts when the product is known. Leave the name blank to use theirs. Changes save with the page.</p>
   </div>
 </details>

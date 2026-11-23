@@ -25,16 +25,26 @@
     <fieldset class="group">
       <legend><%= items.length > 1 ? 'The others become kinds of it' : 'As a kind, it’s called' %></legend>
       <% items.forEach((i) => { %>
-        <div class="merge-kind" data-merge-kind="<%= i._id %>" data-item-name="<%= i.name %>">
+        <div class="merge-kind" data-merge-kind="<%= i._id %>" data-item-name="<%= i.name %>" data-has-kinds="<%= i.hasKinds ? '1' : '' %>">
           <label for="mk-<%= i._id %>"><%= i.name %> →</label>
           <input id="mk-<%= i._id %>" name="kindName_<%= i._id %>" type="text" maxlength="60" placeholder="<%= items.length > 1 ? kindNameFrom(i.name, items[0].name) : '' %>">
         </div>
       <% }) %>
-      <p class="hint">Blank uses the name minus the kept item’s name (“Sunset Cherry Tomatoes” → “Sunset”).</p>
+      <p class="hint">Blank uses the name minus the kept item’s name (“Sunset Cherry Tomatoes” → “Sunset”). The kept one gets a kind too when it has none yet, so its photo and dates stay apart from the others.</p>
     </fieldset>
+    <% const withPhotos = items.filter((i) => i.photoId); %>
+    <% if (withPhotos.length > 1) { %>
+      <fieldset class="group">
+        <legend>Main photo after the merge</legend>
+        <div class="photo-picks">
+          <% withPhotos.forEach((i, n) => { %><label class="photo-pick"><input class="sr-only" type="radio" name="mainPhoto" value="<%= i._id %>" data-main-photo<%= n === 0 ? ' checked' : '' %>><img src="/files/<%= i.photoId %>" alt="" width="64" height="64" loading="lazy"><span class="small"><%= i.name %></span></label><% }) %>
+        </div>
+        <span class="hint">Each one also stays as its kind’s photo.</span>
+      </fieldset>
+    <% } %>
     <div class="note-box">
       <strong>What moves</strong>
-      <span>Their date lines (each as its kind), barcodes, photos, tags, and anything on the shopping list. Ratings move unless someone already rated the kept item. Their saved items are folded into the kept one.</span>
+      <span>Their date lines (each as its kind), barcodes, photos (each on its kind), tags, and anything on the shopping list. Ratings move unless someone already rated the kept item. Their saved items are folded into the kept one.</span>
     </div>
     <p class="warn-text">This can’t be undone in one tap. It’s noted in Activity.</p>
     <button class="btn btn-primary btn-block" type="submit">Merge</button>

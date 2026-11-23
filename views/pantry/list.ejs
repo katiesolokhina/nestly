@@ -24,6 +24,7 @@
   </form>
   <% const exact = q && groups.some((g) => g.items.some((i) => i.name.toLowerCase() === q.toLowerCase())); %>
   <% if (can('pantry', 'add')) { %><a class="find-add" href="/s/pantry/add?name=<%= encodeURIComponent(q) %><%= spot ? '&spot=' + encodeURIComponent(spot) : '' %>" data-find-add<%= q && !exact && !qTag ? '' : ' hidden' %>><span>+ Add “<span data-find-name><%= q %></span>”</span><span class="muted">opens the full form</span></a><% } %>
+  <p class="hint" data-find-code hidden>That looks like a barcode. Press Enter to look it up<%= can('pantry', 'add') ? ' and add it' : '' %>.</p>
   <p class="hint" data-find-tag<%= qTag ? '' : ' hidden' %>>Also showing everything tagged <strong data-find-tag-name><%= qTag %></strong></p>
   <% } %>
   <% if (putAway.length) { %>

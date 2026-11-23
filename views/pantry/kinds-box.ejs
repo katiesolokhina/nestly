@@ -7,5 +7,5 @@
     <label class="check-row"><span>Staple <span class="muted small">· one tap to add it on Shopping</span></span><input type="checkbox" name="staple"<%= staple ? ' checked' : '' %>></label>
   <% } %>
   <%- include('store-field') %>
-  <% if (showKinds) { %><%- include('../partials/kinds-list', { kinds }) %><% } %>
+  <% if (showKinds) { %><%- include('../partials/kinds-list', { kinds, kindPhotos: Boolean(item._id) }) %><% } %>
 </fieldset>
