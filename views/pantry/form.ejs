@@ -22,7 +22,7 @@
           <label class="sr-only" for="be-<%= i %>">Use by</label>
           <input id="be-<%= i %>" name="bExpires" type="date" value="<%= b.expires %>">
           <button class="link-btn batch-clear" type="button" data-clear-date hidden>No date</button>
-          <% if (showKinds && kinds.length) { %><span class="batch-kind"><label class="sr-only" for="bk-<%= i %>">Kind</label><select id="bk-<%= i %>" name="bKind"><option value="">No kind</option><% kinds.forEach((k) => { %><option value="<%= k.code %>"<%= b.kind === k.code ? ' selected' : '' %>><%= k.name || 'Unnamed (' + k.code + ')' %></option><% }) %></select></span><% } %>
+          <% if (showKinds && kinds.length) { %><span class="batch-kind"><label class="sr-only" for="bk-<%= i %>">Kind</label><select id="bk-<%= i %>" name="bKind"><option value="">No kind</option><% kinds.forEach((k) => { %><option value="<%= k.code %>"<%= b.kind === k.code ? ' selected' : '' %>><%= k.name || 'Unnamed' %></option><% }) %></select></span><% } %>
           <span class="batch-bought"><label for="bb-<%= i %>">Bought</label><input id="bb-<%= i %>" name="bBought" type="date" value="<%= b.bought || '' %>" max="<%= todayDate %>"<%- b.fresh ? ` data-default="${todayDate}"` : '' %>><button class="link-btn" type="button" data-clear-date hidden>No date</button></span>
         </div>
       <% }) %>
@@ -49,6 +49,7 @@
   <% if (item._id && typeof rList !== 'undefined') { %><%- include('../partials/rate-block', { rName: item.name, rList, back: '/s/pantry/' + item._id + '/edit' }) %><% } %>
   <% if (item._id) { %>
     <p class="hint">Last changed by <%= item.statusBy || item.byName %>.</p>
+    <% if ((perms.parts('pantry') || {}).delete === 'all') { %><a class="link-btn" href="/s/pantry/merge?ids=<%= item._id %>">Merge into another item…</a><% } %>
     <% if (can('pantry', 'delete', item)) { %><form method="post" action="/s/pantry/<%= item._id %>/delete"><button class="link-btn link-danger" type="submit">Remove from the pantry<span class="sr-only"> <%= item.name %></span></button></form><% } %>
   <% } %>
 </main>

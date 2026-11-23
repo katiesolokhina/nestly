@@ -14,6 +14,7 @@ const batchesOf = (p) => p.batches || (p.status !== 'out' && p.count > 0 ? [{ co
 const ShoppingItem = require('../models/ShoppingItem');
 const { remember, productPhotoUrl, productPhoto, CODE, norm } = require('../lib/barcode');
 const { kindsFor, kindsByKey, kindName, applyKindsForm, fetchKindPhoto } = require('../lib/kinds');
+const { mergeItems, kindNameFrom, isKindId } = require('../lib/merge');
 const { ratingsFor, warnings, rate, askLater, nextPrompt } = require('../lib/ratings');
 const { pantryNames } = require('../lib/prefs');
 const { shortDay } = require('../lib/dates');
@@ -161,7 +162,7 @@ function readForm(req) {
   const kinds = [].concat(b.bKind == null ? [] : b.bKind);
   const today = todayIn(req.user.timezone);
   values.batches = counts
-    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) && boughts[i] <= today ? boughts[i] : '', kind: /^\d{8,14}$/.test(String(kinds[i] || '')) ? String(kinds[i]) : '' }))
+    .map((c, i) => ({ count: Math.min(999, Math.max(0, parseInt(c, 10) || 0)), expires: isDate(dates[i]) ? dates[i] : '', bought: isDate(boughts[i]) && boughts[i] <= today ? boughts[i] : '', kind: isKindId(String(kinds[i] || '')) ? String(kinds[i]) : '' }))
     .filter((x) => x.count > 0)
     .slice(0, 30);
   if (values.status === 'out') values.batches = [];
@@ -478,6 +479,49 @@ router.get('/s/pantry/:id/edit', async (req, res, next) => {
     const item = await find(req);
     if (!item) return res.status(404).send('Not found');
     res.render('pantry/form', { ...(await formView(req, item.toObject())), rList: (await ratingsFor(req.household, [item.key])).get(item.key) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Merge: pick which to keep (or, from one item, which to merge it into), its name, and what each
+// merged item is called as a kind. Then they become one.
+async function mergeView(req, ids) {
+  const items = ids.length ? await PantryItem.find({ _id: { $in: ids }, ...visible(req.user) }).collation({ locale: 'en' }).sort({ name: 1 }).lean() : [];
+  const others = items.length === 1 ? await PantryItem.find({ ...visible(req.user), _id: { $ne: items[0]._id } }, { name: 1, spot: 1, count: 1, status: 1 }).collation({ locale: 'en' }).sort({ name: 1 }).lean() : [];
+  return { items, others };
+}
+router.get('/s/pantry/merge', async (req, res, next) => {
+  try {
+    const ids = [].concat(req.query.ids || []).map(String).filter((id) => mongoose.isValidObjectId(id)).slice(0, 50);
+    const { items, others } = await mergeView(req, ids);
+    if (!items.length || (items.length === 1 && !others.length)) { req.session.flash = items.length ? 'There’s nothing else in the pantry to merge it into.' : 'Pick two or more to merge.'; return res.redirect('/s/pantry?select=1'); }
+    res.render('pantry/merge', { active: 'pantry', items, others, kindNameFrom, error: null });
+  } catch (err) {
+    next(err);
+  }
+});
+router.post('/s/pantry/merge', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const ids = [...new Set([].concat(b.ids || []).map(String).filter((id) => mongoose.isValidObjectId(id)))].slice(0, 50);
+    const keepId = mongoose.isValidObjectId(b.keep) ? String(b.keep) : '';
+    const all = await PantryItem.find({ _id: { $in: [...new Set([...ids, keepId].filter(Boolean))] }, ...visible(req.user) });
+    const keep = all.find((i) => String(i._id) === keepId);
+    const others = all.filter((i) => String(i._id) !== keepId);
+    if (!keep || !others.length) { req.session.flash = 'Pick which one to keep.'; return res.redirect(`/s/pantry/merge?${ids.map((id) => `ids=${id}`).join('&')}`); }
+    const kindNames = Object.fromEntries(others.map((o) => [String(o._id), String(b[`kindName_${o._id}`] || '').trim()]).filter(([, v]) => v));
+    let text;
+    try {
+      text = await mergeItems(req.user, { keep, others, name: String(b.name || '').trim(), kindNames });
+    } catch (e) {
+      if (!e.userFacing) throw e;
+      req.session.flash = e.message;
+      return res.redirect(`/s/pantry/merge?${ids.map((id) => `ids=${id}`).join('&')}`);
+    }
+    await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
+    req.session.flash = `Merged into ${keep.name}.`;
+    res.redirect(`/s/pantry#p-${keep._id}`);
   } catch (err) {
     next(err);
   }

@@ -1,0 +1,43 @@
+<%- include('../partials/top', { title: 'Merge', scripts: ['merge-page'] }) %>
+<main class="stack">
+  <div class="head"><div><h1><%= items.length > 1 ? 'Merge ' + items.length + ' into one' : 'Merge into another item' %></h1><p class="sub">The others become kinds of the one you keep.</p></div><a class="link-btn" href="/s/pantry<%= items.length > 1 ? '?select=1' : '' %>">Cancel</a></div>
+  <form class="card stack" method="post" action="/s/pantry/merge" data-merge-form>
+    <% items.forEach((i) => { %><input type="hidden" name="ids" value="<%= i._id %>"><% }) %>
+    <% if (items.length > 1) { %>
+      <fieldset class="group">
+        <legend>Keep which one?</legend>
+        <% items.forEach((i, n) => { %>
+          <label class="merge-pick"><input type="radio" name="keep" value="<%= i._id %>" data-name="<%= i.name %>"<%= n === 0 ? ' checked' : '' %> required><% if (i.photoId) { %><img class="kind-thumb" src="/files/<%= i.photoId %>" alt="" width="44" height="44"><% } %><span><strong><%= i.name %></strong><span class="muted small"><%= i.spot %> · <%= i.status === 'out' ? 'Out' : i.count %></span></span></label>
+        <% }) %>
+      </fieldset>
+    <% } else { %>
+      <div class="field">
+        <label for="merge-find">Merge <strong><%= items[0].name %></strong> into…</label>
+        <input id="merge-find" type="search" placeholder="Find the item" autocomplete="off" data-merge-find>
+      </div>
+      <div class="merge-list" role="radiogroup" aria-label="Item to merge into">
+        <% others.forEach((o) => { %>
+          <label class="merge-pick" data-merge-row data-search="<%= o.name.toLowerCase() %>"><input type="radio" name="keep" value="<%= o._id %>" data-name="<%= o.name %>" required><span><strong><%= o.name %></strong><span class="muted small"><%= o.spot %> · <%= o.status === 'out' ? 'Out' : o.count %></span></span></label>
+        <% }) %>
+      </div>
+    <% } %>
+    <div class="field"><label for="merge-name">Call it <span class="muted">(blank keeps its name)</span></label><input id="merge-name" name="name" type="text" maxlength="80" placeholder="<%= items.length > 1 ? items[0].name : 'Its name' %>"></div>
+    <fieldset class="group">
+      <legend><%= items.length > 1 ? 'The others become kinds of it' : 'As a kind, it’s called' %></legend>
+      <% items.forEach((i) => { %>
+        <div class="merge-kind" data-merge-kind="<%= i._id %>" data-item-name="<%= i.name %>">
+          <label for="mk-<%= i._id %>"><%= i.name %> →</label>
+          <input id="mk-<%= i._id %>" name="kindName_<%= i._id %>" type="text" maxlength="60" placeholder="<%= items.length > 1 ? kindNameFrom(i.name, items[0].name) : '' %>">
+        </div>
+      <% }) %>
+      <p class="hint">Blank uses the name minus the kept item’s name (“Sunset Cherry Tomatoes” → “Sunset”).</p>
+    </fieldset>
+    <div class="note-box">
+      <strong>What moves</strong>
+      <span>Their date lines (each as its kind), barcodes, photos, tags, and anything on the shopping list. Ratings move unless someone already rated the kept item. Their saved items are folded into the kept one.</span>
+    </div>
+    <p class="warn-text">This can’t be undone in one tap. It’s noted in Activity.</p>
+    <button class="btn btn-primary btn-block" type="submit">Merge</button>
+  </form>
+</main>
+<%- include('../partials/bottom') %>

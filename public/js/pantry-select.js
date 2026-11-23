@@ -8,6 +8,8 @@ document.querySelectorAll('[data-bulk-form]').forEach((form) => {
     const n = items.filter((i) => i.checked).length;
     count.textContent = n ? `${n} selected` : 'Tick items, or Select all in a spot';
     if (apply) apply.disabled = !n;
+    const merge = form.querySelector('[data-bulk-merge]');
+    if (merge) { merge.disabled = n < 2; merge.textContent = n > 1 ? `Merge ${n} into one` : 'Merge into one (pick 2 or more)'; }
     if (del) { del.disabled = !n; del.textContent = n ? `Delete ${n} selected` : 'Delete selected'; }
     form.querySelectorAll('[data-bulk-group]').forEach((g) => {
       const boxes = [...g.querySelectorAll('[data-bulk-item]')];

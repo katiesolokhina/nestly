@@ -95,6 +95,7 @@
           </select>
           <button class="btn btn-primary" type="submit" data-bulk-apply>Apply</button>
         </div>
+        <% if ((perms.parts('pantry') || {}).delete === 'all') { %><button class="btn btn-ghost btn-block" type="submit" formaction="/s/pantry/merge" formmethod="get" formnovalidate data-bulk-merge>Merge into one</button><% } %>
         <% if (can('pantry', 'delete') && (perms.parts('pantry') || {}).delete === 'all') { %><button class="btn btn-danger btn-block" type="submit" name="do" value="delete" formnovalidate data-bulk-delete data-confirm="Remove the selected items from the pantry? You can undo it from Activity.">Delete selected</button><% } %>
       </div>
     </form>

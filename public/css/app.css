@@ -712,3 +712,15 @@ details.using[open] .using-change { visibility: hidden; }
 .scan-kind.good { background: var(--r-green-bg); color: var(--r-green); }
 .scan-kind.ok { background: var(--r-yellow-bg); color: var(--r-yellow); }
 .scan-kind.no { background: var(--r-red-bg); color: var(--r-red); }
+/* ---------- Merge ---------- */
+.merge-pick { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
+.merge-pick + .merge-pick { margin-top: 6px; }
+.merge-pick.on { border: 2px solid var(--primary); background: var(--lilac-tint); }
+.merge-pick input { width: 20px; height: 20px; accent-color: var(--primary); flex: none; }
+.merge-pick > span { display: flex; flex-direction: column; gap: 2px; }
+.merge-pick[hidden], .merge-kind[hidden] { display: none; }
+.merge-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.merge-kind { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; align-items: center; padding: 4px 0; }
+.merge-kind label { font-size: 14px; color: var(--muted); }
+.note-box { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--lilac-tint); color: var(--lilac-ink); font-size: 14px; }
+.warn-text { margin: 0; color: var(--danger); font-weight: 600; font-size: 14px; }
