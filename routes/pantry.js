@@ -128,6 +128,7 @@ function readForm(req) {
     food: b.food === 'yes' ? true : b.food === 'no' ? false : null,
     note: String(b.note || '').trim().slice(0, 300),
     tags: tagsFrom(req, b),
+    store: b.store,
   };
   values.key = keyOf(values.name);
   // How many, by use-by date: one row each. A row with no count is left out.
@@ -156,10 +157,26 @@ async function readChoice(req, existing) {
   return hit ? { choice: how, target: await PantryItem.findById(hit._id) } : { choice: 'new', target: null };
 }
 
+// The store it's usually bought at. It lives on its saved item, so Shopping (and things added to
+// the list when they run low) use the same one.
+const ANY_STORE = 'Any store';
+async function storeFor(req, key) {
+  const c = key ? await CatalogItem.findOne({ householdId: req.user.householdId, key }, { store: 1 }).lean() : null;
+  return c ? c.store : ANY_STORE;
+}
+async function saveStore(req, name, store) {
+  if (store === undefined) return;
+  const s = String(store);
+  const key = keyOf(name);
+  if (!key || (s !== ANY_STORE && !(req.household.stores || []).includes(s))) return;
+  await CatalogItem.updateOne({ householdId: req.user.householdId, key }, { $set: { store: s }, $setOnInsert: { name } }, { upsert: true });
+}
+
 const formView = async (req, item, error, existing = []) => ({
   active: 'pantry', item: { ...item, batches: item.batches && item.batches.length ? item.batches : batchesOf(item) }, error: error || null, STATUS: pantryNames(req.household), existing, todayDate: todayIn(req.user.timezone),
   catalog: await CatalogItem.find({ householdId: req.user.householdId }, { name: 1 }).sort({ name: 1 }).lean(),
   photo: item.photoId ? await Upload.findOne({ _id: item.photoId, householdId: req.user.householdId }).lean() : null,
+  stores: req.household.stores || [], store: item.store !== undefined ? item.store : await storeFor(req, item.key),
 });
 
 // Reference photo: a new one replaces the old; "Remove" takes it off.
@@ -184,7 +201,7 @@ router.get('/s/pantry/add', async (req, res, next) => {
     const defaultSpot = h.pantrySpots.includes(h.pantryDefaultSpot) ? h.pantryDefaultSpot : h.pantrySpots[0] || 'Other';
     const rList = key ? (await ratingsFor(req.household, [key])).get(key) : [];
     res.render('pantry/add', {
-      rList, rWarn: warnings(rList),
+      rList, rWarn: warnings(rList), stores: req.household.stores || [], store: await storeFor(req, key),
       active: 'pantry', STATUS: pantryNames(h),
       todayDate: todayIn(req.user.timezone),
       item: {
@@ -251,10 +268,12 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
     // Their rating, picked on the form; or asked about later when it was bought or scanned.
     if (b.rating && req.perms.can('pantry', 'ratings')) await rate(req.user, req.household, { key: item.key, name: item.name, value: String(b.rating) });
     else if (b.from || b.code) askLater(req, [item]);
+    await saveStore(req, item.name, b.store);
     if (item.status === 'low' && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     if (choice === 'new') await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text, label: item.name });
     else await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
     await addToCatalog(req.user, req.household, [item.name]);
+    await saveStore(req, item.name, (req.body || {}).store);
     if (CODE.test(String(b.code || ''))) await remember(req.user.householdId, String(b.code), item.key, b.brand);
     // From "Put away": that bought item is done.
     if (mongoose.isValidObjectId(b.from)) await ShoppingItem.updateOne({ _id: b.from, householdId: req.user.householdId }, { $set: { putAway: 'done' } });
@@ -381,6 +400,7 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
     if (target) {
       const { item, text } = await stockIn(req.user, { ...values, choice, target });
       try { await applyPhoto(req, item); await item.save(); } catch (e) { if (!e.userFacing) throw e; }
+      await saveStore(req, item.name, (req.body || {}).store);
       await logActivity(req.user, { section: SECTION, text: `${req.user.name} ${text}` });
       return res.redirect(`/s/pantry#p-${item._id}`);
     }
@@ -393,6 +413,7 @@ router.post('/s/pantry', withPhoto, async (req, res, next) => {
     }
     await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
+    await saveStore(req, item.name, (req.body || {}).store);
     await recordChange(req, { kind: 'create', model: 'PantryItem', doc: item, section: SECTION, text: `added ${item.name} to the pantry`, label: item.name });
     if (await addToShopping(req.user, req.household, item)) req.session.flash = `${item.name} is on the shopping list now.`;
     res.redirect(`/s/pantry#p-${item._id}`);
@@ -492,6 +513,7 @@ router.post('/s/pantry/:id', withPhoto, async (req, res, next) => {
     }
     await item.save();
     await addToCatalog(req.user, req.household, [item.name]);
+    await saveStore(req, item.name, (req.body || {}).store);
     await recordChange(req, { kind: 'update', model: 'PantryItem', doc: item, before, section: SECTION, text: `edited ${item.name} in the pantry`, label: item.name });
     if (statusChanged && (await addToShopping(req.user, req.household, item))) req.session.flash = `${item.name} is on the shopping list now.`;
     res.redirect(`/s/pantry#p-${item._id}`);

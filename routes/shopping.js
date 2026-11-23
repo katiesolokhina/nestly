@@ -1,4 +1,5 @@
 const express = require('express');
+const PantryItem = require('../models/PantryItem');
 const { ratingsFor, warnings, askLater, nextPrompt } = require('../lib/ratings');
 const mongoose = require('mongoose');
 const { requireAuth, requireSection } = require('../middleware/auth');
@@ -72,8 +73,13 @@ router.get('/s/shopping', async (req, res, next) => {
     // "Naum: Never again" under things someone rated with a warning.
     const rated = req.perms.sees('pantry', 'ratings') ? await ratingsFor(household, active.map((i) => i.key)) : new Map();
     const warn = (i) => warnings(rated.get(i.key)).join(' · ');
+    // A photo to see what to buy: the item's own, else its pantry item's reference photo.
+    const want = active.filter((i) => !i.photoId).map((i) => i.key);
+    const pantryPhotos = want.length && req.sees('pantry') ? await PantryItem.find({ ...visible(user), key: { $in: want }, photoId: { $ne: null } }, { key: 1, photoId: 1 }).lean() : [];
+    const photoOf = new Map(pantryPhotos.map((p) => [p.key, String(p.photoId)]));
+    const photo = (i) => (i.photoId ? String(i.photoId) : photoOf.get(i.key) || '');
     const groups = [...household.aisles, 'Unassigned']
-      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i), warn: warn(i) })) }))
+      .map((a) => ({ name: a === 'Unassigned' ? 'Other' : a, items: active.filter((i) => i.aisle === a || (a === 'Unassigned' && !household.aisles.includes(i.aisle))).map((i) => ({ ...i, meta: meta(i), warn: warn(i), photo: photo(i) })) }))
       .filter((g) => g.items.length);
 
     const ratePrompt = shopping || selecting ? null : await nextPrompt(req);

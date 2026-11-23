@@ -1,0 +1,6 @@
+<% if (household.features.shopping !== false && stores.length) { %>
+  <div class="field"><label for="store">Usually bought at</label><select id="store" name="store">
+    <option<%= store === 'Any store' || !stores.includes(store) ? ' selected' : '' %>>Any store</option>
+    <% stores.forEach((s) => { %><option<%= store === s ? ' selected' : '' %>><%= s %></option><% }) %>
+  </select><span class="hint">Shared with Shopping: it goes on the list under this store.</span></div>
+<% } %>

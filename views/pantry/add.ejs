@@ -18,6 +18,7 @@
     </div>
     <div class="field"><label for="bought">Bought</label><span class="date-clear"><input id="bought" name="bought" type="date" value="<%= item.bought %>" max="<%= todayDate %>" placeholder="No date"><button class="link-btn" type="button" data-clear-date hidden>No date</button></span></div>
     <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
+    <%- include('store-field') %>
     <%- include('tag-picks', { tags: item.tags }) %>
     <div class="field">
       <label for="photo">Reference photo <span class="muted">(optional: the brand or size you buy)</span></label>
