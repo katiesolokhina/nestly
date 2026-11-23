@@ -87,11 +87,33 @@ test('custom permissions', async (t) => {
   assert.doesNotMatch((await mia('/customize')).text, /Use soon/);
   assert.equal((await mia('/households', { method: 'POST', form: { name: 'Mine' } })).status, 404);
 
-  // View as Child: the Households page offers no delete, and leaving waits for Exit.
+  // A second household of Katie's, to check View as covers every household, not just this one.
+  await katie('/households', { method: 'POST', form: { name: 'Lake house' } });
+
+  await katie('/households/switch', { method: 'POST', form: { id: app.seeded.homeId } });
+  const otherId = (await katie('/households')).text.match(/name="id" value="([a-f0-9]{24})"/)[1];
+  assert.notEqual(otherId, app.seeded.homeId);
+
+
+  // View as Child: no delete, copy, start, or leave anywhere, for any household.
   await katie('/view-as', { method: 'POST', form: { role: 'child' } });
   page = await katie('/households');
-  assert.doesNotMatch(page.text, /Delete Home/);
+  assert.doesNotMatch(page.text, /Delete Home|Delete Lake House/i);
+  assert.doesNotMatch(page.text, /Start a new household|Leave /);
+  assert.doesNotMatch(page.text, /· Admin/);
   assert.equal((await katie(`/households/${app.seeded.homeId}/delete`)).text.includes('Only an admin'), true);
+  assert.equal((await katie(`/households/${otherId}/delete`)).text.includes('Only an admin'), true);
+  r = await katie(`/households/${otherId}/delete`, { method: 'POST', form: { confirmName: "Lake house" } });
+  assert.equal(r.status, 409);
+  assert.equal((await katie('/households/copy')).status, 404);
+  assert.equal((await katie('/households', { method: 'POST', form: { name: 'Sneaky' } })).status, 404);
   await katie('/view-as/exit', { method: 'POST' });
-  assert.match((await katie('/households')).text, /Start a new household/);
+  page = await katie('/households');
+  assert.match(page.text, /Start a new household/);
+  assert.match(page.text, /Delete Lake House/i);
+
+  // Switching household while viewing ends View as.
+  await katie('/view-as', { method: 'POST', form: { role: 'child' } });
+  await katie('/households/switch', { method: 'POST', form: { id: otherId } });
+  assert.doesNotMatch((await katie('/')).text, /Viewing as/);
 });

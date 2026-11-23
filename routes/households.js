@@ -29,7 +29,7 @@ async function deleteCheck(req, householdId) {
     Membership.countDocuments({ userId: req.user._id, disabled: false, householdId: { $ne: home._id } }),
   ]);
   let reason = '';
-  const role = req.viewing && String(householdId) === String(req.household._id) ? req.member.role : m.role;
+  const role = req.viewing ? req.member.role : m.role; // viewing as a role: that role, in every household
   if (role !== 'admin') reason = 'Only an admin can delete a household.';
   else if (others) reason = `${others} other ${others === 1 ? 'person is' : 'people are'} still in ${home.name}. Remove them in Settings first.`;
   else if (!mine) reason = 'This is your only household, so it can’t be deleted.';
@@ -69,8 +69,8 @@ router.get('/households', requireAuth, async (req, res, next) => {
         current: String(h.householdId) === String(req.household._id),
         people: n(counts, h.householdId),
         // Leaving is blocked when you're the only person, or the only admin with others still there.
-        canLeave: res.locals.homes.length > 1 && n(counts, h.householdId) > 1 && !(h.role === 'admin' && n(admins, h.householdId) === 1),
-        canDelete: res.locals.homes.length > 1 && h.role === 'admin',
+        canLeave: !req.viewing && res.locals.homes.length > 1 && n(counts, h.householdId) > 1 && !(h.role === 'admin' && n(admins, h.householdId) === 1),
+        canDelete: !req.viewing && res.locals.homes.length > 1 && h.role === 'admin',
       })),
     });
   } catch (err) {
@@ -81,6 +81,7 @@ router.get('/households', requireAuth, async (req, res, next) => {
 router.post('/households/switch', requireAuth, async (req, res, next) => {
   try {
     if (!(await switchTo(req, req.body.id))) return res.status(404).send('Not found');
+    if (req.session.viewAs) { delete req.session.viewAs; req.session.flash = 'Switched household, so View as ended.'; }
     res.redirect(safeNext(req.body.next));
   } catch (err) {
     next(err);
@@ -100,7 +101,7 @@ router.get('/h/:id', requireAuth, async (req, res, next) => {
 // Start a new household. The person starting it is its first admin.
 router.post('/households', requireAuth, async (req, res, next) => {
   try {
-    if (!req.perms.page('households')) return res.status(404).send('Not found');
+    if (!req.perms.page('households') || req.viewing) return res.status(404).send('Not found');
     const name = String(req.body.name || '').trim().slice(0, 60);
     if (!name) {
       req.session.flash = 'Give the new household a name.';
@@ -122,14 +123,14 @@ router.post('/households', requireAuth, async (req, res, next) => {
 
 // Copy this household into a new one, choosing what comes along (admins of this one).
 router.get('/households/copy', requireAuth, (req, res) => {
-  if (req.member.role !== 'admin' || !req.perms.page('households')) return res.status(404).send('Not found');
+  if (req.viewing || req.member.role !== 'admin' || !req.perms.page('households')) return res.status(404).send('Not found');
   const parts = PARTS.filter((p) => !p.feature || req.household.features[p.feature] !== false);
   res.render('household-copy', { active: 'settings', parts, error: null, name: `${req.household.name} (copy)`.slice(0, 60), picked: parts.filter((p) => p.on).map((p) => p.key) });
 });
 
 router.post('/households/copy', requireAuth, async (req, res, next) => {
   try {
-    if (req.member.role !== 'admin' || !req.perms.page('households')) return res.status(404).send('Not found');
+    if (req.viewing || req.member.role !== 'admin' || !req.perms.page('households')) return res.status(404).send('Not found');
     const b = req.body || {};
     const allowed = PARTS.filter((p) => !p.feature || req.household.features[p.feature] !== false);
     const picked = [...new Set([].concat(b.parts || []).map(String))].filter((k) => allowed.some((p) => p.key === k));

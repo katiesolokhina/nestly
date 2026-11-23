@@ -48,8 +48,9 @@ async function requireAuth(req, res, next) {
       viewing = { role: viewAs.role, name: roleName(household, viewAs.role) };
       member.role = viewAs.role;
       member.unmarkModified('role'); // saving pins or the Today layout must never save this role
-      // The Households page, too, sees this household with the viewed role.
-      homes.forEach((h) => { if (String(h.householdId) === String(household._id)) h.role = viewAs.role; });
+      // The Households page sees EVERY household with the viewed role, so nothing there shows
+      // admin options (deleting or copying another household) while looking through it.
+      homes.forEach((h) => { h.role = viewAs.role; h.roleLabel = viewing.name; });
     }
     req.user = user;
     req.household = household;

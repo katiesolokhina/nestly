@@ -5,14 +5,14 @@
     <% rows.forEach((h) => { %>
       <div class="row">
         <span class="avatar" aria-hidden="true"><%= h.name.charAt(0).toUpperCase() %></span>
-        <div class="row-body"><span class="row-title"><%= h.name %></span><span class="row-meta"><%= h.people %> <%= h.people === 1 ? 'person' : 'people' %> · <%= h.role === 'admin' ? 'Admin' : 'Member' %></span></div>
+        <div class="row-body"><span class="row-title"><%= h.name %></span><span class="row-meta"><%= h.people %> <%= h.people === 1 ? 'person' : 'people' %> · <%= h.roleLabel || (h.role === 'admin' ? 'Admin' : 'Member') %></span></div>
         <% if (h.current) { %><span class="tag lilac">Open</span><% } else { %>
           <form method="post" action="/households/switch"><input type="hidden" name="id" value="<%= h.householdId %>"><button class="btn btn-ghost btn-sm" type="submit">Switch<span class="sr-only"> to <%= h.name %></span></button></form>
         <% } %>
       </div>
     <% }) %>
   </div>
-  <% if (canPage('households')) { %>
+  <% if (canPage('households') && !viewing) { %>
   <form class="card" method="post" action="/households">
     <h2>Start a new household</h2>
     <p class="row-meta">You’ll be its admin, and can invite people from Settings. Each household has its own lists, bills, and sections.</p>
@@ -21,7 +21,7 @@
     <% if (member.role === 'admin') { %><p class="hint center">Or <a href="/households/copy">copy <%= household.name %></a>, choosing what comes along.</p><% } %>
   </form>
   <% } %>
-  <% const leavable = rows.filter((h) => h.canLeave); if (rows.length > 1) { %>
+  <% const leavable = rows.filter((h) => h.canLeave); if (rows.length > 1 && !viewing) { %>
     <section class="card">
       <h2>Leave or delete a household</h2>
       <% if (!leavable.length) { %><p class="row-meta">To leave a household, someone else has to be there, and another admin if you’re its admin.</p><% } %>
