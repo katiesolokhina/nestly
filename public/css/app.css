@@ -668,3 +668,10 @@ details.using[open] .using-change { visibility: hidden; }
 .cook-spot-body { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
 .cook-spot-btns { display: flex; gap: 16px; }
 .cook-spot .tag-pick span { white-space: normal; }
+/* One line: Filter first, the filters that are on, then All / Low / Expiring; scrolls sideways. */
+.filter-wrap { position: relative; }
+.filter-row { position: static; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-row > * { flex: none; }
+.filter-row .chip-x { min-height: 40px; }
+.filter-panel { top: 50px; }

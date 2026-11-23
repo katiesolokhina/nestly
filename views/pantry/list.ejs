@@ -42,10 +42,8 @@
     </section>
   <% } %>
   <% const nFilters = (spot ? 1 : 0) + tags.length; %>
+  <div class="filter-wrap">
   <div class="chips filter-row" role="group" aria-label="Show">
-    <a class="chip<%= !show ? ' on' : '' %>" href="<%= urlWith({ show: '' }) %>"<%- !show ? ' aria-current="true"' : '' %>>All</a>
-    <a class="chip<%= show === 'low' ? ' on' : '' %>" href="<%= urlWith({ show: 'low' }) %>"<%- show === 'low' ? ' aria-current="true"' : '' %>><%= STATUS.low %> &amp; <%= STATUS.out.toLowerCase() %><%= lowCount ? ' (' + lowCount + ')' : '' %></a>
-    <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="<%= urlWith({ show: 'soon' }) %>"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
     <details class="filter-pop">
       <summary class="chip<%= nFilters ? ' on' : '' %>">Filter<%= nFilters ? ' · ' + nFilters : '' %> ▾</summary>
       <div class="filter-panel card">
@@ -58,13 +56,13 @@
         <% if (nFilters) { %><a class="link-btn" href="<%= urlWith({ spot: '', tags: [] }) %>">Clear filters</a><% } %>
       </div>
     </details>
+    <% if (spot) { %><a class="chip-x" href="<%= urlWith({ spot: '' }) %>" aria-label="Remove filter <%= spot %>"><%= spot %> ×</a><% } %>
+    <% tags.forEach((t) => { %><a class="chip-x" href="<%= urlWith({ tags: tags.filter((x) => x !== t) }) %>" aria-label="Remove filter <%= t %>"><%= t %> ×</a><% }) %>
+    <a class="chip<%= !show ? ' on' : '' %>" href="<%= urlWith({ show: '' }) %>"<%- !show ? ' aria-current="true"' : '' %>>All</a>
+    <a class="chip<%= show === 'low' ? ' on' : '' %>" href="<%= urlWith({ show: 'low' }) %>"<%- show === 'low' ? ' aria-current="true"' : '' %>><%= STATUS.low %> &amp; <%= STATUS.out.toLowerCase() %><%= lowCount ? ' (' + lowCount + ')' : '' %></a>
+    <a class="chip<%= show === 'soon' ? ' on' : '' %>" href="<%= urlWith({ show: 'soon' }) %>"<%- show === 'soon' ? ' aria-current="true"' : '' %>>Expiring<%= soonCount ? ' (' + soonCount + ')' : '' %></a>
   </div>
-  <% if (nFilters) { %>
-    <div class="chips active-filters" aria-label="Filters on">
-      <% if (spot) { %><a class="chip-x" href="<%= urlWith({ spot: '' }) %>" aria-label="Remove filter <%= spot %>"><%= spot %> ×</a><% } %>
-      <% tags.forEach((t) => { %><a class="chip-x" href="<%= urlWith({ tags: tags.filter((x) => x !== t) }) %>" aria-label="Remove filter <%= t %>"><%= t %> ×</a><% }) %>
-    </div>
-  <% } %>
+  </div>
   <% if (selecting) { %>
     <form class="stack" method="post" action="/s/pantry/bulk" data-bulk-form>
       <input type="hidden" name="query" value="<%= query %>">

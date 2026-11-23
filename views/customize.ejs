@@ -11,6 +11,19 @@
       </div>
     <% }) %>
   </div>
+  <% if (pantryOn) { %>
+  <form class="card stack" method="post" action="/customize">
+    <div class="field"><label for="expired">Pantry things past their date</label>
+      <select id="expired" name="expired">
+        <option value="show"<%= expired === 'show' ? ' selected' : '' %>>Show them</option>
+        <option value="week"<%= expired === 'week' ? ' selected' : '' %>>Only for a week after the date</option>
+        <option value="hide"<%= expired === 'hide' ? ' selected' : '' %>>Hide them</option>
+      </select>
+      <span class="hint">For Needs attention and Use soon. Many dates are “best by”, so older ones can just be noise. They still show in the Pantry.</span>
+    </div>
+    <button class="btn btn-primary" type="submit" name="action" value="expired">Save</button>
+  </form>
+  <% } %>
   <form method="post" action="/customize"><button class="btn btn-ghost btn-block" type="submit" name="action" value="reset">Reset to the default layout</button></form>
 </main>
 <%- include('partials/bottom') %>

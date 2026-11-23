@@ -88,7 +88,7 @@ test('custom permissions', async (t) => {
   assert.doesNotMatch((await mia('/')).text, /href="\/search"/);
   assert.match((await mia('/more')).text, /href="\/spending"/);
   assert.doesNotMatch((await mia('/')).text, /<h2>Use soon<\/h2>/);
-  assert.doesNotMatch((await mia('/customize')).text, /Use soon/);
+  assert.doesNotMatch((await mia('/customize')).text, /row-title">Use soon</);
   assert.equal((await mia('/households', { method: 'POST', form: { name: 'Mine' } })).status, 404);
 
   // Forms a role can't save don't open, and their links aren't there.
