@@ -70,6 +70,9 @@ const householdSchema = new mongoose.Schema(
     pantryShop: { type: String, enum: ['both', 'out', 'never'], default: 'both' }, // which statuses add to Shopping
     pantrySoonDays: { type: Number, min: 1, max: 30, default: 3 },
     pantryDefaultSpot: { type: String, default: '' },
+    // On Today, pantry things past their date: show | week (for a week after) | hide. Each person
+    // can choose their own in Today → Customize; this is for everyone who hasn't.
+    todayExpired: { type: String, enum: ['show', 'week', 'hide'], default: 'week' },
     // Ratings (Buy again / Never again…): the choices, in order. warn: shows as a warning on
     // scans and Shopping. Empty means the starting three.
     ratingChoices: {

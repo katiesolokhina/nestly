@@ -14,8 +14,8 @@ const membershipSchema = new mongoose.Schema(
     // This person's Today layout here, in order. Empty means the default.
     dashboard: { type: [{ _id: false, k: String, on: Boolean }], default: [] },
     // On Today (Needs attention, Use soon): pantry things past their date. show | week (only the
-    // last 7 days) | hide. Dates on packages are often "best by", so some people hide old ones.
-    todayExpired: { type: String, enum: ['show', 'week', 'hide'], default: 'show' },
+    // last 7 days) | hide, or '' for the household's setting. Dates are often "best by".
+    todayExpired: { type: String, enum: ['', 'show', 'week', 'hide'], default: '' }, // '' = the household's choice
     // Calendar feed: a private link for Google/Apple Calendar. Only a hash of it is kept.
     feedHash: { type: String, default: null },
     feed: {

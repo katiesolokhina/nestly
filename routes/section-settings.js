@@ -172,6 +172,7 @@ router.post('/settings/s/:key', async (req, res, next) => {
       h.pantryNames = { have: name(b.nameHave, 'Have'), low: name(b.nameLow, 'Low'), out: name(b.nameOut, 'Out') };
       h.pantryShop = pick(b.pantryShop, ['both', 'out', 'never'], 'both');
       h.pantrySoonDays = Number(pick(b.pantrySoonDays, [1, 2, 3, 5, 7, 14], 3));
+      if (b.todayExpired !== undefined) h.todayExpired = pick(b.todayExpired, ['show', 'week', 'hide'], 'week');
       if ('pantryDefaultSpot' in b) h.pantryDefaultSpot = pick(b.pantryDefaultSpot, ['', ...h.pantrySpots], '');
       if (b.nonFoodShown === '1') { const picked = new Set([].concat(b.nonFood || []).map(String)); h.nonFoodSpots = h.pantrySpots.filter((s) => picked.has(s)); }
       // Aisle → spot: '' means "where new items go".

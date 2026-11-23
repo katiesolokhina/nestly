@@ -15,6 +15,8 @@
   <form class="card stack" method="post" action="/customize">
     <div class="field"><label for="expired">Pantry things past their date</label>
       <select id="expired" name="expired">
+        <% const EXP = { show: 'Show them', week: 'Only for a week after the date', hide: 'Hide them' }; %>
+        <option value=""<%= !expired ? ' selected' : '' %>>Household setting (<%= EXP[houseExpired].charAt(0).toLowerCase() + EXP[houseExpired].slice(1) %>)</option>
         <option value="show"<%= expired === 'show' ? ' selected' : '' %>>Show them</option>
         <option value="week"<%= expired === 'week' ? ' selected' : '' %>>Only for a week after the date</option>
         <option value="hide"<%= expired === 'hide' ? ' selected' : '' %>>Hide them</option>

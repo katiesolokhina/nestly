@@ -30,14 +30,24 @@ test('expired pantry things on Today', async (t) => {
   const katie = client(app.base);
   await katie('/login', { method: 'POST', form: { email: 'katie@test.dev', password: PW } });
 
+  // The household starts at "for a week after the date".
   let page = await katie('/');
-  for (const n of ['Old Gelatin', 'Recent Yogurt', 'Fresh Milk']) assert.match(page.text, new RegExp(n));
-  assert.match((await katie('/customize')).text, /Pantry things past their date/);
-
-  await katie('/customize', { method: 'POST', form: { action: 'expired', expired: 'week' } });
-  page = await katie('/');
   assert.doesNotMatch(page.text, /Old Gelatin/);
   assert.match(page.text, /Recent Yogurt/);
+  assert.match(page.text, /Fresh Milk/);
+  assert.match((await katie('/customize')).text, /value="" selected>Household setting \(only for a week after the date\)/);
+  assert.match((await katie('/settings/s/pantry')).text, /name="todayExpired"/);
+
+  // Katie picks "Show them" for herself.
+  await katie('/customize', { method: 'POST', form: { action: 'expired', expired: 'show' } });
+  page = await katie('/');
+  for (const n of ['Old Gelatin', 'Recent Yogurt', 'Fresh Milk']) assert.match(page.text, new RegExp(n));
+
+  // Back to the household's, then the household hides them for everyone.
+  await katie('/customize', { method: 'POST', form: { action: 'expired', expired: '' } });
+  await katie('/settings/s/pantry', { method: 'POST', form: { pantrySoonDays: '3', todayExpired: 'hide' } });
+  page = await katie('/');
+  assert.doesNotMatch(page.text, /Old Gelatin|Recent Yogurt/);
   assert.match(page.text, /Fresh Milk/);
 
   await katie('/customize', { method: 'POST', form: { action: 'expired', expired: 'hide' } });

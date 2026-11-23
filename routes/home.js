@@ -23,14 +23,14 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 router.get('/customize', requireAuth, (req, res) => {
-  res.render('customize', { active: 'today', rows: layoutFor(req.member, req.view), expired: req.member.todayExpired || 'show', pantryOn: req.sees('pantry') });
+  res.render('customize', { active: 'today', rows: layoutFor(req.member, req.view), expired: req.member.todayExpired || '', houseExpired: req.view.todayExpired || 'week', pantryOn: req.sees('pantry') });
 });
 
 router.post('/customize', requireAuth, async (req, res, next) => {
   try {
     const rows = layoutFor(req.member, req.view);
     const i = rows.findIndex((r) => r.k === req.body.k);
-    if (req.body.action === 'expired') { if (['show', 'week', 'hide'].includes(req.body.expired)) req.member.todayExpired = req.body.expired; }
+    if (req.body.action === 'expired') { if (['', 'show', 'week', 'hide'].includes(req.body.expired)) req.member.todayExpired = req.body.expired; }
     else if (req.body.action === 'reset') req.member.dashboard = [];
     else if (i >= 0) {
       if (req.body.action === 'toggle') rows[i].on = !rows[i].on;
