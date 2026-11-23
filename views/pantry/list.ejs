@@ -101,10 +101,10 @@
       </div>
     </form>
   <% } else { %>
-  <div class="card" data-find-card>
-    <p class="muted small center" data-find-none hidden>Nothing here matches.</p><% if (!groups.length) { %><p class="muted small center"><%= show || spot || q || tags.length ? 'Nothing here matches.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
+  <div class="stack spot-cards" data-find-card>
+    <p class="card muted small center" data-find-none hidden>Nothing here matches.</p><% if (!groups.length) { %><p class="card muted small center"><%= show || spot || q || tags.length ? 'Nothing here matches.' : 'Nothing in the pantry yet. Add what you keep at home.' %></p><% } %>
     <% groups.forEach((g) => { %>
-      <div data-find-group>
+      <section class="card spot-card" data-find-group aria-label="<%= g.name %>">
         <p class="aisle"><%= g.name %></p>
         <% g.items.forEach((i) => { %>
           <div class="swipe" data-swipe id="p-<%= i._id %>" data-find-row data-name="<%= i.name.toLowerCase() %>" data-tags="<%= (i.tags || []).join('|').toLowerCase() %>">
@@ -120,7 +120,7 @@
             </div>
           </div>
         <% }) %>
-      </div>
+      </section>
     <% }) %>
   </div>
   <% } %>

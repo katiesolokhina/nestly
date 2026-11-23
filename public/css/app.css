@@ -652,3 +652,19 @@ details.using[open] .using-change { visibility: hidden; }
 .cook-card meter::-moz-meter-bar { background: var(--primary); border-radius: 4px; }
 .uses-tag { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 10px; background: var(--r-yellow-bg); color: var(--r-yellow); }
 .cook-card .link-btn { align-self: flex-start; }
+.spot-cards { gap: 12px; }
+.spot-card { padding-top: 6px; padding-bottom: 6px; }
+.spot-card > .aisle { margin-top: 8px; }
+[data-find-none][hidden] { display: none; }
+.cook-spot { border-top: 1px solid var(--off); }
+.cook-spot:first-of-type { border-top: 0; }
+.cook-spot > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; }
+.cook-spot > summary::-webkit-details-marker { display: none; }
+.cook-spot-name { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.cook-spot-count { font-size: 13px; color: var(--ink); font-weight: 600; }
+.cook-spot-soon { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--r-yellow-bg); color: var(--r-yellow); }
+.cook-spot-chev { margin-left: auto; color: var(--muted); transition: transform .15s; }
+.cook-spot[open] .cook-spot-chev { transform: rotate(180deg); }
+.cook-spot-body { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+.cook-spot-btns { display: flex; gap: 16px; }
+.cook-spot .tag-pick span { white-space: normal; }

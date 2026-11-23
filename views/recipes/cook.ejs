@@ -22,11 +22,20 @@
         <span class="link-btn using-change" aria-hidden="true">Change</span>
       </summary>
       <div class="stack using-body">
-        <% spots.forEach((g) => { %>
-          <div data-cook-spot>
-            <div class="row-h"><p class="aisle"><%= g.name %></p><button class="link-btn" type="button" data-cook-all>All / none<span class="sr-only"> (<%= g.name %>)</span></button></div>
-            <div class="tag-picks"><% g.items.forEach((i) => { %><label class="tag-pick<%= i.soon ? ' soon' : '' %>"><input type="checkbox" name="use" value="<%= i.key %>"<%= picked.has(i.key) ? ' checked' : '' %>><span><%= i.name %><%= i.soon ? ' · ' + i.expText.toLowerCase() : '' %></span></label><% }) %></div>
-          </div>
+        <p class="hint">Tap a place to see what’s in it. Untick anything you don’t want to use.</p>
+        <% spots.forEach((g) => { const on = g.items.filter((i) => picked.has(i.key)).length; const soonHere = g.items.filter((i) => i.soon).length; %>
+          <details class="cook-spot" data-cook-spot>
+            <summary>
+              <span class="cook-spot-name"><%= g.name %></span>
+              <span class="cook-spot-count" data-cook-count><%= on === g.items.length ? 'All ' + on : on ? on + ' of ' + g.items.length : 'None' %></span>
+              <% if (soonHere) { %><span class="cook-spot-soon"><%= soonHere %> use soon</span><% } %>
+              <span class="cook-spot-chev" aria-hidden="true">▾</span>
+            </summary>
+            <div class="cook-spot-body">
+              <div class="cook-spot-btns"><button class="link-btn" type="button" data-cook-set="all">All<span class="sr-only"> in <%= g.name %></span></button><button class="link-btn" type="button" data-cook-set="none">None<span class="sr-only"> in <%= g.name %></span></button></div>
+              <div class="tag-picks"><% g.items.forEach((i) => { %><label class="tag-pick<%= i.soon ? ' soon' : '' %>"><input type="checkbox" name="use" value="<%= i.key %>"<%= picked.has(i.key) ? ' checked' : '' %>><span><%= i.name %><%= i.soon ? ' · ' + i.expText.toLowerCase() : '' %></span></label><% }) %></div>
+            </div>
+          </details>
         <% }) %>
         <div class="field"><label for="also">Also have <span class="muted">(not in the pantry, comma between)</span></label><input id="also" name="also" type="text" maxlength="300" placeholder="Rice, eggs" value="<%= also %>"></div>
         <button class="btn btn-ghost" type="submit">Update</button>

@@ -2,6 +2,7 @@
 // with a one-time token the server uses to ignore a repeat that still gets through; (2) an end
 // date can't be picked before its start date.
 (function () {
+  const saved = new WeakMap(); // a locked button's own content (text and any hidden label), to put back
   const token = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const skip = (form) => form.method.toLowerCase() !== 'post' || form.hasAttribute('data-quick') || form.hasAttribute('data-no-lock');
 
@@ -22,7 +23,7 @@
     // Disable after this tick, so the clicked button's name/value still goes with the form.
     setTimeout(() => {
       form.querySelectorAll('button[type="submit"], button:not([type])').forEach((b) => { b.disabled = true; });
-      if (btn && btn.classList.contains('btn') && !btn.dataset.label) { btn.dataset.label = btn.textContent; btn.textContent = 'Saving…'; }
+      if (btn && btn.classList.contains('btn') && !saved.has(btn)) { saved.set(btn, [...btn.childNodes]); btn.textContent = 'Saving…'; }
     }, 0);
   });
 
@@ -31,7 +32,7 @@
     if (!e.persisted) return;
     document.querySelectorAll('form[data-sending="1"]').forEach((form) => {
       delete form.dataset.sending;
-      form.querySelectorAll('button').forEach((b) => { b.disabled = false; if (b.dataset.label) { b.textContent = b.dataset.label; delete b.dataset.label; } });
+      form.querySelectorAll('button').forEach((b) => { b.disabled = false; if (saved.has(b)) { b.replaceChildren(...saved.get(b)); saved.delete(b); } });
       prepare(form);
     });
   });
