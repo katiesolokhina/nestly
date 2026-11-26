@@ -216,7 +216,11 @@ async function saveStore(req, name, store) {
 // The saved item's side of a pantry item: its kinds and whether it's a staple.
 async function savedBits(req, item) {
   const { cat, kinds } = await kindsFor(req.user, item.key);
-  return { kinds, staple: item.staple !== undefined ? item.staple : Boolean(cat && cat.staple), showKinds: req.household.showKinds !== false };
+  // Each photo's fingerprint, so the main photo picker shows an identical picture only once.
+  const ids = [item.photoId, ...kinds.map((k) => k.photoId)].filter((v) => v && mongoose.isValidObjectId(String(v)));
+  const ups = ids.length ? await Upload.find({ _id: { $in: ids }, householdId: req.user.householdId }, { hash: 1 }).lean() : [];
+  const photoHashes = Object.fromEntries(ups.map((u) => [String(u._id), u.hash || String(u._id)]));
+  return { kinds, photoHashes, staple: item.staple !== undefined ? item.staple : Boolean(cat && cat.staple), showKinds: req.household.showKinds !== false };
 }
 // Saves the staple box, and kind renames, removals and a typed-in code. Returns a note, if any.
 async function saveSavedBits(req, item) {
@@ -243,7 +247,7 @@ async function applyPhoto(req, item) {
   }
   if ((req.body || {}).removePhoto === 'on') item.photoId = null;
   const f = (req.files || {}).photo;
-  if (f) item.photoId = (await saveUpload(req.user, f[0], { isPrivate: false, imagesOnly: true }))._id;
+  if (f) item.photoId = (await saveUpload(req.user, f[0], { isPrivate: false, imagesOnly: true, reuse: true }))._id;
 }
 
 // Adding: a short form with the use-by date and how many, before anything is saved. If the same
@@ -322,7 +326,7 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
       if ((req.files || {}).photo) await applyPhoto(req, item);
       else if (b.useProductPhoto === 'on' && (isNew || !item.photoId)) {
         const file = await productPhoto(b.code);
-        if (file) item.photoId = (await saveUpload(req.user, file, { isPrivate: false, imagesOnly: true }))._id;
+        if (file) item.photoId = (await saveUpload(req.user, file, { isPrivate: false, imagesOnly: true, reuse: true }))._id;
       }
     } catch (e) {
       if (!e.userFacing) throw e;
@@ -339,11 +343,14 @@ router.post('/s/pantry/add', withPhoto, async (req, res, next) => {
     await addToCatalog(req.user, req.household, [item.name]);
     await saveStore(req, item.name, (req.body || {}).store);
     if (scanned) {
+      // Scanned before kinds existed: its barcode is on the saved item, but not as a kind yet.
+      const before = await CatalogItem.findOne({ householdId: req.user.householdId, key: item.key }, { barcodes: 1, kinds: 1 }).lean();
+      const wasBare = Boolean(before && (before.barcodes || []).includes(scanned) && !(before.kinds || []).some((k) => k.code === scanned));
       await remember(req.user.householdId, scanned, item.key, b.brand, { name: item.name, kindName: String(b.kindName || '').trim(), by: req.user.name });
       // The kind's photo: the one just saved from the scan, else fetched once.
       try {
         if (b.useProductPhoto === 'on' && item.photoId) await CatalogItem.updateOne({ householdId: req.user.householdId, key: item.key, 'kinds.code': scanned, 'kinds.photoId': null }, { $set: { 'kinds.$.photoId': item.photoId } });
-        else await fetchKindPhoto(req.user, item.key, scanned);
+        else await fetchKindPhoto(req.user, item.key, scanned, { wasBare });
       } catch { /* no photo is fine */ }
     }
     // From "Put away": that bought item is done.

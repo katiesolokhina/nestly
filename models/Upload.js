@@ -10,8 +10,10 @@ const uploadSchema = new mongoose.Schema(
     name: { type: String, required: true },
     type: { type: String, required: true },
     size: { type: Number, required: true },
+    hash: { type: String, default: '' }, // sha256 of the file: the same picture saved twice is found and reused
   },
   { timestamps: true }
 );
+uploadSchema.index({ householdId: 1, hash: 1 });
 
 module.exports = mongoose.model('Upload', uploadSchema);

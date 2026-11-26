@@ -8,11 +8,14 @@ const Household = require('../models/Household');
 const User = require('../models/User');
 const PantryItem = require('../models/PantryItem');
 const CatalogItem = require('../models/CatalogItem');
+const Upload = require('../models/Upload');
 
 const PW = 'correct horse';
 const SUN = '0057836012004';
 const NS = '0068345700124';
+const COCOA = '0074713000107';
 // A 1×1 PNG.
+const RED = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4XmM4IScHAAK2AQXNY+AbAAAAAElFTkSuQmCC', 'base64');
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 
 test('typed barcodes, kind photos, main photo', async (t) => {
@@ -43,7 +46,7 @@ test('typed barcodes, kind photos, main photo', async (t) => {
   const save = (extra, files = []) => {
     const fd = new FormData();
     [...base, ...extra].forEach(([k, v]) => fd.append(k, v));
-    files.forEach(([k, name]) => fd.append(k, new Blob([PNG], { type: 'image/png' }), name));
+    files.forEach(([k, name, buf = PNG]) => fd.append(k, new Blob([buf], { type: 'image/png' }), name));
     return katie(`/s/pantry/${id}`, { method: 'POST', formData: fd });
   };
 
@@ -52,8 +55,13 @@ test('typed barcodes, kind photos, main photo', async (t) => {
   let c = await cat();
   assert.deepEqual(c.kinds.map((k) => k.name), ['Nature Sweet', 'Sunset']);
 
-  // Each kind can get its own photo; the edit page then offers them as the main photo.
+  // The same picture twice is saved once (so it can't show twice in the picker).
   await save([], [[`kindPhoto_${NS}`, 'ns.png'], [`kindPhoto_${SUN}`, 'sun.png']]);
+  c = await cat();
+  assert.equal(String(c.kinds[0].photoId), String(c.kinds[1].photoId), 'identical photo reused');
+  assert.equal(await withDb(app.uri, () => Upload.countDocuments({})), 1);
+  // Each kind can get its own photo; the edit page then offers them as the main photo.
+  await save([], [[`kindPhoto_${SUN}`, 'sun.png', RED]]);
   c = await cat();
   const [pNs, pSun] = c.kinds.map((k) => String(k.photoId || ''));
   assert.ok(pNs && pSun && pNs !== pSun, 'both kinds have photos');
@@ -80,4 +88,19 @@ test('typed barcodes, kind photos, main photo', async (t) => {
   r = await katie('/s/pantry?q=0099999999998');
   assert.match(r.headers.get('location'), /found=Not\+found/);
   assert.match((await katie('/s/pantry')).text, /data-find-code hidden/);
+
+  // Scanned before kinds: the barcode's kind takes the main photo instead of downloading a copy.
+  const old = await withDb(app.uri, async () => {
+    const h = (await PantryItem.findById(id).lean()).householdId;
+    const up = await Upload.create({ householdId: h, file: 'cocoa.png', name: 'cocoa.png', type: 'image/png', size: 1 });
+    const it = await PantryItem.create({ householdId: h, byName: 'Katie', status: 'have', name: 'Cocoa', key: 'cocoa', spot: 'Fridge', photoId: up._id, batches: [{ count: 1, expires: '' }] });
+    await CatalogItem.create({ householdId: h, name: 'Cocoa', key: 'cocoa', barcodes: [COCOA] });
+    return { id: String(it._id), photo: String(up._id) };
+  });
+  await katie('/s/pantry/add', { method: 'POST', form: { name: 'Cocoa', spot: 'Fridge', count: '1', expires: '', code: COCOA, brand: 'Ghirardelli', kindName: 'Ghirardelli', choice: `add:${old.id}` } });
+  const cocoa = await withDb(app.uri, () => CatalogItem.findOne({ key: 'cocoa' }).lean());
+  assert.equal(cocoa.kinds[0].name, 'Ghirardelli');
+  assert.equal(String(cocoa.kinds[0].photoId), old.photo, 'the main photo, not a second copy');
+  page = await katie(`/s/pantry/${old.id}/edit`);
+  assert.doesNotMatch(page.text, /name="mainPhoto"/, 'one photo: no picker');
 });

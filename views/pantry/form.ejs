@@ -30,8 +30,9 @@
     </fieldset>
     <div class="field"><label for="amount">Each one <span class="muted">(optional)</span></label><input id="amount" name="amount" type="text" maxlength="40" placeholder="1 gallon, 16 oz" value="<%= item.amount %>"></div>
     <%- include('tag-picks', { tags: item.tags }) %>
-    <% const mainNow = photo ? String(photo._id) : ''; const choices = mainNow ? [{ id: mainNow, label: ((kinds || []).find((k) => k.photoId === mainNow) || {}).name || 'Current photo' }] : [];
-       if (showKinds && item._id) (kinds || []).forEach((k) => { if (k.photoId && !choices.some((c) => c.id === k.photoId)) choices.push({ id: k.photoId, label: k.name || 'Unnamed' }); }); %>
+    <% const hashes = typeof photoHashes !== 'undefined' ? photoHashes : {}; const same = (a) => hashes[a] || a;
+       const mainNow = photo ? String(photo._id) : ''; const choices = mainNow ? [{ id: mainNow, label: ((kinds || []).find((k) => k.photoId && same(k.photoId) === same(mainNow)) || {}).name || 'Current photo' }] : [];
+       if (showKinds && item._id) (kinds || []).forEach((k) => { if (k.photoId && !choices.some((c) => same(c.id) === same(k.photoId))) choices.push({ id: k.photoId, label: k.name || 'Unnamed' }); }); %>
     <% if (choices.length > 1) { %>
       <fieldset class="group">
         <legend>Main photo <span class="muted small">· shows on the pantry list, Shopping and search</span></legend>
