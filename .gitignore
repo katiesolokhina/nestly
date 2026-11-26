@@ -6,3 +6,4 @@ logs/
 backups/
 uploads/*
 !uploads/.gitkeep
+photo-dupes.html
