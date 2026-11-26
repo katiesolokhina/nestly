@@ -70,7 +70,8 @@ async function usedAnywhere(id) {
   console.log(`${apply ? "Fingerprinted" : "Would fingerprint"} ${hashed} older file(s)${missing ? `; ${missing} had no file on disk (left alone)` : ''}.`);
 
   // 2. Identical shared photos in a household: keep the oldest, point everything at it.
-  const all = await Upload.find({ private: false }).sort({ createdAt: 1 }).lean();
+  // Photos only: PDFs and other files (receipts, Info attachments) are left alone.
+  const all = await Upload.find({ private: false, type: /^image\// }).sort({ createdAt: 1 }).lean();
   const fresh = apply ? null : new Map((await Upload.find({ $or: [{ hash: '' }, { hash: { $exists: false } }] }).lean()).map((u) => [String(u._id), u]));
   const groups = new Map();
   for (const u of all) {
@@ -82,6 +83,13 @@ async function usedAnywhere(id) {
     const k = `${u.householdId}:${hash}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(u);
+  }
+  // Which copy stays: the one in use (the most uses wins), else the oldest. Leftover copies
+  // nothing points to are the ones that go.
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    for (const u of list) u.uses = await usedBy(u._id);
+    list.sort((a, b) => b.uses.length - a.uses.length || new Date(a.createdAt) - new Date(b.createdAt));
   }
   let repointed = 0;
   let deleted = 0;
@@ -96,8 +104,8 @@ async function usedAnywhere(id) {
       for (const [i, u] of list.entries()) {
         let img = '<div class="none">File missing</div>';
         try { img = `<img src="data:${esc(u.type)};base64,${(await fs.readFile(filePath(u))).toString('base64')}" alt="">`; } catch { /* missing */ }
-        const uses = await usedBy(u._id);
-        cards.push(`<div class="card${i === 0 ? ' keep' : ''}">${img}<b>${i === 0 ? 'Kept' : 'Copy → merged into the kept one'}</b>`
+        const uses = u.uses;
+        cards.push(`<div class="card${i === 0 ? ' keep' : ''}">${img}<b>${i === 0 ? 'Kept' : uses.length ? 'Copy: switches to the kept one, then deleted' : 'Leftover copy: deleted'}</b>`
           + `<small>${esc(u._id)} · ${esc(new Date(u.createdAt).toLocaleString('en-US'))} · ${Math.round(u.size / 1024)} KB</small>`
           + `<ul>${uses.length ? uses.map((x) => `<li>${esc(x)}</li>`).join('') : '<li class="muted">Not used by anything</li>'}</ul></div>`);
       }
