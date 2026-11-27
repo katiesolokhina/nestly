@@ -12,20 +12,36 @@
     <% if (item.ingredients.length) { %>
       <div class="scale-bar">
         <div class="chips" role="group" aria-label="Scale the recipe">
-          <% [0.5, 1, 2, 3].forEach((f) => { %><a class="chip<%= scale.factor === f ? ' on' : '' %>" href="/s/recipes/<%= item._id %><%= f === 1 ? '' : '?x=' + f %>"<%- scale.factor === f ? ' aria-current="true"' : '' %>><%= f === 0.5 ? '½' : f %>×</a><% }) %>
+          <% [0.5, 1, 2, 3].forEach((f) => { %><a class="chip<%= scale.factor === f ? ' on' : '' %>" href="<%= units.here({ x: f === 1 ? '' : String(f), serves: '' }) %>"<%- scale.factor === f ? ' aria-current="true"' : '' %>><%= f === 0.5 ? '½' : f %>×</a><% }) %>
         </div>
         <% if (scale.base) { %>
           <form class="scale-serves" method="get" action="/s/recipes/<%= item._id %>">
             <label for="serves">Serves</label>
             <input id="serves" name="serves" type="number" min="1" max="200" step="1" inputmode="numeric" value="<%= scale.serves %>">
+            <% ['u', 'pct', 'oz'].forEach((k) => { if (units.keep[k]) { %><input type="hidden" name="<%= k %>" value="<%= units.keep[k] %>"><% } }) %>
             <button class="btn btn-ghost" type="submit">Scale</button>
           </form>
         <% } %>
       </div>
       <% if (scale.label) { %><p class="notice" role="status">Scaled <%= scale.label %><%= scale.serves ? ' to serve ' + scale.serves : '' %>. Times and pan sizes in the steps aren’t changed.</p><% } %>
+      <div class="units-bar">
+        <span class="units-label" id="units-label">Units</span>
+        <div class="chips" role="group" aria-labelledby="units-label">
+          <% [['', 'As written'], ['ml', 'Metric (ml)'], ['g', 'Grams (scale)'], ['us', 'US cups']].forEach(([m, label]) => { %><a class="chip<%= units.u === m ? ' on' : '' %>" href="<%= units.here({ u: m }) %>"<%- units.u === m ? ' aria-current="true"' : '' %>><%= label %></a><% }) %>
+        </div>
+        <% const hints = { '': '', ml: 'Cups and spoons become ml for a metric measuring cup. Weights become grams.', g: 'Everything Nestly knows the weight of becomes grams, for a kitchen scale.', us: 'Metric amounts become cups, spoons and oz.' }; %>
+        <% if (hints[units.u]) { %><p class="hint"><%= hints[units.u] %> <a href="/s/recipes/convert">Converter</a></p><% } %>
+        <% if (units.canPct) { %><a class="chip<%= units.pctOn ? ' on' : '' %>" href="<%= units.here({ pct: units.pctOn ? '' : '1' }) %>" aria-pressed="<%= units.pctOn %>">Baker’s %</a><% } %>
+      </div>
     <% } %>
     <% if (!item.ingredients.length) { %><p class="muted small">None listed.</p><% } %>
-    <ul class="ing-list"><% item.ingredients.forEach((i) => { %><li><% if (i.qty) { %><strong><%= scale.qty(i.qty) %></strong> <% } %><%= ingredientText(i) %></li><% }) %></ul>
+    <ul class="ing-list<%= units.pctOn && units.canPct ? ' with-pct' : '' %>"><% units.lines.forEach((l) => { %><li>
+      <span class="ing-line"><span><% if (l.shown) { %><strong><%= l.shown %></strong> <% } %><%= l.name %></span><% if (units.pctOn && units.canPct) { %><span class="ing-pct<%= l.flour ? ' flour' : '' %>"><%= l.pct == null ? '—' : l.pct + '%' %></span><% } %></span>
+      <% if (l.changed) { %><span class="ing-was">Recipe says <%= l.written %></span><% } %>
+      <% if (l.oz) { %><span class="ing-was">Read as <%= l.oz === 'fl' ? 'fl oz (a liquid)' : 'weight oz' %>. <a href="<%= units.flipLink(l.n) %>"><%= l.oz === 'fl' ? 'It’s weight' : 'It’s fl oz' %></a></span><% } %>
+    </li><% }) %></ul>
+    <% if (units.u && units.u !== 'us') { %><p class="hint">Grams use King Arthur Baking’s weight per cup (flour 120 g, sugar 198 g, butter 227 g). Ones Nestly doesn’t know stay as written.</p><% } %>
+    <% if (units.pctOn && units.canPct) { %><p class="hint">Baker’s %: each ingredient’s weight as a share of all the flour (100%). Eggs count as 50 g each.</p><% } %>
   </section>
   <% if (item.steps.length) { %>
     <section class="card" aria-labelledby="steps">

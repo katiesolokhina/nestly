@@ -1,0 +1,45 @@
+<%- include('../partials/top', { title: 'Convert' }) %>
+<main class="stack">
+  <div class="head"><div><h1>Convert</h1><p class="sub">Units and baker’s %. Nothing here saves.</p></div><a class="link-btn" href="/s/recipes">Back</a></div>
+
+  <section class="card" aria-labelledby="conv-h">
+    <h2 id="conv-h">Units</h2>
+    <form class="stack" method="get" action="/s/recipes/convert">
+      <div class="fields">
+        <div class="field"><label for="amt">Amount</label><input id="amt" name="amt" type="text" inputmode="decimal" maxlength="12" value="<%= conv.amt %>"></div>
+        <div class="field"><label for="from">From</label><select id="from" name="from"><% units.forEach((u) => { %><option<%= conv.from === u ? ' selected' : '' %>><%= u %></option><% }) %></select></div>
+      </div>
+      <div class="fields">
+        <div class="field"><label for="to">To</label><select id="to" name="to"><% units.forEach((u) => { %><option<%= conv.to === u ? ' selected' : '' %>><%= u %></option><% }) %></select></div>
+        <div class="field"><label for="ing">Ingredient</label><select id="ing" name="ing"><% ingredients.forEach((i) => { %><option<%= conv.ing === i ? ' selected' : '' %>><%= i %></option><% }) %></select></div>
+      </div>
+      <span class="hint">The ingredient only matters between cups or spoons and weights.</span>
+      <% ['flour', ...baker.rows.flatMap((r) => [`b${r.i}`, `p${r.i}`])].forEach((k) => { const v = k === 'flour' ? baker.flour : (k[0] === 'b' ? baker.rows[k.slice(1)].name : baker.rows[k.slice(1)].pct); if (v) { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } }) %>
+      <button class="btn btn-primary" type="submit">Convert</button>
+    </form>
+    <div class="convert-result<%= conv.result ? '' : ' warn' %>" role="status">
+      <% if (conv.result) { %><strong><%= conv.amt %> <%= conv.fromSaid %> = <%= conv.result %></strong><% } %>
+      <span><%= conv.rule %></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="baker-h">
+    <h2 id="baker-h">Baker’s % calculator</h2>
+    <p class="hint">Flour is 100%. Set the flour weight and each %, and get the grams. Good for bread and pizza dough.</p>
+    <form class="stack" method="get" action="/s/recipes/convert">
+      <% ['amt', 'from', 'to', 'ing'].forEach((k) => { %><input type="hidden" name="<%= k %>" value="<%= conv[k] %>"><% }) %>
+      <div class="field"><label for="flour">Flour (g)</label><input id="flour" name="flour" type="text" inputmode="decimal" maxlength="8" value="<%= baker.flour %>"></div>
+      <div class="baker-rows">
+        <span class="baker-h">Ingredient</span><span class="baker-h">%</span><span class="baker-h">Grams</span>
+        <% baker.rows.forEach((r) => { %>
+          <input name="b<%= r.i %>" type="text" maxlength="40" value="<%= r.name %>" placeholder="Another one" aria-label="Ingredient <%= r.i + 1 %>">
+          <input name="p<%= r.i %>" type="text" inputmode="decimal" maxlength="8" value="<%= r.pct %>" aria-label="<%= r.name || 'Ingredient ' + (r.i + 1) %> percent">
+          <strong class="baker-g"><%= r.g ? r.g + ' g' : '' %></strong>
+        <% }) %>
+      </div>
+      <p class="hint">Total dough: <strong><%= baker.total %> g</strong></p>
+      <button class="btn btn-primary" type="submit">Calculate</button>
+    </form>
+  </section>
+</main>
+<%- include('../partials/bottom') %>

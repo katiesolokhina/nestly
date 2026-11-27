@@ -11,6 +11,7 @@ const { parseFiles, saveUpload } = require('../lib/uploads');
 const { addToCatalog } = require('../lib/catalog');
 const { itemName, ingredientText, splitIngredient, BEFORE } = require('../lib/ingredients');
 const { scaleQty, servingsNum, format } = require('../lib/scale');
+const { convertQty, convertAmount, pretty, isFlour, MODES, PICK_UNITS, INGREDIENTS } = require('../lib/convert');
 const { importFromLink, fetchPhoto, parsePasted, socialOf } = require('../lib/recipe-import');
 
 const router = express.Router();
@@ -188,6 +189,31 @@ router.post('/s/recipes', withPhoto, async (req, res, next) => {
   }
 });
 
+// ---------- Converter (a calculator: nothing saves) ----------
+router.get('/s/recipes/convert', (req, res) => {
+  const q = req.query;
+  const pick = (v, list, d) => (list.includes(v) ? v : d);
+  const conv = { amt: String(q.amt ?? '2').slice(0, 12), from: pick(q.from, PICK_UNITS, 'cup'), to: pick(q.to, PICK_UNITS, 'g'), ing: pick(q.ing, INGREDIENTS, 'all-purpose flour') };
+  const out = convertAmount(parseFloat(String(conv.amt).replace(',', '.')), conv.from, conv.to, conv.ing);
+  const say = (n, u) => (u === 'cup' && Number(n) !== 1 ? 'cups' : u);
+  conv.result = out.error ? null : `${pretty(out.value)} ${say(pretty(out.value), conv.to)}`;
+  conv.fromSaid = say(parseFloat(conv.amt), conv.from);
+  conv.rule = out.error || out.rule;
+  // Baker's %: flour weight, then up to five other ingredients as a % of it.
+  const DEF = [['Water', '65'], ['Salt', '2'], ['Instant yeast', '1'], ['Olive oil', '3'], ['', '']];
+  const fresh = !('flour' in q);
+  const flour = Math.max(0, Math.min(100000, parseFloat(fresh ? '500' : q.flour) || 0));
+  let total = flour;
+  const rows = DEF.map(([n, p], i) => {
+    const name = String(fresh ? n : (q[`b${i}`] || '')).slice(0, 40);
+    const pct = String(fresh ? p : (q[`p${i}`] || '')).slice(0, 8);
+    const g = (flour * (parseFloat(pct) || 0)) / 100;
+    total += g;
+    return { i, name, pct, g: pct ? pretty(g) : '' };
+  });
+  res.render('recipes/convert', { active: 'recipes', conv, units: PICK_UNITS, ingredients: INGREDIENTS, baker: { flour: fresh ? '500' : String(q.flour || '').slice(0, 8), rows, total: pretty(total) } });
+});
+
 // ---------- One recipe ----------
 router.get('/s/recipes/:id', async (req, res, next) => {
   try {
@@ -203,7 +229,27 @@ router.get('/s/recipes/:id', async (req, res, next) => {
     let factor = base && serves > 0 && serves <= 200 ? serves / base : x > 0 && x <= 20 ? x : 1;
     factor = Math.round(factor * 1000) / 1000;
     const scale = { factor, base, serves: base ? Math.round(base * factor * 10) / 10 : null, label: factor === 1 ? '' : `${format(factor)}×`, qty: (q) => scaleQty(q, factor) };
-    res.render('recipes/show', { active: 'recipes', item, photo, source, ingredientText, scale, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
+    // Units: ?u=ml|g|us converts every line (back to as written on the next visit); ?pct=1 adds
+    // baker's %; ?oz=3,5 reads those lines' plain "oz" the other way (weight vs fl oz).
+    const u = MODES.includes(req.query.u) ? req.query.u : '';
+    const pctOn = req.query.pct === '1';
+    const flips = new Set(String(req.query.oz || '').split(',').filter((v) => /^\d{1,3}$/.test(v)).map(Number));
+    const lines = item.ingredients.map((ing, n) => {
+      const name = ingredientText(ing);
+      const c = convertQty(ing.qty, factor, u, `${ing.type || ''} ${ing.name || ''}`, { flipOz: flips.has(n), egg: /\beggs?\b/i.test(ing.name || '') && !/\b(whites?|yolks?)\b/i.test(ing.name || '') });
+      return { n, name, written: ing.qty ? scale.qty(ing.qty) : '', shown: c.changed ? c.text : (ing.qty ? scale.qty(ing.qty) : ''), changed: c.changed, oz: u && u !== 'us' ? c.oz : null, grams: c.grams, flour: isFlour(name) };
+    });
+    // Baker's %: every flour together is 100%.
+    const flourG = lines.filter((l) => l.flour && l.grams != null).reduce((t, l) => t + l.grams, 0);
+    lines.forEach((l) => { l.pct = flourG && l.grams != null ? Math.round((l.grams / flourG) * 1000) / 10 : null; });
+    const keep = { x: req.query.serves ? '' : (factor === 1 ? '' : String(factor)), serves: req.query.serves && base ? String(scale.serves) : '', u, pct: pctOn ? '1' : '', oz: [...flips].join(',') };
+    const here = (over = {}) => {
+      const q = new URLSearchParams(Object.entries({ ...keep, ...over }).filter(([, v]) => v !== '' && v != null));
+      return `/s/recipes/${item._id}${q.toString() ? `?${q}` : ''}`;
+    };
+    const flipLink = (n) => here({ oz: [...(flips.has(n) ? [...flips].filter((v) => v !== n) : [...flips, n])].join(',') });
+    const units = { u, pctOn, canPct: flourG > 0, lines, here, flipLink, keep };
+    res.render('recipes/show', { active: 'recipes', item, photo, source, ingredientText, scale, units, mealsOn: req.perms.level('meals') === 'edit', shoppingOn: req.perms.level('shopping') === 'edit' });
   } catch (err) {
     next(err);
   }

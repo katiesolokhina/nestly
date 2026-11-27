@@ -4,6 +4,7 @@
   <div class="btn-row recipe-actions">
     <% if (can('recipes', 'cook')) { %><a class="btn btn-primary" href="/s/recipes/cook">What can I cook?</a><% } %>
     <% if (can('recipes', 'add')) { %><a class="btn btn-ghost" href="/s/recipes/import">Import</a><% } %>
+    <a class="btn btn-ghost" href="/s/recipes/convert">Convert</a>
   </div>
   <form class="add" method="get" action="/s/recipes" role="search">
     <% if (category) { %><input type="hidden" name="category" value="<%= category %>"><% } %><% if (tag) { %><input type="hidden" name="tag" value="<%= tag %>"><% } %>
